@@ -58,10 +58,13 @@ jobs:
       - name: Tests
         run: .venv/bin/python -m pytest -q
       - name: Analyst agent tests, on the finance warehouse and the ads demo (no model is called)
+        # Its own environment: installed into .venv on top of dbt, the analyst's pins pull in a
+        # protobuf that dbt cannot run with, and the drills' scheduled runs then fail.
         run: |
-          .venv/bin/pip install -q -r analyst/requirements.txt
-          .venv/bin/python -m analyst.ads.simulate --admin-dsn "host=localhost dbname=postgres user=odoo"
-          ANALYST_TESTS=1 ANALYST_TESTS_NEED_DB=1 .venv/bin/python -m pytest -q analyst
+          python -m venv .venv-analyst
+          .venv-analyst/bin/pip install -q -r requirements.txt -r analyst/requirements.txt
+          .venv-analyst/bin/python -m analyst.ads.simulate --admin-dsn "host=localhost dbname=postgres user=odoo"
+          ANALYST_TESTS=1 ANALYST_TESTS_NEED_DB=1 .venv-analyst/bin/python -m pytest -q analyst
       - name: Monitors
         run: .venv/bin/python -m edp.cli monitor
       - name: Failure drills
