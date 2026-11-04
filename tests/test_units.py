@@ -65,3 +65,13 @@ def test_custom_fields_are_loaded_too():
     present = {**{f: True for f in SOURCES["account.move"]}, "x_po_number": True, "x_computed": False}
     got = _fields(present, "account.move")
     assert "x_po_number" in got and "x_computed" not in got
+
+
+def test_query_refuses_unsafe_server_functions_however_written():
+    from edp.ask import unsafe_function
+    assert unsafe_function("select set_config('role', 'odoo', true)") == "set_config"
+    assert unsafe_function('select "set_config"(\'role\', \'odoo\', true)') == "set_config"
+    assert unsafe_function("select pg_catalog.set_config/* x */('role', 'odoo', true)") == "set_config"
+    assert unsafe_function("select query_to_xml('select 1', true, false, '')") == "query_to_xml"
+    assert unsafe_function("select U&\"\\0073et_config\"('role', 'odoo', true)") == "U&"
+    assert unsafe_function("select customer_name, settings_note from marts.revenue_by_customer") is None
