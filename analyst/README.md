@@ -63,7 +63,9 @@ Write `domains/<name>.yaml`: the connection, the schemas the agent may read, the
 From the repository root, after the main README's setup:
 
 ```bash
-.venv/bin/pip install -r analyst/requirements.txt
+# Install both files in one command. Installed on their own, the analyst's pins upgrade
+# protobuf past what dbt supports, and dbt stops working in that environment.
+.venv/bin/pip install -r requirements.txt -r analyst/requirements.txt
 .venv/bin/python -m analyst.ask "Which three customers owe us the most?"
 .venv/bin/python -m analyst.ask --thread t1 "How much do customers owe us in total?"
 .venv/bin/python -m analyst.ask --thread t1 "And how much have they paid?"
