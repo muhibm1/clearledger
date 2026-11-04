@@ -3,6 +3,8 @@
 The graph tests need the finance warehouse (see the main README); they skip without it.
 """
 
+import os
+
 import psycopg
 import pytest
 
@@ -22,6 +24,12 @@ SCHEMAS = ["marts", "intermediate", "staging"]
     ("select 1; select 2", "exactly one statement"),
     ("select * from revenue_by_customer", "name the schema"),
     ("select pg_read_file('/etc/passwd')", "not allowed"),
+    ("select \"set_config\"('role', 'odoo', true)", "set_config is not allowed"),
+    ("select pg_catalog.set_config/**/('role', 'odoo', true)", "set_config is not allowed"),
+    ("select query_to_xml('select * from raw.account_move', true, false, '')", "query_to_xml is not allowed"),
+    ("select table_to_xml('raw.account_move', true, false, '')", "table_to_xml is not allowed"),
+    ("select * from ts_stat('select 1')", "ts_stat is not allowed"),
+    ("select U&\"\\0073et_config\"('role', 'odoo', true)", "not allowed"),
     ("with x as (delete from marts.deal_to_cash returning *) select * from x", "may only read"),
     ("not sql at all (", "does not parse"),
 ])
@@ -135,6 +143,8 @@ def ads():
         domains.read_columns(dom, conn)
         sql.prepare(dom, conn)
     except psycopg.OperationalError:
+        if os.environ.get("ANALYST_TESTS_NEED_DB") == "1":
+            raise  # CI builds both databases, so a missing one is a failure there, not a skip
         pytest.skip("ads demo database not reachable (python -m analyst.ads.simulate)")
     yield dom, conn
     conn.close()
@@ -159,6 +169,17 @@ def test_ads_tool_never_returns_a_small_group(ads, query):
     out = sql.run(dom, conn, query)
     assert not out["ok"] or (out["suppressed"] == len(out["rows"]) and all(
         v is None for row in out["rows"] for v in row.values() if not isinstance(v, str)))
+
+
+@pytest.mark.parametrize("query", [
+    "select query_to_xml('select age_band, gender, installs from reporting.audience_daily', true, false, '')",
+    "select \"set_config\"('role', 'odoo', true) as r, (select count(*) from reporting.campaigns) as n",
+])
+def test_ads_tool_refuses_functions_that_get_round_its_checks(ads, query):
+    """A query that runs SQL from text, or switches the role back, never runs."""
+    dom, conn = ads
+    out = sql.run(dom, conn, query)
+    assert not out["ok"] and "not allowed" in out["error"]
 
 
 def test_ads_tool_still_answers_the_eval_gold_queries(ads):
@@ -211,6 +232,8 @@ def finance():
         with dom.connect() as conn:
             domains.read_columns(dom, conn)
     except psycopg.OperationalError:
+        if os.environ.get("ANALYST_TESTS_NEED_DB") == "1":
+            raise
         pytest.skip("finance warehouse not reachable")
     return dom
 
