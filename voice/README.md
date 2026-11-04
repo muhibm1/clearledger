@@ -65,7 +65,14 @@ When a test needs earlier tool results, they are real outputs of the tools on th
 
 ## Status
 
-Built and checked offline: the tools, the bridge, the test definitions, and every request `deploy.py` would send (validated against the ElevenLabs SDK's own models). Not yet run live: the next step is to deploy the agent, run the ten tests in ElevenAgents, and record a conversation with its timings.
+Deployed to ElevenAgents and tested there (2026-11-03). The ten tests pass, 10 of 10, on the second run.
+
+The first run passed 4 of 10, and the failures taught two things:
+
+- The agent made up column names when it wrote SQL, because a spoken query never sees the schema. The prompt now lists every mart column, and `test_prompt_names_only_columns_the_marts_have` fails if that list names a column the marts do not have.
+- In ElevenAgents' test runner a client tool returns nothing, so the agent calls it again. The tool tests now pass if any of its calls is the right one (`check_any_tool_matches`), which judges the call it makes rather than how often it retries an empty answer.
+
+One open question: the test runs were answered by `gemini-3.5-flash`, not the configured `claude-haiku-4-5`. The cause is not found yet. Still to do: a recorded live conversation with its timings.
 
 ## Run it
 

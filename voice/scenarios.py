@@ -203,7 +203,9 @@ def test_body(scenario: dict, tool_ids: dict[str, str]) -> dict:
             if check.get("expected_value", "").startswith("@"):
                 check["expected_value"] = str(keys[check["expected_value"][1:]])
             params.append({"path": p["path"], "eval": check})
-        body.update(type="tool", tool_call_parameters={
+        # In a test the client tool returns nothing, so the agent tries again; judge the call it
+        # makes, not how often it retries an empty answer.
+        body.update(type="tool", check_any_tool_matches=True, tool_call_parameters={
             "referenced_tool": {"id": tool_ids[scenario["tool"]], "type": "client"}, "parameters": params})
     else:
         body.update(type="llm", success_condition=scenario["success"],
