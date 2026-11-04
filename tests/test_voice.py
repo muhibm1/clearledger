@@ -122,3 +122,16 @@ def test_requests_match_the_elevenlabs_sdk():
     elevenlabs.ConversationalConfig.model_validate(plan["agent"]["conversation_config"])
     for body in plan["tests"]:
         TypeAdapter(TestsCreateRequestBody).validate_python(body)
+
+
+def test_prompt_names_only_columns_the_marts_have():
+    # A spoken query cannot see the schema, so the prompt lists the columns; they must be real.
+    from pathlib import Path
+
+    marts = Path(__file__).resolve().parents[1] / "dbt" / "models" / "marts"
+    listed = re.findall(r"marts\.(\w+): ([\w, \n]+?)(?=\n  marts\.|\n\n|\nLimits)", agent.PROMPT)
+    assert {t for t, _ in listed} == {"receivables_aging", "revenue_by_customer", "deal_to_cash"}
+    for table, cols in listed:
+        select = (marts / f"{table}.sql").read_text().rsplit("\nselect", 1)[1].split("\nfrom")[0]
+        for col in re.split(r"[,\s]+", cols.strip()):
+            assert re.search(rf"\b{col}\b", select), f"{table}.{col} is not in the mart"
