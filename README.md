@@ -65,7 +65,7 @@ Billed in total: $1,379,155.41. Still owed: $362,891.89, of which $118,375.00 is
 
 ## Run it
 
-Needs Python 3.11 and Postgres 16 with a role named `odoo` that can create databases (by default on a socket in `/tmp`; set `PGHOST` and friends otherwise, as [CI](.github/workflows/ci.yml) does).
+Needs Python 3.11 and Postgres 16 with a role named `odoo` that can create databases and roles (`CREATEDB CREATEROLE`; the CRM server makes a read-only role) (by default on a socket in `/tmp`; set `PGHOST` and friends otherwise, as [CI](.github/workflows/ci.yml) does).
 
 ```bash
 python3.11 -m venv .venv && .venv/bin/pip install -r requirements.txt
