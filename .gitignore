@@ -9,3 +9,4 @@ dbt/dbt_packages/
 .odoo/
 alerts.jsonl
 eval/runs/*-stub-*.json
+.venv-analyst/

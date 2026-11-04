@@ -47,7 +47,7 @@ question ─▶ retrieve ─▶ draft SQL ─▶ check + run ─▶ read result 
 
 1. **Context retrieval** (`retrieve.py`). The domain file describes each table, the business terms ("owed", "cost per install", "statistically significant") and a few worked examples. For each question, a keyword ranker (BM25) and a local embedding model (bge-small, on CPU) each rank those pieces. The two rankings are fused with reciprocal rank fusion, and the top tables, terms and examples go into the prompt.
 2. **Orchestration** (`graph.py`). A LangGraph state graph: retrieve, draft, execute, answer, cite, remember. The model drafts one query, or declines, or asks to clarify, or (version 2) asks for a lookup: a small `SELECT DISTINCT` that shows how the data spells a name, at most two per question. A lookup that finds nothing means the question is not answerable. Code checks and runs every query. A failure goes back to the model with its error, up to three tries. The model then reads the rows and gives the answer as a value plus a plain sentence. If it sees the query was the wrong one, its reason goes back to draft once for another try. Every limit (lookups, repairs, redrafts) is a counter in the graph state, enforced by code.
-3. **Tool execution** (`sql.py`). Before anything runs, sqlglot parses the query. It must be a single SELECT that names only allowed schemas and contains no writes and no file-reading functions. Then the database enforces the same rules again: a read-only role, a read-only transaction, 5 seconds and 200 rows. Finance queries go through the platform's own `edp.ask.query` unchanged, so citations to the exact Odoo record versions are checked by `edp.ask.check_citations`.
+3. **Tool execution** (`sql.py`). Before anything runs, sqlglot parses the query. It must be a single SELECT that names only allowed schemas and contains no writes. It also may not call server functions that would get round the other rules: ones that read files, change settings (`set_config` could switch the read-only role back to the admin role), or run SQL given as text (`query_to_xml('select ...')` reads tables no check can see). Names are matched however they are written, quoted, commented or schema-qualified. Then the database enforces the same rules again: a read-only role, a read-only transaction, 5 seconds and 200 rows. Finance queries go through the platform's own `edp.ask.query` unchanged, so citations to the exact Odoo record versions are checked by `edp.ask.check_citations`.
 4. **Privacy in the tool, not the prompt.** On the ads dataset, user-level taps live in a schema the agent's role cannot read. Every people figure in a result (installs or taps) must come from at least 50 people, or the row comes back blanked and marked suppressed. The tool finds those figures by tracing each result column back to its source with sqlglot, so renaming `sum(installs)` does not hide it. It also checks the counts behind a rate (it adds them to the query as hidden columns), the counts picked out by a `CASE` or `FILTER`, a total minus a part, and the groups inside a CTE (a separate query finds the smallest). A people figure it cannot check, such as `sum(installs * 100)`, is refused before it runs.
 
    What it does not stop: differencing across two separate questions (ask for a total, then for the total without one group) and joins built to set a small group's rate beside a large group's count. Closing those needs a budget across questions, such as differential privacy. An earlier version checked only a column literally named `installs`; the [results](eval/RESULTS.md) were scored on that version.
@@ -63,7 +63,9 @@ Write `domains/<name>.yaml`: the connection, the schemas the agent may read, the
 From the repository root, after the main README's setup:
 
 ```bash
-.venv/bin/pip install -r analyst/requirements.txt
+# Install both files in one command. Installed on their own, the analyst's pins upgrade
+# protobuf past what dbt supports, and dbt stops working in that environment.
+.venv/bin/pip install -r requirements.txt -r analyst/requirements.txt
 .venv/bin/python -m analyst.ask "Which three customers owe us the most?"
 .venv/bin/python -m analyst.ask --thread t1 "How much do customers owe us in total?"
 .venv/bin/python -m analyst.ask --thread t1 "And how much have they paid?"
@@ -76,7 +78,7 @@ ANALYST_TESTS=1 .venv/bin/python -m pytest -q analyst     # no model needed
 .venv/bin/python -m analyst.eval.report                  # rebuild the results tables from runs/
 ```
 
-The model sits behind one interface, `model(system, prompt, schema) -> dict`, with two routes. The default makes one headless `claude -p` call per step; the scored runs used it. `--route langchain` (on `analyst.ask` and the eval) uses LangChain's `ChatAnthropic` with `with_structured_output`, so every step is an ordinary LangChain call that LangSmith can trace under the graph's run (tracing was off for the recorded runs; see the results' limits); it reads an Anthropic API key from the environment. The platform's CI skips these tests unless `ANALYST_TESTS=1` is set, so they add no time to it.
+The model sits behind one interface, `model(system, prompt, schema) -> dict`, with two routes. The default makes one headless call to the model's command-line tool per step; the scored runs used it. `--route langchain` (on `analyst.ask` and the eval) uses LangChain's `ChatAnthropic` with `with_structured_output`, so every step is an ordinary LangChain call that LangSmith can trace under the graph's run (tracing was off for the recorded runs; see the results' limits); it reads an Anthropic API key from the environment. The platform's CI skips these tests unless `ANALYST_TESTS=1` is set, so they add no time to it.
 
 ## Limits
 

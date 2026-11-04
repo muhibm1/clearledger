@@ -32,6 +32,14 @@ AS_OF = re.search(r'as_of:\s*"([\d-]+)"', (Path(__file__).resolve().parent.paren
                   .read_text()).group(1)
 QUERY_SCHEMAS = ("marts", "intermediate", "staging")
 MAX_ROWS = 200
+# Server functions an agent's query may never call. Some read files or change settings; the
+# setting ones matter most, because `set_config('role', ...)` would undo the read-only role a
+# query runs under. Others run SQL given as text (`query_to_xml('select ...')`, `ts_stat`), which
+# no check on the query itself can see into, so they would read past the schema and privacy rules.
+UNSAFE_FUNCTIONS = re.compile(
+    r"(?i)\b(set_config|current_setting|pg_read_\w+|pg_ls_\w+|pg_stat_file|pg_file_\w+|lo_\w+|dblink\w*|"
+    r"pg_sleep\w*|pg_terminate_backend|pg_cancel_backend|pg_\w*advisory\w*|pg_notify|pg_reload_conf|"
+    r"\w+_to_xml\w*|ts_stat|ts_rewrite)\s*\(")
 REF = re.compile(r"\b(account\.move|account\.payment|sale\.order)/(\d+)(?:@(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}))?")
 
 PAYMENT_REF = ("'account.payment/' || payment_id || '@' || "
@@ -137,6 +145,17 @@ def ensure_reader(conn) -> None:
             cur.execute(f"alter default privileges in schema {schema} grant select on tables to {READER}")
 
 
+def unsafe_function(sql: str) -> str | None:
+    """The first banned server function the query calls, or None. Comments and identifier quotes
+    are removed first, so `"set_config"(...)` and `set_config/**/(...)` are caught too. A
+    Unicode-escaped name (`U&"..."`) cannot be read this way, so it is refused outright."""
+    if re.search(r"(?i)\bU&[\"']", sql):
+        return "U&"
+    text = re.sub(r"/\*.*?\*/|--[^\n]*", " ", sql, flags=re.S).replace('"', "")
+    m = UNSAFE_FUNCTIONS.search(text)
+    return m.group(1).lower() if m else None
+
+
 def query(conn, sql: str) -> dict:
     """One read-only SELECT over the modelled schemas (marts, intermediate, staging), at most 200 rows,
     5 second limit. Rows that come from an Odoo record include its source_ref when selected."""
@@ -147,6 +166,8 @@ def query(conn, sql: str) -> dict:
     outside = sorted(s for s in named if s.lower() not in QUERY_SCHEMAS)
     if outside or re.search(r"(?i)\b(raw|pg_catalog|information_schema)\.", text):
         return {"ok": False, "error": f"only the schemas {list(QUERY_SCHEMAS)} can be queried"}
+    if banned := unsafe_function(text):
+        return {"ok": False, "error": f"the server function {banned} is not allowed"}
     try:
         with conn.transaction():
             conn.execute("set transaction read only")

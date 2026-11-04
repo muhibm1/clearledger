@@ -15,7 +15,6 @@ Two layers, so a mistake in one is caught by the other:
 """
 
 import datetime as dt
-import re
 import sys
 from decimal import Decimal
 from pathlib import Path
@@ -25,8 +24,6 @@ import sqlglot
 from sqlglot import exp
 
 MAX_ROWS = 200
-BANNED_FUNCTIONS = re.compile(r"(?i)\b(pg_read_file|pg_read_binary_file|pg_ls_dir|lo_import|lo_export|dblink\w*|"
-                              r"pg_sleep|set_config|current_setting|pg_terminate_backend|pg_cancel_backend)\s*\(")
 WRITES = (exp.Insert, exp.Update, exp.Delete, exp.Create, exp.Drop, exp.Alter, exp.Command, exp.Merge,
           exp.TruncateTable, exp.Grant)
 
@@ -47,8 +44,11 @@ def check(sql: str, schemas: list[str]) -> tuple[bool, str, list[str]]:
         return False, "only a SELECT query may run", []
     if any(tree.find_all(*WRITES)):
         return False, "the query may only read", []
-    if BANNED_FUNCTIONS.search(text):
-        return False, "that server function is not allowed", []
+    banned = _edp().unsafe_function(text) or next(
+        (n for n in (_function_name(f) for f in tree.find_all(exp.Func)) if _edp().UNSAFE_FUNCTIONS.match(n + "(")),
+        None)
+    if banned:
+        return False, f"the server function {banned} is not allowed", []
     ctes = {c.alias_or_name.lower() for c in tree.find_all(exp.CTE)}
     tables = []
     for t in tree.find_all(exp.Table):
@@ -62,6 +62,11 @@ def check(sql: str, schemas: list[str]) -> tuple[bool, str, list[str]]:
             return False, f"table {schema}.{name} is outside the readable schemas {schemas}", []
         tables.append(f"{schema}.{name}")
     return True, "", sorted(set(tables))
+
+
+def _function_name(node) -> str:
+    """A function call's name as Postgres reads it, quotes and escapes resolved by the parser."""
+    return (node.name if isinstance(node, exp.Anonymous) else node.sql_name()).lower()
 
 
 def _plain(v):

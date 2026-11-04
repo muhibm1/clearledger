@@ -1,6 +1,7 @@
 # The whole platform end to end on every push: a fresh Odoo with a simulated
 # year of business, the load, every dbt model and check, the unit and warehouse
-# tests, the five failure drills, and the dataset build with its leakage checks.
+# tests, the analyst agent's tests, the five failure drills, and the dataset build
+# with its leakage checks.
 # No model is called and no secret is read.
 name: ci
 
@@ -34,6 +35,7 @@ jobs:
       EDP_PGHOST: localhost
       EDP_PGPASSWORD: odoo-ci
       EDP_DSN: host=localhost dbname=warehouse user=odoo
+      ANALYST_ADS_DSN: host=localhost dbname=adsdemo user=odoo
       EDP_DRILL_ODOO_STOP: scripts/odoo-local.sh stop
       EDP_DRILL_ODOO_START: scripts/odoo-local.sh start
     steps:
@@ -55,6 +57,14 @@ jobs:
           .venv/bin/python -m edp.demo
       - name: Tests
         run: .venv/bin/python -m pytest -q
+      - name: Analyst agent tests, on the finance warehouse and the ads demo (no model is called)
+        # Its own environment: installed into .venv on top of dbt, the analyst's pins pull in a
+        # protobuf that dbt cannot run with, and the drills' scheduled runs then fail.
+        run: |
+          python -m venv .venv-analyst
+          .venv-analyst/bin/pip install -q -r requirements.txt -r analyst/requirements.txt
+          .venv-analyst/bin/python -m analyst.ads.simulate --admin-dsn "host=localhost dbname=postgres user=odoo"
+          ANALYST_TESTS=1 ANALYST_TESTS_NEED_DB=1 .venv-analyst/bin/python -m pytest -q analyst
       - name: Monitors
         run: .venv/bin/python -m edp.cli monitor
       - name: Failure drills

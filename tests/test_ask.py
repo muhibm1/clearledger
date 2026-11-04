@@ -57,8 +57,10 @@ def test_query_refuses_anything_outside_the_models(conn, sql):
 
 
 def test_query_cannot_write_even_through_a_function(conn):
-    out = ask.query(conn, "select set_config('statement_timeout', '0', false)")
-    assert out["ok"]  # a harmless function runs, but only inside the read-only transaction
+    assert ask.query(conn, "select upper('x') as x")["ok"]  # ordinary functions still run
+    # set_config is refused outright: set_config('role', ...) would switch back to the admin role.
+    out = ask.query(conn, "select \"set_config\"('role', 'odoo', true)")
+    assert not out["ok"] and "set_config" in out["error"]
     assert not ask.query(conn, "with x as (insert into marts.revenue_by_customer default values returning 1) "
                                "select * from x")["ok"]
 
