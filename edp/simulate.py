@@ -195,7 +195,7 @@ def year(c: Company) -> dict:
 
 def mess(c: Company) -> dict:
     """The five things operations do to data after it has been loaded once."""
-    o, rng = c.o, c.rng
+    o = c.o
     done = {}
     # 1. The same customer, created again by a different rep.
     dup = c.customer("Northwind Logistics Inc.", email="AP@Northwind-Logistics.example.com")

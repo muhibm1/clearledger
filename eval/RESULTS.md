@@ -80,7 +80,7 @@ fault above.
   can show a method working; they cannot rank models.
 - Answers came from one file per variant rather than one call per question,
   so a model could in principle carry reasoning from one question to the next
-  within a customer. `run.py ask --provider claude-code` asks one question per
+  within a customer. `run.py ask --provider cli` asks one question per
   call for a stricter run.
 - Harder tests are the next step: more customers per question, longer
   histories, partial payments across several invoices, and records from a

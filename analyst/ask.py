@@ -23,7 +23,7 @@ def main():
     p.add_argument("--thread", default="cli")
     p.add_argument("--model", default="sonnet")
     p.add_argument("--route", choices=("cli", "langchain"), default="cli",
-                   help="cli: the claude command line; langchain: ChatAnthropic with an Anthropic key")
+                   help="cli: the model's command-line tool; langchain: ChatAnthropic with an Anthropic key")
     p.add_argument("--memory", default=str(Path(__file__).parent / ".threads.sqlite"), help="where conversations are saved")
     a = p.parse_args()
     dom = domains.load(a.domain)

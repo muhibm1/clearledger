@@ -202,7 +202,7 @@ def main():
     p.add_argument("--condition", choices=CONDITIONS, default="full")
     p.add_argument("--model", default="sonnet")
     p.add_argument("--route", choices=("cli", "langchain"), default="cli",
-                   help="cli: one `claude -p` call per step; langchain: ChatAnthropic, needs an Anthropic key")
+                   help="cli: one headless command-line call per step; langchain: ChatAnthropic, needs an Anthropic key")
     p.add_argument("--limit", type=int)
     p.add_argument("--parallel", type=int, default=4)
     p.add_argument("--out", default=str(HERE / "runs"))

@@ -5,8 +5,8 @@ Two routes satisfy that:
 - `ChatModel` wraps any LangChain chat model (`ChatAnthropic` by default) and asks for the
   reply through `with_structured_output`, so each step is an ordinary LangChain call that
   LangSmith traces under the graph's run.
-- `CommandLineModel` makes one `claude -p` call per step, with tools off and a JSON schema
-  for the reply. API key variables are removed from the child process, so every call uses
+- `CommandLineModel` makes one headless call to the model's command-line tool per step, with
+  tools off and a JSON schema for the reply. API key variables are removed from the child process, so every call uses
   the command line's own sign-in. The scored runs in `eval/RESULTS.md` used this route.
 
 `FakeModel` replays scripted replies, so the graph is tested without a model.
@@ -22,6 +22,8 @@ import time
 from pathlib import Path
 
 KEY_VARIABLES = ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "AGENTOPS_TEST_ANTHROPIC_API_KEY")
+# The model's command-line tool. Set ANALYST_MODEL_COMMAND to use another install.
+MODEL_COMMAND = os.environ.get("ANALYST_MODEL_COMMAND", "claude")
 TIMEOUT = 300
 ATTEMPTS = 3
 LIMIT_WAIT = 600
@@ -76,16 +78,16 @@ class ChatModel:
 
 
 class CommandLineModel:
-    """One `claude -p` call per step. Tokens of every call go to `usage_log`."""
+    """One headless command-line call per step. Tokens of every call go to `usage_log`."""
 
     def __init__(self, model: str = "sonnet", usage_log: str | Path | None = None):
         self.model = model
         self.usage_log = Path(usage_log) if usage_log else None
 
     def __call__(self, system: str, prompt: str, schema: dict) -> dict:
-        exe = shutil.which("claude")
+        exe = shutil.which(MODEL_COMMAND)
         if not exe:
-            raise ModelError("the claude command is not installed")
+            raise ModelError(f"the model command {MODEL_COMMAND!r} is not installed")
         env = {k: v for k, v in os.environ.items() if k not in KEY_VARIABLES}
         args = [exe, "-p", "--output-format", "json", "--model", self.model, "--tools", "",
                 "--strict-mcp-config", "--setting-sources", "", "--no-session-persistence",

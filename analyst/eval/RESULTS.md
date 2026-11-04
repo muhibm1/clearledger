@@ -150,7 +150,7 @@ set was scored once, on Claude Sonnet.
 `model.ChatModel` wraps a LangChain chat model (`ChatAnthropic` by default). It asks for each
 step's reply through `with_structured_output`. Under the graph's run, each step is then an
 ordinary LangChain call that LangSmith can trace. Use `--route langchain` on the eval and on
-`analyst.ask`. Tests cover it with a stand-in model. The scored runs above used the `claude -p`
+`analyst.ask`. Tests cover it with a stand-in model. The scored runs above used the command-line
 route, so version 2's numbers do not depend on the new route.
 
 One live check ran on this route after the scoring: version 2 on the 5 loose-name dev questions,
@@ -162,7 +162,7 @@ setting on the 5.5 models, so `ChatModel` now leaves it at the default. The run 
 
 ## Speed and size
 
-Every model call is one headless `claude -p` call per step. Per question, the full agent made about 2 model calls of about 14,000 input
+Every model call is one headless command-line call per step. Per question, the full agent made about 2 model calls of about 14,000 input
 tokens, most of it the retrieved notes. The median answer took 8 seconds with
 Sonnet and 9 with Haiku, with up to four questions in flight. Retrieval itself
 takes milliseconds once the local embedding model is loaded.
