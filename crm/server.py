@@ -108,14 +108,16 @@ def customer(dsn: str, key: int) -> dict | None:
 
 
 def voice_session() -> dict:
-    """A signed address for one voice conversation, or why voice is not set up yet."""
-    if not os.environ.get("ELEVENLABS_API_KEY"):
-        return {"ready": False, "reason": "ELEVENLABS_API_KEY is not set where the server runs."}
+    """How the page starts one voice conversation, or why voice is not set up yet."""
     if not IDS.exists():
         return {"ready": False, "reason": "The agent is not deployed yet (python -m voice.deploy)."}
+    agent_id = json.loads(IDS.read_text())["agent_id"]
+    if not os.environ.get("ELEVENLABS_API_KEY"):
+        # Without a key the page connects by agent id, which works only while the agent does not
+        # require signed links; ElevenAgents refuses the call otherwise and the page says so.
+        return {"ready": True, "agent_id": agent_id}
     from elevenlabs.client import ElevenLabs
 
-    agent_id = json.loads(IDS.read_text())["agent_id"]
     client = ElevenLabs(api_key=os.environ["ELEVENLABS_API_KEY"])
     return {"ready": True, "signed_url": client.conversational_ai.conversations.get_signed_url(agent_id=agent_id).signed_url}
 

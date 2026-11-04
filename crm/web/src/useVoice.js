@@ -25,7 +25,7 @@ export function useVoice({ onTool }) {
 
   const add = (line) => setLines((all) => [...all, { at: Date.now(), ...line }]);
 
-  // Starts a call: asks the server for a signed address, then opens the conversation.
+  // Starts a call: asks the server how to connect (a signed address or the agent id), then opens it.
   const start = useCallback(async () => {
     setError('');
     setStatus('connecting');
@@ -49,7 +49,7 @@ export function useVoice({ onTool }) {
       // Loaded on the first call, so the page itself stays small.
       const { Conversation } = await import('@elevenlabs/client');
       convo.current = await Conversation.startSession({
-        signedUrl: session.signed_url,
+        ...(session.signed_url ? { signedUrl: session.signed_url } : { agentId: session.agent_id }),
         clientTools,
         onMessage: ({ message, source }) => add({ who: source === 'user' ? 'you' : 'agent', text: message }),
         onModeChange: ({ mode }) => setStatus(mode),

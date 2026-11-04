@@ -12,9 +12,10 @@ both is "won, not yet cash": deals sales has closed that finance has not collect
   pipeline, invoices, payments and an aging bar. Read-only; changes are made in Odoo.
 - **Talk** starts a voice call with the agent in `voice/`. The page runs each tool the agent calls
   through this server, opens the customer it is talking about and lights the records behind its
-  answer. It needs `ELEVENLABS_API_KEY` set where the server runs and the agent deployed
-  (`python -m voice.deploy`); without them the page works and Talk says what is missing. The key
-  stays on the server: the page gets a short-lived signed address for one call.
+  answer. It needs the agent deployed (`python -m voice.deploy`). With `ELEVENLABS_API_KEY` set where
+  the server runs, the page gets a short-lived signed address for one call and the key stays on the
+  server. Without a key the page connects by agent id, which works only while the agent does not
+  require signed links.
 - The server only answers this machine (it binds 127.0.0.1 and refuses other host names), because
   the page can run the warehouse tools.
 
