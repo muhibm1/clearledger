@@ -1,0 +1,76 @@
+/* Base page styles and the shared controls (ui.jsx). Reads only tokens.css names. */
+
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--page); color: var(--ink); }
+body { font-family: var(--font-sans); font-size: var(--fs-m); line-height: var(--lh); -webkit-font-smoothing: antialiased; font-feature-settings: 'tnum' 1, 'cv11' 1; }
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: none; box-shadow: var(--focus); border-radius: var(--r-1); }
+.mono { font-family: var(--font-mono); }
+.ui-caps { font-size: var(--fs-caps); font-weight: 600; letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--muted); }
+.ui-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* Button: quiet by default, one clear hover and press, no heavy borders. */
+.ui-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--s-2);
+  height: 32px; padding: 0 var(--s-3); border-radius: var(--r-2);
+  border: 1px solid var(--line-2); background: var(--surface); color: var(--ink-2);
+  font-size: var(--fs-s); font-weight: 500; white-space: nowrap; cursor: pointer; user-select: none;
+  box-shadow: var(--shadow-1);
+  transition: background-color var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out),
+    color var(--dur-1) var(--ease-out), transform var(--dur-1) var(--ease-out);
+}
+.ui-btn:hover { background: var(--surface-2); border-color: var(--line-strong); color: var(--ink); }
+.ui-btn:active { transform: scale(0.97); }
+.ui-btn:disabled { opacity: 0.45; cursor: default; transform: none; }
+.ui-btn.sm { height: 28px; padding: 0 var(--s-2); font-size: var(--fs-xs); border-radius: var(--r-1); }
+.ui-btn.ghost { background: transparent; border-color: transparent; box-shadow: none; color: var(--muted); }
+.ui-btn.ghost:hover { background: var(--hover); color: var(--ink); }
+.ui-btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.ui-btn.primary:hover { filter: brightness(1.06); }
+.ui-btn[aria-pressed='true'] { background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent); }
+
+/* Icon button: square or round, same states as Button. */
+.ui-icon-btn {
+  display: inline-grid; place-items: center; width: 32px; height: 32px; padding: 0; flex: none;
+  border-radius: var(--r-2); border: 1px solid var(--line-2); background: var(--surface); color: var(--ink-2);
+  cursor: pointer; box-shadow: var(--shadow-1);
+  transition: background-color var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out),
+    color var(--dur-1) var(--ease-out), transform var(--dur-1) var(--ease-out);
+}
+.ui-icon-btn:hover { background: var(--surface-2); border-color: var(--line-strong); color: var(--ink); }
+.ui-icon-btn:active { transform: scale(0.94); }
+.ui-icon-btn:disabled { opacity: 0.45; cursor: default; transform: none; }
+.ui-icon-btn.ghost { background: transparent; border-color: transparent; box-shadow: none; color: var(--muted); }
+.ui-icon-btn.ghost:hover { background: var(--hover); color: var(--ink); }
+.ui-icon-btn.sm { width: 28px; height: 28px; border-radius: var(--r-1); }
+.ui-icon-btn.ui-round { border-radius: var(--r-pill); }
+.ui-icon-btn[aria-pressed='true']:not([aria-label='Dark theme']) { background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent); }
+
+/* Segmented control: a sliding thumb under the chosen option. */
+.ui-seg { position: relative; display: inline-flex; padding: 2px; border-radius: var(--r-2); background: var(--raised); border: 1px solid var(--line); }
+.ui-seg-thumb { position: absolute; top: 2px; bottom: 2px; left: 0; border-radius: calc(var(--r-2) - 2px); background: var(--surface); box-shadow: var(--shadow-1);
+  transition: transform var(--dur-3) var(--ease-out), width var(--dur-3) var(--ease-out); }
+.ui-seg button { position: relative; z-index: 1; height: 26px; padding: 0 var(--s-3); border: 0; background: none; border-radius: calc(var(--r-2) - 2px);
+  font-size: var(--fs-xs); font-weight: 500; color: var(--muted); cursor: pointer; white-space: nowrap; transition: color var(--dur-2) var(--ease-out); }
+.ui-seg button[aria-checked='true'] { color: var(--ink); }
+
+/* Tabs: text tabs with a sliding underline. */
+.ui-tabs { position: relative; display: flex; gap: var(--s-5); border-bottom: 1px solid var(--line); }
+.ui-tabs button { height: 40px; padding: 0; border: 0; background: none; font-size: var(--fs-m); font-weight: 500; color: var(--muted); cursor: pointer; transition: color var(--dur-2) var(--ease-out); }
+.ui-tabs button:hover { color: var(--ink-2); }
+.ui-tabs button[aria-selected='true'] { color: var(--ink); }
+.ui-tabs-line { position: absolute; bottom: -1px; left: 0; height: 2px; border-radius: 2px; background: var(--ink);
+  transition: transform var(--dur-3) var(--ease-out), width var(--dur-3) var(--ease-out); }
+
+/* Badge: small status pill. */
+.ui-badge { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 var(--s-2); border-radius: var(--r-1);
+  font-size: var(--fs-xs); font-weight: 600; white-space: nowrap; background: var(--raised); color: var(--muted); }
+.ui-badge.live { background: var(--accent-soft); color: var(--accent); }
+.ui-badge.ok { background: var(--ok-soft); color: var(--ok); }
+.ui-badge.warn { background: var(--warn-soft); color: var(--warn); }
+.ui-badge.bad { background: var(--bad-soft); color: var(--bad); }
+.ui-badge .ui-dot { width: 6px; height: 6px; }
+.ui-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; background: currentColor; }
+.ui-dot.pulse { animation: ui-pulse 1.6s var(--ease-in-out) infinite; }
+@keyframes ui-pulse { 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) { .ui-dot.pulse { animation: none; } }

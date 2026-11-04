@@ -1,0 +1,274 @@
+/* Design tokens, taken from Auspex: colour, type, space, radius, elevation and motion, for both themes.
+   Light is the default; dark follows the system setting until the theme button sets
+   <html data-theme="light|dark">. Every component reads these names, never raw values. */
+
+:root {
+  /* Surfaces */
+  --page: #f6f6f7;
+  --surface: #ffffff;
+  --surface-2: #fafafa;
+  --raised: #f1f1f3;
+  --hover: rgba(24, 24, 27, 0.04);
+  --selected: #eef3ff;
+  --line: #ececef;
+  --line-2: #e2e2e6;
+  --line-strong: #cfcfd6;
+
+  /* Text */
+  --ink: #18181b;
+  --ink-2: #3f3f46;
+  --muted: #6b6b75;
+  --faint: #9a9aa3;
+  --on-accent: #ffffff;
+
+  /* Accent and status */
+  --accent: #2f6fed;
+  --accent-soft: #e8f0ff;
+  --accent-line: #b9cffb;
+  --live: #2f6fed;
+  --ok: #1f9d55;
+  --ok-soft: #e3f6ea;
+  --warn: #b7791f;
+  --warn-soft: #fdf3dc;
+  --warn-line: #f0cf8a;
+  --bad: #d93036;
+  --bad-soft: #fde7e7;
+  --bad-line: #f3a9ab;
+
+  /* Trace bars, by kind of step */
+  --bar-agent: #ededf0;
+  --bar-agent-line: #d9d9de;
+  --bar-model: #ebe8fd;
+  --bar-model-line: #b4a9f3;
+  --bar-tool: #e2f3f2;
+  --bar-tool-line: #93d0cc;
+  --bar-wait: #fdf3dc;
+  --bar-wait-line: #e9b94f;
+  --bar-fail: #fde7e7;
+  --bar-fail-line: #ec8e91;
+  --now-line: #2f6fed;
+
+  /* One hue per agent, in the order agents start (main agent uses --agent-main) */
+  --agent-main: #8a8a94;
+  --agent-1: #3b7bf0;
+  --agent-2: #8b5cf6;
+  --agent-3: #e07b2e;
+  --agent-4: #22a06b;
+  --agent-5: #d6409f;
+  --agent-6: #0ea5b7;
+  --agent-7: #b8901a;
+
+  /* Agent graph edges (shared with the graph view) */
+  --edge: #d4d4da;
+  --edge-call: #3b7bf0;
+  --edge-answer: #22a06b;
+  --edge-needs-you: #e0a12e;
+  --edge-failed: #d93036;
+
+  /* Context view blocks (the rest reuse the trace bar colours) */
+  --ctx-file: #e9eef6;
+  --ctx-file-line: #b8c6da;
+  --ctx-file-ink: #3a5476;
+  --ctx-agent: #fbeaf3;
+  --ctx-agent-line: #eaaccf;
+  --ctx-agent-ink: #9a2f6c;
+  --ctx-free: #fbfbfc;
+  --ctx-hatch: #ececf0;
+
+  /* Type */
+  --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --fs-caps: 11px;   /* small-caps labels: DURATION, SPAN */
+  --fs-xs: 12px;
+  --fs-s: 13px;
+  --fs-m: 14px;
+  --fs-l: 16px;
+  --fs-xl: 20px;
+  --fs-num: 22px;    /* stat values */
+  --lh: 1.45;
+  --tracking-caps: 0.06em;
+
+  /* Space: a 4px scale */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 20px;
+  --s-6: 24px;
+  --s-7: 32px;
+  --s-8: 40px;
+
+  /* Radius */
+  --r-1: 6px;
+  --r-2: 8px;
+  --r-3: 12px;
+  --r-4: 16px;
+  --r-pill: 999px;
+
+  /* Elevation */
+  --shadow-1: 0 1px 2px rgba(16, 16, 20, 0.05);
+  --shadow-2: 0 1px 2px rgba(16, 16, 20, 0.04), 0 4px 16px rgba(16, 16, 20, 0.06);
+  --shadow-pop: 0 2px 6px rgba(16, 16, 20, 0.06), 0 16px 40px rgba(16, 16, 20, 0.12);
+  --focus: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent);
+
+  /* Motion: one set of curves and durations for the whole app.
+     enter = things arriving, move = things changing place or size, exit = leaving. */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --dur-1: 120ms;  /* hover, press */
+  --dur-2: 200ms;  /* small state changes, fades */
+  --dur-3: 320ms;  /* moves, expands, popovers */
+  --dur-4: 480ms;  /* rows arriving, axis rescale */
+
+  color-scheme: light;
+}
+
+/* Dark: chosen explicitly, or by the system when nothing is chosen. */
+:root[data-theme='dark'] {
+  --page: #0b0b0d;
+  --surface: #141417;
+  --surface-2: #18181b;
+  --raised: #1f1f23;
+  --hover: rgba(255, 255, 255, 0.04);
+  --selected: #17223a;
+  --line: #232328;
+  --line-2: #2c2c32;
+  --line-strong: #3d3d45;
+  --ink: #ededf0;
+  --ink-2: #c9c9cf;
+  --muted: #a0a0aa;
+  --faint: #73737d;
+  --on-accent: #ffffff;
+  --accent: #7aa2ff;
+  --accent-soft: #17223a;
+  --accent-line: #2f4a7a;
+  --live: #7aa2ff;
+  --ok: #5fd08a;
+  --ok-soft: #13291c;
+  --warn: #f2c14e;
+  --warn-soft: #2e2410;
+  --warn-line: #6b5420;
+  --bad: #ff7b80;
+  --bad-soft: #341517;
+  --bad-line: #7a2a2e;
+  --bar-agent: #222227;
+  --bar-agent-line: #34343b;
+  --bar-model: #262142;
+  --bar-model-line: #6f61d8;
+  --bar-tool: #142b2c;
+  --bar-tool-line: #3f8f8b;
+  --bar-wait: #2e2410;
+  --bar-wait-line: #b58a2a;
+  --bar-fail: #341517;
+  --bar-fail-line: #c24a50;
+  --now-line: #7aa2ff;
+  --agent-main: #9a9aa4;
+  --agent-1: #6f9cff;
+  --agent-2: #a98bfa;
+  --agent-3: #f0974f;
+  --agent-4: #4cc38a;
+  --agent-5: #ec6cc0;
+  --agent-6: #3cc7d8;
+  --agent-7: #d9b23a;
+  --edge: #34343b;
+  --edge-call: #6f9cff;
+  --edge-answer: #4cc38a;
+  --edge-needs-you: #f2c14e;
+  --edge-failed: #ff7b80;
+  --ctx-file: #162030;
+  --ctx-file-line: #33506f;
+  --ctx-file-ink: #a9c3e6;
+  --ctx-agent: #2c1525;
+  --ctx-agent-line: #7e3763;
+  --ctx-agent-ink: #f0a6d2;
+  --ctx-free: #111114;
+  --ctx-hatch: #1c1c20;
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-2: 0 1px 2px rgba(0, 0, 0, 0.4), 0 6px 20px rgba(0, 0, 0, 0.35);
+  --shadow-pop: 0 2px 8px rgba(0, 0, 0, 0.4), 0 20px 48px rgba(0, 0, 0, 0.5);
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --page: #0b0b0d;
+    --surface: #141417;
+    --surface-2: #18181b;
+    --raised: #1f1f23;
+    --hover: rgba(255, 255, 255, 0.04);
+    --selected: #17223a;
+    --line: #232328;
+    --line-2: #2c2c32;
+    --line-strong: #3d3d45;
+    --ink: #ededf0;
+    --ink-2: #c9c9cf;
+    --muted: #a0a0aa;
+    --faint: #73737d;
+    --on-accent: #ffffff;
+    --accent: #7aa2ff;
+    --accent-soft: #17223a;
+    --accent-line: #2f4a7a;
+    --live: #7aa2ff;
+    --ok: #5fd08a;
+    --ok-soft: #13291c;
+    --warn: #f2c14e;
+    --warn-soft: #2e2410;
+    --warn-line: #6b5420;
+    --bad: #ff7b80;
+    --bad-soft: #341517;
+    --bad-line: #7a2a2e;
+    --bar-agent: #222227;
+    --bar-agent-line: #34343b;
+    --bar-model: #262142;
+    --bar-model-line: #6f61d8;
+    --bar-tool: #142b2c;
+    --bar-tool-line: #3f8f8b;
+    --bar-wait: #2e2410;
+    --bar-wait-line: #b58a2a;
+    --bar-fail: #341517;
+    --bar-fail-line: #c24a50;
+    --now-line: #7aa2ff;
+    --agent-main: #9a9aa4;
+    --agent-1: #6f9cff;
+    --agent-2: #a98bfa;
+    --agent-3: #f0974f;
+    --agent-4: #4cc38a;
+    --agent-5: #ec6cc0;
+    --agent-6: #3cc7d8;
+    --agent-7: #d9b23a;
+    --edge: #34343b;
+    --edge-call: #6f9cff;
+    --edge-answer: #4cc38a;
+    --edge-needs-you: #f2c14e;
+    --edge-failed: #ff7b80;
+    --ctx-file: #162030;
+    --ctx-file-line: #33506f;
+    --ctx-file-ink: #a9c3e6;
+    --ctx-agent: #2c1525;
+    --ctx-agent-line: #7e3763;
+    --ctx-agent-ink: #f0a6d2;
+    --ctx-free: #111114;
+    --ctx-hatch: #1c1c20;
+    --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-2: 0 1px 2px rgba(0, 0, 0, 0.4), 0 6px 20px rgba(0, 0, 0, 0.35);
+    --shadow-pop: 0 2px 8px rgba(0, 0, 0, 0.4), 0 20px 48px rgba(0, 0, 0, 0.5);
+    color-scheme: dark;
+  }
+}
+
+/* Reduced motion: every duration collapses, so nothing glides, pulses or slides. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-1: 0ms;
+    --dur-2: 0ms;
+    --dur-3: 0ms;
+    --dur-4: 0ms;
+  }
+}
+
+/* Theme switches cross-fade colours once, instead of every element animating on its own. */
+:root.theme-switching,
+:root.theme-switching * {
+  transition: background-color var(--dur-3) var(--ease-in-out), border-color var(--dur-3) var(--ease-in-out),
+    color var(--dur-3) var(--ease-in-out), fill var(--dur-3) var(--ease-in-out), stroke var(--dur-3) var(--ease-in-out) !important;
+}
