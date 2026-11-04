@@ -1,6 +1,6 @@
 """Ask a model the question set, then grade the answers against SQL.
 
-  python eval/run.py ask --split dev --provider claude-code --variant plain   # claude -p, tools off
+  python eval/run.py ask --split dev --provider cli --variant plain           # one model call per question, tools off
   python eval/run.py ask --split test --provider stub                         # answers 0 / [] (the floor)
   python eval/run.py batch --split test --variant hints > prompts.jsonl       # prompts for any other runner
   python eval/run.py grade --split test --answers eval/runs/<file>.json
@@ -14,6 +14,7 @@ import argparse
 import collections
 import datetime as dt
 import json
+import os
 import re
 import subprocess
 from pathlib import Path
@@ -21,15 +22,17 @@ from pathlib import Path
 from build import prompt
 
 HERE = Path(__file__).parent
+# The model's command-line tool. Set EVAL_MODEL_COMMAND to use another install.
+MODEL_COMMAND = os.environ.get("EVAL_MODEL_COMMAND", "claude")
 
 
 def load(split):
     return [json.loads(line) for line in open(HERE / "data" / f"{split}.jsonl")]
 
 
-def ask_claude_code(text: str, model: str) -> str:
-    """One question through `claude -p` with every tool turned off."""
-    out = subprocess.run(["claude", "-p", "--model", model, "--tools", "", text],
+def ask_cli(text: str, model: str) -> str:
+    """One question through the model's command-line tool, headless, with every tool turned off."""
+    out = subprocess.run([MODEL_COMMAND, "-p", "--model", model, "--tools", "", text],
                          capture_output=True, text=True, timeout=300)
     return out.stdout
 
@@ -71,7 +74,7 @@ def main():
     sub = p.add_subparsers(dest="cmd", required=True)
     a = sub.add_parser("ask")
     a.add_argument("--split", default="test")
-    a.add_argument("--provider", choices=["claude-code", "stub"], default="stub")
+    a.add_argument("--provider", choices=["cli", "stub"], default="stub")
     a.add_argument("--model", default="sonnet")
     a.add_argument("--variant", choices=["hints", "plain"], default="hints")
     b = sub.add_parser("batch")
@@ -87,7 +90,7 @@ def main():
             if args.provider == "stub":
                 answers[r["id"]] = [] if r["answer_type"] == "set" else 0
             else:
-                answers[r["id"]] = parse(ask_claude_code(prompt(r, args.variant == "hints"), args.model))
+                answers[r["id"]] = parse(ask_cli(prompt(r, args.variant == "hints"), args.model))
         (HERE / "runs").mkdir(exist_ok=True)
         out = HERE / "runs" / (f"{args.split}-{args.provider}-{args.variant}-"
                                f"{dt.datetime.now():%Y%m%dT%H%M%S}.json")
