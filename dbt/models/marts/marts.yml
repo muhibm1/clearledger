@@ -27,6 +27,19 @@ models:
         tests:
           - accepted_values:
               values: ['won, no order', 'ordered, not invoiced', 'invoiced, unpaid', 'partly paid', 'paid']
+  - name: overdue_invoices
+    meta: { owner: team/finance, tier: 1 }
+    description: Remit's work list. Every customer invoice still owed and due within 3 days or late, with the customer's unused credit and the flags the collections playbook holds on.
+    columns:
+      - name: invoice_id
+        tests: [unique, not_null]
+      - name: customer_key
+        tests: [not_null]
+      - name: amount_open_usd
+        tests: [not_null]
+      - name: source_ref
+        description: The exact Odoo version the row was built from. Every Remit action cites it.
+        tests: [not_null]
 exposures:
   - name: month_end_close
     type: analysis
@@ -39,4 +52,10 @@ exposures:
     owner: {name: Revenue ops, email: revops@example.com}
     description: The weekly list of late customers the collections team calls.
     depends_on: [ref('receivables_aging'), ref('deal_to_cash')]
+    meta: { tier: 1 }
+  - name: remit
+    type: application
+    owner: {name: Finance, email: finance@example.com}
+    description: Remit, the collections agent. Reads the overdue list each morning, proposes the playbook's next step, and posts approved reminders to Odoo.
+    depends_on: [ref('overdue_invoices')]
     meta: { tier: 1 }

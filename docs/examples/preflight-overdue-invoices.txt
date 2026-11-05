@@ -1,0 +1,21 @@
+INFORM  risk 0/100  pf_f1f66a1dc63dfb11  graph as of 
+2026-11-05T04:13:16.076632+00:00  (reused)
+Add column on int_invoices.amount_open_in_invoice_currency and 5 more changes 
+reaches no downstream assets. Nothing beyond normal review and CI: run tests for
+int_invoices+; run tests for overdue_invoices+; run tests for stg_invoices+. 
+Severity inform.
+change
+  add_column         model:int_invoices.amount_open_in_invoice_currency 
+  change_metadata    model:overdue_invoices {'field': 'owner', 'from': None, 
+'to': 'team/finance'}
+  change_metadata    model:overdue_invoices {'field': 'tier', 'from': None, 
+'to': 1}
+  change_metadata    report:remit {'field': 'tier', 'from': None, 'to': 1}
+  add_asset          model:overdue_invoices 
+  add_column         model:stg_invoices.amount_open_in_invoice_currency 
+checks
+  run_tests              {'target': 'int_invoices+'}
+  run_tests              {'target': 'overdue_invoices+'}
+  run_tests              {'target': 'stg_invoices+'}
+risk: tier1_consumers=0 (+0); block_constraint=0 (+0); incident_recency=None 
+(+0); destructive_op=0 (+0); blast_radius=0 (+0.0)

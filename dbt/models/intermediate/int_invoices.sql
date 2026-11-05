@@ -6,7 +6,7 @@ with orders as (
 select
     i.invoice_id, i.invoice_ref, i.move_type, i.invoice_date, i.due_date,
     c.customer_key, c.customer_name, i.partner_id,
-    i.currency, i.amount_in_invoice_currency, i.amount, i.amount_open,
+    i.currency, i.amount_in_invoice_currency, i.amount, i.amount_open, i.amount_open_in_invoice_currency,
     i.amount - i.amount_open as amount_paid,
     greatest(0, '{{ var("as_of") }}'::date - i.due_date) as days_past_due,
     o.order_id, o.deal_id,

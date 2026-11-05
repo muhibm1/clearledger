@@ -159,6 +159,63 @@ who owns it, and which rule applies. Changing `revenue_by_customer` or
 `receivables_aging` columns, or the customer matching rule, needs finance
 sign-off (`fathom/constraints/`).
 
+## Run Remit, the collections agent
+
+Once a day, after the morning load, on a schedule:
+
+```cron
+30 7 * * 1-5 cd /srv/erp-data-platform && REMIT_MODE=suggest .venv/bin/python -m remit daily >> remit.log 2>&1
+```
+
+`remit daily` applies yesterday's approvals (in act mode only), plans today's
+reminders, and runs Remit's own checks. It exits 1 when a check fails, so the
+scheduler can page on it. Warnings and failures go to the same alerts file and
+webhook as the pipeline's monitors.
+
+Move through the modes in order, and stay in each until finance trusts it:
+
+| Mode | What it does | Leave it when |
+| --- | --- | --- |
+| `shadow` | Records what Remit would do; nothing can be approved | Its picks match what finance would have done for two weeks |
+| `suggest` | Queues drafts; a yes is recorded but nothing is written | Finance approves most drafts without editing them |
+| `act` | Approved actions are written to Odoo, once each | |
+
+Working the queue, which is the finance team's daily job:
+
+```bash
+.venv/bin/python -m remit queue                         # what is waiting
+.venv/bin/python -m remit show <proposal>               # the draft, the invoices, the evidence
+.venv/bin/python -m remit approve <proposal> --by <name> [--body-file edited.txt]
+.venv/bin/python -m remit reject <proposal> --by <name> --note "customer called, paying Friday"
+```
+
+Approving a reminder approves its follow-up call too; rejecting it rejects
+both. A held invoice comes as a flag that says why (credit to match, an
+invoice changed after posting, a hold tag, text that reads as an instruction):
+approving the flag puts a to-do on the invoice in Odoo for the person who fixes it.
+
+To stop all contact with a customer (a dispute, a payment plan), tag the
+customer in Odoo with a tag whose name starts "Collections hold". Remit stops
+at its next run. Removing the tag starts it again.
+
+Model wording: set `REMIT_MODEL=haiku` (or another model name) to have the
+model's command line word the reminders, signed in as its own user. Every
+draft is still checked, and one that fails twice is replaced by the template.
+Leave it unset to use the templates only.
+
+### When a Remit check fails
+
+| Check | What it means | What to do |
+| --- | --- | --- |
+| `last_run` | No run for 26 hours | Check the scheduler and `remit.log`; run `remit daily` by hand |
+| `stalled_queue` (warn) | Proposals waited more than 48 hours | Nobody is working the queue; late customers are hearing nothing. Tell finance, or move back to `shadow` |
+| `stuck_apply` | A write was claimed and never finished | Run `remit apply`: it checks Odoo for the proposal's marker and finishes or rewrites it, never twice |
+| `failed_apply` | Odoo refused or was down | Read the reason in `remit.audit`; a failed write is not counted as done, so the next apply tries again |
+
+Remit's own records are in the `remit` schema: `proposals`, `done` (what was
+done to which invoice; its key is what stops a second reminder) and `audit`,
+which cannot be changed or deleted.
+
 ## Failure drills
 
 ```bash

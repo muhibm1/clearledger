@@ -13,6 +13,7 @@ select
     (payload->>'amount_total')::numeric as amount_in_invoice_currency,
     (payload->>'amount_total_signed')::numeric as amount,
     (payload->>'amount_residual_signed')::numeric as amount_open,
+    (payload->>'amount_residual')::numeric as amount_open_in_invoice_currency,
     payload->>'payment_state' as payment_state,
     {{ txt('invoice_origin') }} as invoice_origin,
     write_date as source_version
