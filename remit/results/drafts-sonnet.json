@@ -1,0 +1,274 @@
+{
+  "model": "sonnet",
+  "as_of": "2026-10-27",
+  "cases": 12,
+  "repeats": 2,
+  "passed": 24,
+  "drafts": 24,
+  "rows": [
+    {
+      "case": "courtesy, one invoice",
+      "repeat": 0,
+      "passed": true,
+      "problems": [],
+      "seconds": 6.5,
+      "draft": {
+        "subject": "Friendly reminder: invoice INV/2026/00001",
+        "body": "Hello Larkspur Foods team,\n\nI hope you're having a good week. This is a friendly note about the invoice below, in case it's useful to have on your radar:\n\n- INV/2026/00001: $4,200.00 owed, due 2026-10-29\n\nIf payment is already on its way, thank you, and please disregard this message. If you need a copy of the invoice or have any questions about it, just reply here and we'll be glad to help.\n\nThank you for working with us.\n\nKind regards,\nAccounts receivable"
+      }
+    },
+    {
+      "case": "courtesy, one invoice",
+      "repeat": 1,
+      "passed": true,
+      "problems": [],
+      "seconds": 6.5,
+      "draft": {
+        "subject": "Friendly note about invoice INV/2026/00001",
+        "body": "Hello Larkspur Foods team,\n\nI hope you're doing well. This is a friendly note about the invoice below:\n\n- INV/2026/00001: $4,200.00 owed, due 2026-10-29\n\nIf payment is already on its way, thank you, and please ignore this message. If you have any questions about the invoice or need a copy of it, just reply and we'll be glad to help.\n\nThank you for your business. We appreciate working with you.\n\nBest regards,\nAccounts receivable"
+      }
+    },
+    {
+      "case": "friendly, one invoice",
+      "repeat": 0,
+      "passed": true,
+      "problems": [],
+      "seconds": 4.4,
+      "draft": {
+        "subject": "Friendly reminder: invoice INV/2026/00002 is past due",
+        "body": "Hello Larkspur Foods team,\n\nI hope you're doing well. This is a friendly reminder that the invoice below is now past due. It may simply have been missed.\n\nInvoice: INV/2026/00002\nAmount owed: $9,600.00\nDue date: 2026-10-24\n\nIf payment has already been sent, thank you, and please disregard this note. If not, we would appreciate it if you could arrange payment at your earliest convenience.\n\nIf you have any questions about the invoice, just reply to this email and we will be glad to help.\n\nThank you,\nAccounts receivable"
+      }
+    },
+    {
+      "case": "friendly, one invoice",
+      "repeat": 1,
+      "passed": true,
+      "problems": [],
+      "seconds": 4.3,
+      "draft": {
+        "subject": "Friendly reminder: invoice INV/2026/00002 is past due",
+        "body": "Hello Larkspur Foods team,\n\nI hope you're doing well. This is a friendly reminder that the invoice below is now past due. It may simply have been missed.\n\nInvoice: INV/2026/00002\nAmount owed: $9,600.00\nDue date: 2026-10-24\n\nIf payment has already been sent, thank you, and please disregard this note. If not, we would appreciate your settling it at your earliest convenience. Please reply if you need a copy of the invoice or have any questions about it.\n\nThank you for your business.\n\nAccounts receivable"
+      }
+    },
+    {
+      "case": "friendly, three invoices",
+      "repeat": 0,
+      "passed": true,
+      "problems": [],
+      "seconds": 3.9,
+      "draft": {
+        "subject": "Friendly reminder: past due invoices for Larkspur Foods",
+        "body": "Hello Larkspur Foods team,\n\nI hope you're doing well. This is a friendly reminder that the invoices below are now past due. We assume it was simply missed.\n\n- INV/2026/00005: $12,000.00 owed, due 2026-10-21\n- INV/2026/00004: $950.00 owed, due 2026-10-22\n- INV/2026/00003: $1,800.00 owed, due 2026-10-25\n\nIf you have already sent payment, please disregard this note and let us know so we can match it to your account. If you need copies of any invoice, just reply and we will send them over.\n\nThank you for your attention to this.\n\nBest regards,\nAccounts receivable"
+      }
+    },
+    {
+      "case": "friendly, three invoices",
+      "repeat": 1,
+      "passed": true,
+      "problems": [],
+      "seconds": 5.5,
+      "draft": {
+        "subject": "Friendly reminder: past due invoices for Larkspur Foods",
+        "body": "Hello Larkspur Foods team,\n\nI hope you're doing well. This is a friendly reminder that the following invoices are now past due. We assume it was simply missed.\n\n- INV/2026/00005: $12,000.00 owed, due 2026-10-21\n- INV/2026/00004: $950.00 owed, due 2026-10-22\n- INV/2026/00003: $1,800.00 owed, due 2026-10-25\n\nCould you please arrange payment for these invoices? If you have already sent payment, please let us know and disregard this note. If anything about these invoices is unclear, reply to this email and we will be glad to help.\n\nThank you for your attention to this.\n\nBest regards,\nAccounts receivable"
+      }
+    },
+    {
+      "case": "firm, one invoice",
+      "repeat": 0,
+      "passed": true,
+      "problems": [],
+      "seconds": 3.6,
+      "draft": {
+        "subject": "Payment reminder: INV/2026/00006 – $19,250.00",
+        "body": "Hello Larkspur Foods team,\n\nThis is a reminder that invoice INV/2026/00006 for $19,250.00 was due on 2026-10-09 and is still unpaid.\n\nPlease arrange payment this week. If you can't pay this week, please reply with the date you will pay.\n\nIf payment has already been sent, please let us know the payment date so we can match it to the invoice.\n\nThank you for your attention to this.\n\nKind regards,\nAccounts receivable"
+      }
+    },
+    {
+      "case": "firm, one invoice",
+      "repeat": 1,
+      "passed": true,
+      "problems": [],
+      "seconds": 4.6,
+      "draft": {
+        "subject": "Payment reminder: invoice INV/2026/00006",
+        "body": "Hello Larkspur Foods team,\n\nThis is a reminder that invoice INV/2026/00006 for $19,250.00 was due on 2026-10-09 and is still unpaid.\n\nPlease arrange payment this week. If payment has already been sent, please reply with the payment date so we can match it to your account. If it cannot be paid this week, please tell us the date you expect to pay.\n\nIf you need a copy of the invoice, let us know and we will send it right away.\n\nThank you for your prompt attention.\n\nKind regards,\nAccounts receivable"
+      }
+    },
+    {
+      "case": "firm, two invoices, cents",
+      "repeat": 0,
+      "passed": true,
+      "problems": [],
+      "seconds": 4.4,
+      "draft": {
+        "subject": "Payment reminder: invoices INV/2026/00008 and INV/2026/00007",
+        "body": "Hello Larkspur Foods team,\n\nThis is a reminder that the following invoices are past their due dates and remain unpaid:\n\n- INV/2026/00008: $19,410.05 owed, due 2026-10-02\n- INV/2026/00007: $7,425.37 owed, due 2026-10-15\n\nPlease arrange payment this week. If payment cannot be made this week, please reply with the date on which we can expect it.\n\nIf you have already sent payment, thank you. Please let us know so we can match it to your account.\n\nKind regards,\nAccounts receivable"
+      }
+    },
+    {
+      "case": "firm, two invoices, cents",
+      "repeat": 1,
+      "passed": true,
+      "problems": [],
+      "seconds": 6.5,
+      "draft": {
+        "subject": "Overdue invoices INV/2026/00008 and INV/2026/00007",
+        "body": "Hello Larkspur Foods team,\n\nOur records show two invoices are past due:\n\n- INV/2026/00008: $19,410.05 owed, due 2026-10-02\n- INV/2026/00007: $7,425.37 owed, due 2026-10-15\n\nPlease arrange payment this week. If you can't pay this week, please reply with the date you will pay.\n\nIf you've already sent payment, please let us know the date and method so we can match it to your account. If you think anything on these invoices is incorrect, tell us which invoice and what looks wrong, and we'll look into it.\n\nThank you for your prompt attention.\n\nRegards,\nAccounts receivable"
+      }
+    },
+    {
+      "case": "firm, euros",
+      "repeat": 0,
+      "passed": true,
+      "problems": [],
+      "seconds": 4.8,
+      "draft": {
+        "subject": "Reminder: Invoice INV/2026/00009 – €6,200.00 overdue",
+        "body": "Dear Juniper Architecture,\n\nI'm writing about invoice INV/2026/00009 for €6,200.00, which was due on 2026-10-09 and is still unpaid.\n\nPlease arrange payment this week. If payment has already been sent, please let us know the date so we can match it to the invoice. If it can't be paid this week, please reply with the date you will pay it.\n\nIf you have any question about the invoice, reply to this email and we will help.\n\nThank you for your prompt attention.\n\nKind regards,\nAccounts receivable"
+      }
+    },
+    {
+      "case": "firm, euros",
+      "repeat": 1,
+      "passed": true,
+      "problems": [],
+      "seconds": 4.2,
+      "draft": {
+        "subject": "Payment reminder: invoice INV/2026/00009",
+        "body": "Dear Juniper Architecture,\n\nThis is a reminder that invoice INV/2026/00009 for €6,200.00 was due on 2026-10-09 and is still unpaid.\n\nPlease arrange payment this week. If payment has already been sent, please reply with the date so we can match it to your account. If it has not, please let us know the date on which you will pay.\n\nIf you have any questions about the invoice, reply to this email and we will help.\n\nThank you for your prompt attention.\n\nKind regards,\nAccounts receivable"
+      }
+    },
+    {
+      "case": "final, one invoice",
+      "repeat": 0,
+      "passed": true,
+      "problems": [],
+      "seconds": 3.8,
+      "draft": {
+        "subject": "Final notice: INV/2026/00010 – $40,610.00 overdue",
+        "body": "Hello Maple Street Bakery,\n\nThis is a final notice regarding invoice INV/2026/00010 for $40,610.00, which was due on 2026-09-12 and remains unpaid.\n\nIf payment has not arrived by 2026-11-10, new orders will be placed on hold until the invoice is settled.\n\nIf you have already sent payment, please reply with the payment details so we can match it to your account.\n\nRegards,\nAccounts receivable"
+      }
+    },
+    {
+      "case": "final, one invoice",
+      "repeat": 1,
+      "passed": true,
+      "problems": [],
+      "seconds": 6.3,
+      "draft": {
+        "subject": "Final notice: INV/2026/00010 – $40,610.00 overdue",
+        "body": "Dear Maple Street Bakery,\n\nThis is a final notice regarding the following overdue invoice:\n\nINV/2026/00010: $40,610.00 owed, due 2026-09-12\n\nIf payment has not arrived by 2026-11-10, new orders will go on hold.\n\nIf you have already sent payment, please reply with the payment details so we can match it to your account.\n\nThank you,\nAccounts receivable"
+      }
+    },
+    {
+      "case": "final, mixed stages",
+      "repeat": 0,
+      "passed": true,
+      "problems": [],
+      "seconds": 4.5,
+      "draft": {
+        "subject": "Final notice: overdue invoices INV/2026/00011, 00012 and 00013",
+        "body": "Hello Larkspur Foods,\n\nThis is a final notice. The following invoices remain unpaid:\n\n- INV/2026/00011: $11,380.00 owed, due 2026-09-17\n- INV/2026/00012: $2,500.00 owed, due 2026-10-18\n- INV/2026/00013: $640.00 owed, due 2026-10-25\n\nIf payment has not arrived by 2026-11-10, new orders will go on hold.\n\nIf you have already sent payment, please reply with the payment details so we can match it to these invoices.\n\nRegards,\nAccounts receivable"
+      }
+    },
+    {
+      "case": "final, mixed stages",
+      "repeat": 1,
+      "passed": true,
+      "problems": [],
+      "seconds": 5.1,
+      "draft": {
+        "subject": "Final notice: overdue invoices, orders on hold 2026-11-10",
+        "body": "Hello Larkspur Foods,\n\nThis is a final notice for the overdue invoices below.\n\n- INV/2026/00011: $11,380.00 owed, due 2026-09-17\n- INV/2026/00012: $2,500.00 owed, due 2026-10-18\n- INV/2026/00013: $640.00 owed, due 2026-10-25\n\nIf payment has not arrived by 2026-11-10, new orders will go on hold.\n\nIf you have already sent payment, please reply with the payment details so we can match it to your account.\n\nAccounts receivable"
+      }
+    },
+    {
+      "case": "name with punctuation",
+      "repeat": 0,
+      "passed": true,
+      "problems": [],
+      "seconds": 3.9,
+      "draft": {
+        "subject": "Reminder: Invoice INV/2026/00014 – $5,460.00 past due",
+        "body": "Hello O'Neil & Sons, Inc. team,\n\nThis is a reminder that invoice INV/2026/00014 for $5,460.00 was due on 2026-10-17 and is still unpaid.\n\nPlease arrange payment this week. If payment has already been sent, please reply with the payment details so we can match it to your account. If it has not yet been sent, please reply with the date you will make payment.\n\nIf you have any questions about the invoice, let us know and we will respond promptly.\n\nThank you for your attention to this.\n\nAccounts receivable"
+      }
+    },
+    {
+      "case": "name with punctuation",
+      "repeat": 1,
+      "passed": true,
+      "problems": [],
+      "seconds": 5.0,
+      "draft": {
+        "subject": "Payment reminder: Invoice INV/2026/00014",
+        "body": "Dear O'Neil & Sons, Inc. team,\n\nThis is a reminder that invoice INV/2026/00014 for $5,460.00 was due on 2026-10-17 and is still outstanding.\n\nPlease arrange payment this week. If payment has already been sent, please reply with the payment details so we can match it to your account. If it has not, please let us know the date on which you will make payment.\n\nIf you have any questions about the invoice, reply to this email and we will help.\n\nThank you for your prompt attention.\n\nKind regards,\nAccounts receivable"
+      }
+    },
+    {
+      "case": "small amount",
+      "repeat": 0,
+      "passed": true,
+      "problems": [],
+      "seconds": 3.9,
+      "draft": {
+        "subject": "Friendly reminder: invoice INV/2026/00015 is past due",
+        "body": "Hello Larkspur Foods team,\n\nA quick note to say that invoice INV/2026/00015 for $12.50, which was due on 2026-10-23, is now past due. We assume it was simply missed.\n\nIf you could arrange payment when you get a chance, we would be grateful. If you have already sent it, please disregard this message and let us know so we can match it to your account.\n\nThank you, and please reach out if you have any questions about the invoice.\n\nKind regards,\nAccounts receivable"
+      }
+    },
+    {
+      "case": "small amount",
+      "repeat": 1,
+      "passed": true,
+      "problems": [],
+      "seconds": 3.8,
+      "draft": {
+        "subject": "Friendly reminder: invoice INV/2026/00015 is past due",
+        "body": "Hello Larkspur Foods team,\n\nI hope you're doing well. This is a friendly reminder that invoice INV/2026/00015 for $12.50 was due on 2026-10-23 and is now past due.\n\nWe assume this was simply missed. If you could arrange payment when you get a chance, we'd be grateful.\n\nIf you've already sent payment, please disregard this note, and thank you.\n\nKind regards,\nAccounts receivable"
+      }
+    },
+    {
+      "case": "large amount",
+      "repeat": 0,
+      "passed": true,
+      "problems": [],
+      "seconds": 3.9,
+      "draft": {
+        "subject": "Payment reminder: invoice INV/2026/00016",
+        "body": "Dear Granite State Credit Union team,\n\nThis is a reminder that invoice INV/2026/00016 for $1,250,000.00 was due on 2026-10-07 and remains unpaid.\n\nPlease arrange payment this week. If payment cannot be made by then, please reply with the date on which we can expect it.\n\nIf you have already sent payment, please let us know the payment details so we can match it to the invoice.\n\nThank you for your attention to this.\n\nKind regards,\nAccounts receivable"
+      }
+    },
+    {
+      "case": "large amount",
+      "repeat": 1,
+      "passed": true,
+      "problems": [],
+      "seconds": 5.5,
+      "draft": {
+        "subject": "Payment reminder: INV/2026/00016",
+        "body": "Dear Granite State Credit Union team,\n\nThis is a reminder that invoice INV/2026/00016 for $1,250,000.00 was due on 2026-10-07 and remains unpaid.\n\nPlease arrange payment this week. If payment has already been sent, please reply with the payment details so we can match it to the invoice. If it has not been sent yet, please tell us the date on which you will pay it.\n\nThank you for your prompt attention to this.\n\nKind regards,\nAccounts receivable"
+      }
+    },
+    {
+      "case": "final, euros, two invoices",
+      "repeat": 0,
+      "passed": true,
+      "problems": [],
+      "seconds": 4.8,
+      "draft": {
+        "subject": "Final notice: overdue invoices INV/2026/00017 and INV/2026/00018",
+        "body": "Dear Juniper Architecture,\n\nThis is a final notice about two overdue invoices:\n\n- INV/2026/00017: €920.00 owed, due 2026-09-07\n- INV/2026/00018: €1,840.00 owed, due 2026-09-24\n\nIf we have not received payment by 2026-11-10, new orders will be placed on hold.\n\nIf you have already paid, please reply with the payment date so we can match it to your account.\n\nRegards,\nAccounts receivable"
+      }
+    },
+    {
+      "case": "final, euros, two invoices",
+      "repeat": 1,
+      "passed": true,
+      "problems": [],
+      "seconds": 3.4,
+      "draft": {
+        "subject": "Final notice: overdue invoices INV/2026/00017 and INV/2026/00018",
+        "body": "Dear Juniper Architecture,\n\nThis is a final notice about two overdue invoices:\n\n- INV/2026/00017: €920.00 owed, due 2026-09-07\n- INV/2026/00018: €1,840.00 owed, due 2026-09-24\n\nIf we have not received payment by 2026-11-10, new orders will be put on hold.\n\nIf you have already paid, please reply with the payment details so we can match it to your account.\n\nAccounts receivable"
+      }
+    }
+  ]
+}

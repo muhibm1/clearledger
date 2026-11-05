@@ -162,3 +162,30 @@ def test_the_audit_log_cannot_be_changed(conn):
     with pytest.raises(psycopg.errors.RaiseException):
         conn.execute("update remit.audit set actor = 'someone else'")
     conn.rollback()
+
+
+def test_watch_flags_a_stalled_queue_and_a_failed_write(conn):
+    from remit.watch import check
+    run(conn, Reader(FakeOdoo()), AS_OF, "act")
+    status = {r.check_name: r.status for r in check(conn)}
+    assert status == {"last_run": "ok", "stalled_queue": "ok", "stuck_apply": "ok", "failed_apply": "ok"}
+    conn.execute("update remit.proposals set created_at = now() - interval '3 days' where status = 'pending'")
+    ledger = Ledger(conn)
+    r = pending(ledger, "reminder")[0]
+    ledger.decide(r["proposal_id"], True, "muhammad")
+
+    class Down(FakeOdoo):
+        def execute(self, model, method, *a, **k):
+            if method == "message_post":
+                raise ConnectionError("Odoo is down")
+            return super().execute(model, method, *a, **k)
+    apply(conn, Writer(Down()), Reader(Down()))
+    status = {r.check_name: r.status for r in check(conn)}
+    assert status["stalled_queue"] == "warn"
+    assert status["failed_apply"] == "fail"
+
+
+def test_watch_fails_when_remit_has_not_run(conn):
+    from remit.watch import check
+    Ledger(conn)
+    assert {r.check_name: r.status for r in check(conn)}["last_run"] == "fail"

@@ -7,8 +7,8 @@ follow-up call into Odoo, exactly once, through its own API. It cannot write any
 
 Code makes every decision that matters: which invoices are late, which to leave alone, which stage
 applies, what may be written, and whether it already was. A model is only ever asked to word a
-reminder, and code checks that wording before anyone sees it. Today the wording comes from the
-playbook's own templates, so no model is called anywhere in this folder.
+reminder, and code checks that wording before anyone sees it. Without a model, the wording comes
+from the playbook's own templates.
 
 The company and its customers are simulated (`edp/simulate.py`). The process, the rules, the
 writes into Odoo and the measurements are real.
@@ -26,6 +26,7 @@ python -m remit approve <proposal> --by <your name>
 python -m remit apply                 # writes approved proposals to Odoo, once each
 python -m remit report
 python -m remit.simulate              # the 90-day comparison below
+python -m remit daily                 # the morning job: apply, plan, check (see docs/runbook.md)
 ```
 
 ## How a run works
@@ -127,9 +128,36 @@ The full output, every seed, is in `results/simulation.json`.
   apply again, kill a write half way, and check Odoo holds exactly one note each time. CI runs it
   as its last step.
 
+## Model wording
+
+With `--model haiku` (or `REMIT_MODEL=haiku` for the daily job), a model words each reminder. It
+gets the customer's name, the invoices, their amounts in the invoice's own currency and the tone
+for the stage, and nothing else: no invoice notes, no customer text. Code then checks the draft
+(every invoice named, each exact amount present, no other amount, no discount, write-off, fee or
+link, a length limit). A draft that fails is asked for again once; a second failure is replaced
+by the template, and the proposal says which wrote it and what failed.
+
+`drafts_eval.py` asks the model for twelve kinds of reminder, twice each: one to three invoices,
+every stage, euros, a name with punctuation, very small and very large amounts.
+
+| Model | Drafts that passed the checks first time |
+| --- | --- |
+| Claude Haiku | 24 of 24 |
+| Claude Sonnet | 24 of 24 |
+
+Every draft and every check result is in `results/drafts-<model>.json`.
+
+## Running it every day
+
+`python -m remit daily` is the morning job: in act mode it first applies yesterday's approvals,
+then plans today's proposals, then runs Remit's own checks (a run in the last 26 hours, a queue
+nobody has worked for 48 hours, a write that started and never finished, a write Odoo refused).
+A failure exits 1 and goes to the same alert file and webhook as the pipeline's monitors. The
+runbook section [Run Remit, the collections agent](../docs/runbook.md#run-remit-the-collections-agent)
+covers the schedule, the order to move through the modes, and what to do when a check fails.
+
 ## Not built yet
 
-- A model drafting the reminders. The interface is in `draft.py`; the template is what runs.
 - Real email. Reminders are posted to the invoice as internal notes, which is what a finance team
   would see in Odoo; sending them is one more call on the allowlist.
-- A daily schedule and a runbook section for handing it over.
+- A pilot with real customers, to measure how much a reminder changes when people pay.

@@ -48,7 +48,7 @@ def run(conn, reader, as_of: dt.date, mode: str, model=None) -> dict:
     invoices = overdue(conn)
     evidence = gather(reader, invoices) if reader else {}
     with conn.transaction():
-        run_id = ledger.start_run(as_of, mode, "model" if model else "template")
+        run_id = ledger.start_run(as_of, mode, getattr(model, "model", "model") if model else "template")
     plans = plan_all(invoices, evidence, as_of, ledger.done_keys())
     summary = {"run_id": run_id, "mode": mode, "customers": len(plans), "invoices": len(invoices),
                "proposed": 0, "already_live": 0, "held": 0, "late_usd": "0"}
@@ -59,7 +59,11 @@ def run(conn, reader, as_of: dt.date, mode: str, model=None) -> dict:
         for action in plan.actions:
             body, by, problems = None, None, []
             if action.kind == "reminder":
-                body, by, problems = drafting.write(action, model)
+                try:
+                    body, by, problems = drafting.write(action, model)
+                except Exception as exc:  # noqa: BLE001 - a model that is down never stops the run
+                    body, by = drafting.template(action), "template after the model call failed"
+                    problems = [f"{type(exc).__name__}: {str(exc)[:200]}"]
             shown = {"tags": list(ev.customer_tags),
                      "invoice_text": {str(i.invoice_id): ev.invoice_notes.get(i.invoice_id, "")
                                       for i in action.invoices}}
