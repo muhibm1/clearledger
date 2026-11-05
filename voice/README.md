@@ -72,7 +72,26 @@ The first run passed 4 of 10, and the failures taught two things:
 - The agent made up column names when it wrote SQL, because a spoken query never sees the schema. The prompt now lists every mart column, and `test_prompt_names_only_columns_the_marts_have` fails if that list names a column the marts do not have.
 - In ElevenAgents' test runner a client tool returns nothing, so the agent calls it again. The tool tests now pass if any of its calls is the right one (`check_any_tool_matches`), which judges the call it makes rather than how often it retries an empty answer.
 
-One open question: the test runs were answered by `gemini-3.5-flash`, not the configured `claude-haiku-4-5`. The cause is not found yet. Still to do: a recorded live conversation with its timings.
+The test runner's own checks ran on `gemini-3.5-flash`; the agent itself answers with the configured `claude-haiku-4-5`, as the live call below shows.
+
+### First live call (2026-11-05)
+
+A 30-second call from the finance desk page in a Mac browser, against the demo Odoo company. Asked "How much does Northwind owe us?", the agent:
+
+1. called `find_customers("Northwind")`, which returned one customer made of two merged Odoo partners;
+2. said "Now let me get what they owe" while it called `customer_summary(41)`;
+3. answered: Northwind Logistics owes $26,835, of which $19,410 is 1 to 30 days late and $7,425 is over 90 days late, and offered the invoices.
+
+That matches the warehouse (billed $49,490, paid $22,655). Timings ElevenAgents recorded for that turn:
+
+| Step | Time |
+|---|---|
+| First spoken audio after the question ended | 1.6 s |
+| Model's first token, per model call | 0.29 to 0.47 s |
+| Each tool call, browser to warehouse and back | 0.11 to 0.12 s |
+| Speech synthesis, first audio | 0.10 to 0.15 s |
+
+Every reply came from `claude-haiku-4-5`.
 
 ## Run it
 
