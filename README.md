@@ -6,6 +6,8 @@
 
 A company runs on Odoo, an open-source ERP (enterprise resource planning: the system that holds orders, invoices and the books) with a CRM built in (the system that tracks customers and deals). Finance wants three answers: what each customer was billed and has paid, who is late and by how much, and whether every deal sales won actually turned into cash. This project answers them, and can show its work for any number. Ask why Northwind Logistics owes $26,835.00, and you get the three invoices and two payments behind it, with their Odoo ids and the exact version of each, plus the note that Northwind exists twice in Odoo and was merged ([example](docs/examples/trace-northwind.txt)).
 
+**See it as an engagement.** [`engagement/`](engagement/README.md) wraps this work in a simulated client engagement: discovery, rollout and rollback, security, runbook, handover, a 90-day review and a product feedback memo. `python -m engagement` runs its twelve seeded failures in about 10 seconds, with no database.
+
 It runs on a schedule, watches itself, and has been broken on purpose five ways to prove it fails loudly and recovers. It also builds a question set an AI finance assistant can be judged on and trained with, with every answer computed from the data rather than written by hand or by a model.
 
 ## What it does
@@ -30,7 +32,8 @@ staging → intermediate → marts
    ├─ Fathom      lineage, owners, rules, incidents: what a change would break
    ├─ eval/       finance questions with SQL answers: train, dev and test sets
    ├─ remit/      the collections agent: plans, drafts, waits for approval, writes to Odoo once
-   └─ voight/     a training ground: fresh copies of this Odoo, finance tasks, a checker that reads the books
+   ├─ voight/     a training ground: fresh copies of this Odoo, finance tasks, a checker that reads the books
+   └─ engagement/ the simulated client engagement around all of it, with a one-command demo
 ```
 
 1. **Extract.** `edp extract` reads deals, customers, orders, invoices and payments through Odoo's API, the way you would at a client: no database access to the ERP needed. It fetches only what changed since the last load, so a rerun stores nothing new. A field the load needs going missing stops the load and names the field; a custom field a client adds is picked up automatically.
