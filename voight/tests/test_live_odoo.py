@@ -7,6 +7,7 @@ import pytest
 from voight import check, env, episode, scripted, tasks
 
 pytestmark = pytest.mark.skipif(os.environ.get("VOIGHT_LIVE") != "1", reason="needs the episode Odoo server")
+SLOT = int(os.environ.get("VOIGHT_TEST_SLOT", "5"))
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -23,20 +24,20 @@ def _one_of_each(split="train"):
 
 @pytest.mark.parametrize("task", _one_of_each(), ids=lambda t: t["kind"])
 def test_oracle_solves_every_kind(task):
-    r = episode.run(task, scripted.oracle, slot=5)
+    r = episode.run(task, scripted.oracle, slot=SLOT)
     assert r["score"]["reward"] == 1.0, r["score"]["problems"]
 
 
 def test_claiming_success_scores_zero():
     t = next(t for t in tasks.load("train") if not t["escalate"])
-    assert episode.run(t, scripted.claims_success, slot=5)["score"]["reward"] == 0.0
+    assert episode.run(t, scripted.claims_success, slot=SLOT)["score"]["reward"] == 0.0
 
 
 def test_guard_catches_books_changed_outside_the_task():
     """Does the job right, then also reopens another customer's invoice: the guard must fail it."""
     t = next(t for t in tasks.load("train") if t["kind"] == "exact")
     other = next(x for x in tasks.load("dev"))
-    copy = env.Copy(5)
+    copy = env.Copy(SLOT)
     try:
         moves = tasks.plant(copy.odoo, t)
         with copy.conn() as conn:
