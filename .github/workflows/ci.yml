@@ -1,7 +1,7 @@
 # The whole platform end to end on every push: a fresh Odoo with a simulated
 # year of business, the load, every dbt model and check, the unit and warehouse
-# tests, the analyst agent's tests, the five failure drills, and the dataset build
-# with its leakage checks.
+# tests, the analyst agent's tests, the five failure drills, the dataset build
+# with its leakage checks, and Remit applying an approved reminder to Odoo once.
 # No model is called and no secret is read.
 name: ci
 
@@ -36,6 +36,7 @@ jobs:
       EDP_PGPASSWORD: odoo-ci
       EDP_DSN: host=localhost dbname=warehouse user=odoo
       ANALYST_ADS_DSN: host=localhost dbname=adsdemo user=odoo
+      REMIT_TEST_ADMIN_DSN: host=localhost dbname=postgres user=odoo
       EDP_DRILL_ODOO_STOP: scripts/odoo-local.sh stop
       EDP_DRILL_ODOO_START: scripts/odoo-local.sh start
     steps:
@@ -73,6 +74,12 @@ jobs:
         run: |
           .venv/bin/python eval/build.py > /dev/null
           .venv/bin/python eval/run.py ask --split test --provider stub
+      - name: Remit, the collections agent, against this Odoo (no model is called)
+        # Last, because it writes notes and activities into the demo company.
+        run: |
+          .venv/bin/python -m remit run --mode shadow
+          .venv/bin/python -m remit.simulate --out remit/results/simulation-ci.json
+          REMIT_LIVE=1 .venv/bin/python -m pytest -q remit/tests/test_live_odoo.py
       - name: Report
         if: always()
         run: |

@@ -1,0 +1,51 @@
+-- Remit's work list: every customer invoice still owed and due within 3 days or
+-- already late, with what the collections playbook needs to decide the next step.
+-- One row per invoice. Credit a customer could use against it (open credit notes
+-- and payments not matched to any invoice) is shown per customer, because Odoo
+-- has not yet said which invoice it pays.
+with inv as (
+    select * from {{ ref('int_invoices') }}
+    where move_type = 'out_invoice' and amount_open > 0
+      and due_date <= '{{ var("as_of") }}'::date + 3
+),
+credit_notes as (
+    select customer_key, -sum(amount_open) as amount
+    from {{ ref('int_invoices') }}
+    where move_type = 'out_refund' and amount_open < 0
+    group by customer_key
+),
+unmatched_payments as (
+    select c.customer_key, sum(p.amount) as amount
+    from {{ ref('stg_payments') }} p
+    join {{ ref('int_customers') }} c on c.partner_id = p.partner_id
+    where p.state in ('posted', 'paid', 'in_process') and p.payment_type = 'inbound'
+      and cardinality(p.invoice_ids) = 0
+    group by c.customer_key
+),
+reposted as (
+    select invoice_id from {{ ref('stg_invoice_versions') }}
+    where state = 'posted' group by invoice_id having count(distinct amount) > 1
+),
+partners_per_customer as (
+    select customer_key, count(*) as n from {{ ref('int_customers') }}
+    where partner_id in (select partner_id from {{ ref('stg_partners') }}
+                         where partner_id = coalesce(commercial_partner_id, partner_id))
+    group by customer_key
+)
+select
+    i.invoice_id, i.invoice_ref, i.customer_key, i.customer_name, i.partner_id,
+    i.invoice_date, i.due_date,
+    ('{{ var("as_of") }}'::date - i.due_date) as days_past_due,
+    i.currency,
+    i.amount_open_in_invoice_currency as amount_open_invoice_currency,
+    i.amount_open as amount_open_usd,
+    coalesce(cn.amount, 0) as customer_open_credit_notes_usd,
+    coalesce(up.amount, 0) as customer_unmatched_payments_usd,
+    (r.invoice_id is not null) as changed_after_posting,
+    coalesce(ppc.n, 1) > 1 as customer_has_duplicate_records,
+    i.source_ref
+from inv i
+left join credit_notes cn using (customer_key)
+left join unmatched_payments up using (customer_key)
+left join reposted r using (invoice_id)
+left join partners_per_customer ppc using (customer_key)
