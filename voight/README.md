@@ -75,20 +75,21 @@ Solved means the outcome was exactly right and nothing else in the books moved. 
 | Calls a write tool that does not exist | 0 | 0 | 0.00 |
 | Escalates everything | 36 | 79 | 0.37 |
 | Applies the money to every invoice in list order | 34 | 68 | 0.35 |
-| Haiku 5.5 (v1 dev, 44 tasks) | 43 | not run | 0.98 |
-| Sonnet 5.5 (v1 dev, 44 tasks) | 44 | not run | 1.00 |
+| Haiku 5.5 | 91 | not run | 0.94 |
+| Sonnet 5.5 | 97 | not run | 1.00 |
 
-The two model rows were scored on v1's 44 dev tasks, before the v2 kinds existed; they are being re-run on v2. On v1 the scripted rows were: oracle 44 of 44 dev and 102 of 102 train, escalate-everything 19 and 42, apply-everywhere 25 and 50.
+The model rows ran on v2 dev through the same six tools, about four calls a task. On v1's 44 dev tasks Haiku solved 43 and Sonnet 44. On v1 the scripted rows were: oracle 44 of 44 dev and 102 of 102 train, escalate-everything 19 and 42, apply-everywhere 25 and 50.
 
 What this says:
 
 - **The checker cannot be talked into a score.** Claiming success, or calling a tool that does not exist, scores zero on every task. Two cheap habits, always escalating and applying money everywhere, solve 37% and 35% of v2 dev (43% and 57% on v1). That is the floor a trained model has to clear, not the ceiling. Neither habit solves any `memo_short`, `typo_ref` or `two_credits` task; applying in list order does solve `partial_span`, because list order is oldest first, which is what the policy asks there.
+- **v2 separates the two large models.** Sonnet solved all 97. Haiku missed 6, all on judgement, not format: in 3 `tie` tasks it paid one of two invoices with the same balance instead of escalating; in 2 `two_credits_esc` tasks it applied the credit note first and only then escalated, which the policy forbids (escalate means apply none); in 1 `partial` task it finished without applying. Each Haiku call took about 2.5 s, each Sonnet call about 5.1 s.
 - **Large models already did the v1 job.** Haiku missed one task: it wrote that it had applied a partial payment and then called `finish` without calling `apply`. The checker scored it zero. Each model call took about 2.8 s (Haiku) and 5.3 s (Sonnet), about 3.4 calls a task.
 - **The point of the next step is the small model.** These tasks are easy for a large model and, we expect, hard for a 1.5B one. If training closes that gap, the result is a model that runs on one cheap GPU and does this job as well as the large ones. The v2 kinds (ties, short payments across several invoices, loosely written references, two items at once) were added so the set keeps signal once the small model catches up.
 
 Three problems were found and fixed before the numbers above:
 
-1. **The answer key asked for more than the written policy said.** Both models applied the `injection` payments to the customer's own invoice, as the written rules then allowed: the memo named no invoice, and the amount matched one exactly. The answer key said escalate. The policy now says it in words (a memo saying the money is for another customer means escalate), and both models then escalated all 7. The first runs are kept in `results/*-dev-first-brief.json`.
+1. **The answer key asked for more than the written policy said.** Both models applied the `injection` payments to the customer's own invoice, as the written rules then allowed: the memo named no invoice, and the amount matched one exactly. The answer key said escalate. The policy now says it in words (a memo saying the money is for another customer means escalate), and both models then escalated all 7. The first runs are kept in `results/v1/*-dev-first-brief.json`, with the rest of the v1 model runs.
 2. **Doing nothing earned partial credit.** On a customer with several invoices, leaving them all alone counted the untouched ones as "right", so the do-nothing cheat scored 0.07 on train. Partial credit now counts only invoices that should have moved, and is zero if any invoice moved that should not have.
 3. **The written rules left out one escalation the answer key made.** The code escalated when a memo named invoices worth less than the payment, but rule 4's text did not say so. No v1 task reached that case; `memo_short` sits next to it, so rule 4 now says it in words.
 

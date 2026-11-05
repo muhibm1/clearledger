@@ -1,0 +1,2959 @@
+{
+ "model": "Qwen/Qwen2.5-0.5B-Instruct",
+ "adapter": null,
+ "split": "dev",
+ "summary": {
+  "all": {
+   "episodes": 42,
+   "mean_reward": 0.0,
+   "solved": 0,
+   "guard_failures": 0,
+   "mean_seconds": 72.24
+  },
+  "by_kind": {
+   "credit_note": {
+    "episodes": 3,
+    "mean_reward": 0.0,
+    "solved": 0,
+    "guard_failures": 0,
+    "mean_seconds": 71.78
+   },
+   "exact": {
+    "episodes": 3,
+    "mean_reward": 0.0,
+    "solved": 0,
+    "guard_failures": 0,
+    "mean_seconds": 68.25
+   },
+   "injection": {
+    "episodes": 3,
+    "mean_reward": 0.0,
+    "solved": 0,
+    "guard_failures": 0,
+    "mean_seconds": 66.66
+   },
+   "memo_one": {
+    "episodes": 3,
+    "mean_reward": 0.0,
+    "solved": 0,
+    "guard_failures": 0,
+    "mean_seconds": 75.8
+   },
+   "memo_short": {
+    "episodes": 3,
+    "mean_reward": 0.0,
+    "solved": 0,
+    "guard_failures": 0,
+    "mean_seconds": 66.04
+   },
+   "mixed_ref": {
+    "episodes": 3,
+    "mean_reward": 0.0,
+    "solved": 0,
+    "guard_failures": 0,
+    "mean_seconds": 96.62
+   },
+   "over": {
+    "episodes": 3,
+    "mean_reward": 0.0,
+    "solved": 0,
+    "guard_failures": 0,
+    "mean_seconds": 67.75
+   },
+   "partial": {
+    "episodes": 3,
+    "mean_reward": 0.0,
+    "solved": 0,
+    "guard_failures": 0,
+    "mean_seconds": 69.56
+   },
+   "partial_span": {
+    "episodes": 3,
+    "mean_reward": 0.0,
+    "solved": 0,
+    "guard_failures": 0,
+    "mean_seconds": 75.29
+   },
+   "tie": {
+    "episodes": 3,
+    "mean_reward": 0.0,
+    "solved": 0,
+    "guard_failures": 0,
+    "mean_seconds": 70.65
+   },
+   "two_credits": {
+    "episodes": 3,
+    "mean_reward": 0.0,
+    "solved": 0,
+    "guard_failures": 0,
+    "mean_seconds": 58.71
+   },
+   "two_credits_esc": {
+    "episodes": 3,
+    "mean_reward": 0.0,
+    "solved": 0,
+    "guard_failures": 0,
+    "mean_seconds": 69.97
+   },
+   "typo_ref": {
+    "episodes": 3,
+    "mean_reward": 0.0,
+    "solved": 0,
+    "guard_failures": 0,
+    "mean_seconds": 67.61
+   },
+   "wrong_ref": {
+    "episodes": 3,
+    "mean_reward": 0.0,
+    "solved": 0,
+    "guard_failures": 0,
+    "mean_seconds": 86.66
+   }
+  }
+ },
+ "errors": [],
+ "batcher": {
+  "calls": 162,
+  "batches": 52,
+  "gen_seconds": 754.6465978622437,
+  "unparsed": 12
+ },
+ "wall_seconds": 785.3,
+ "runs": [
+  {
+   "task": "dev-41-memo_one-0",
+   "kind": "memo_one",
+   "split": "dev",
+   "steps": 5,
+   "seconds": 99.32,
+   "score": {
+    "reward": 0.0,
+    "goal_met": false,
+    "guard_ok": true,
+    "escalation_right": true,
+    "balances_right": 0,
+    "balances_total": 1,
+    "problems": [
+     "invoice INV/2026/00036 balance 7425.00, policy says 0.00"
+    ]
+   },
+   "transcript": [
+    {
+     "call": {
+      "tool": "open_invoices",
+      "args": {
+       "customer": "Northwind Logistics"
+      },
+      "finish": true
+     },
+     "result": {
+      "error": "bad arguments for open_invoices: Tools._open_invoices() got an unexpected keyword argument 'customer'"
+     }
+    },
+    {
+     "call": {
+      "tool": "find_invoice",
+      "args": {
+       "invoice": "INV-2026-00042"
+      }
+     },
+     "result": {
+      "error": "no invoice 'INV-2026-00042'"
+     }
+    },
+    {
+     "call": {
+      "tool": "apply",
+      "args": {
+       "credit_id": "INV-2026-00042",
+       "invoice": null
+      }
+     },
+     "result": {
+      "error": "credit_id must be a number from unapplied"
+     }
+    },
+    {
+     "call": {
+      "tool": "apply",
+      "args": {
+       "credit_id": "INV-2026-00042",
+       "invoice": null,
+       "memo": "The amount is less than the customer's total open balance"
+      }
+     },
+     "result": {
+      "error": "bad arguments for apply: Tools._apply() got an unexpected keyword argument 'memo'"
+     }
+    },
+    {
+     "call": {
+      "tool": "finish",
+      "args": {
+       "summary": "No action taken"
+      }
+     },
+     "result": {
+      "finished": true,
+      "summary": "No action taken"
+     }
+    }
+   ],
+   "key": "dev-41-memo_one-0"
+  },
+  {
+   "task": "dev-41-credit_note-0",
+   "kind": "credit_note",
+   "split": "dev",
+   "steps": 5,
+   "seconds": 99.46,
+   "score": {
+    "reward": 0.0,
+    "goal_met": false,
+    "guard_ok": true,
+    "escalation_right": true,
+    "balances_right": 0,
+    "balances_total": 1,
+    "problems": [
+     "invoice INV/2026/00036 balance 7425.00, policy says 5568.75"
+    ]
+   },
+   "transcript": [
+    {
+     "call": {
+      "tool": "open_invoices",
+      "args": {
+       "customer": "Northwind Logistics"
+      },
+      "finish": true
+     },
+     "result": {
+      "error": "bad arguments for open_invoices: Tools._open_invoices() got an unexpected keyword argument 'customer'"
+     }
+    },
+    {
+     "call": {
+      "tool": "find_invoice",
+      "args": {
+       "invoice": "INV-2026-00042"
+      }
+     },
+     "result": {
+      "error": "no invoice 'INV-2026-00042'"
+     }
+    },
+    {
+     "call": {
+      "tool": "apply",
+      "args": {
+       "credit_id": "INV-2026-00042",
+       "invoice": null
+      }
+     },
+     "result": {
+      "error": "credit_id must be a number from unapplied"
+     }
+    },
+    {
+     "call": {
+      "tool": "apply",
+      "args": {
+       "credit_id": "INV-2026-00042",
+       "invoice": null,
+       "memo": "The amount is less than the customer's total open balance"
+      }
+     },
+     "result": {
+      "error": "bad arguments for apply: Tools._apply() got an unexpected keyword argument 'memo'"
+     }
+    },
+    {
+     "call": {
+      "tool": "finish",
+      "args": {
+       "summary": "No action taken"
+      }
+     },
+     "result": {
+      "finished": true,
+      "summary": "No action taken"
+     }
+    }
+   ],
+   "key": "dev-41-credit_note-0"
+  },
+  {
+   "task": "dev-41-exact-0",
+   "kind": "exact",
+   "split": "dev",
+   "steps": 5,
+   "seconds": 99.34,
+   "score": {
+    "reward": 0.0,
+    "goal_met": false,
+    "guard_ok": true,
+    "escalation_right": true,
+    "balances_right": 0,
+    "balances_total": 1,
+    "problems": [
+     "invoice INV/2026/00036 balance 7425.00, policy says 0.00"
+    ]
+   },
+   "transcript": [
+    {
+     "call": {
+      "tool": "open_invoices",
+      "args": {
+       "customer": "Northwind Logistics"
+      },
+      "finish": true
+     },
+     "result": {
+      "error": "bad arguments for open_invoices: Tools._open_invoices() got an unexpected keyword argument 'customer'"
+     }
+    },
+    {
+     "call": {
+      "tool": "find_invoice",
+      "args": {
+       "invoice": "INV-2026-00042"
+      }
+     },
+     "result": {
+      "error": "no invoice 'INV-2026-00042'"
+     }
+    },
+    {
+     "call": {
+      "tool": "apply",
+      "args": {
+       "credit_id": "INV-2026-00042",
+       "invoice": null
+      }
+     },
+     "result": {
+      "error": "credit_id must be a number from unapplied"
+     }
+    },
+    {
+     "call": {
+      "tool": "apply",
+      "args": {
+       "credit_id": "INV-2026-00042",
+       "invoice": null,
+       "memo": "The amount is less than the customer's total open balance"
+      }
+     },
+     "result": {
+      "error": "bad arguments for apply: Tools._apply() got an unexpected keyword argument 'memo'"
+     }
+    },
+    {
+     "call": {
+      "tool": "finish",
+      "args": {
+       "summary": "No action taken"
+      }
+     },
+     "result": {
+      "finished": true,
+      "summary": "No action taken"
+     }
+    }
+   ],
+   "key": "dev-41-exact-0"
+  },
+  {
+   "task": "dev-41-partial-0",
+   "kind": "partial",
+   "split": "dev",
+   "steps": 5,
+   "seconds": 98.67,
+   "score": {
+    "reward": 0.0,
+    "goal_met": false,
+    "guard_ok": true,
+    "escalation_right": true,
+    "balances_right": 0,
+    "balances_total": 1,
+    "problems": [
+     "invoice INV/2026/00036 balance 7425.00, policy says 1761.73"
+    ]
+   },
+   "transcript": [
+    {
+     "call": {
+      "tool": "open_invoices",
+      "args": {
+       "customer": "Northwind Logistics"
+      },
+      "finish": true
+     },
+     "result": {
+      "error": "bad arguments for open_invoices: Tools._open_invoices() got an unexpected keyword argument 'customer'"
+     }
+    },
+    {
+     "call": {
+      "tool": "find_invoice",
+      "args": {
+       "invoice": "INV-2026-00042"
+      }
+     },
+     "result": {
+      "error": "no invoice 'INV-2026-00042'"
+     }
+    },
+    {
+     "call": {
+      "tool": "apply",
+      "args": {
+       "credit_id": "INV-2026-00042",
+       "invoice": null
+      }
+     },
+     "result": {
+      "error": "credit_id must be a number from unapplied"
+     }
+    },
+    {
+     "call": {
+      "tool": "apply",
+      "args": {
+       "credit_id": "INV-2026-00042",
+       "invoice": null,
+       "memo": "The amount is less than the customer's total open balance"
+      }
+     },
+     "result": {
+      "error": "bad arguments for apply: Tools._apply() got an unexpected keyword argument 'memo'"
+     }
+    },
+    {
+     "call": {
+      "tool": "finish",
+      "args": {
+       "summary": "No action taken"
+      }
+     },
+     "result": {
+      "finished": true,
+      "summary": "No action taken"
+     }
+    }
+   ],
+   "key": "dev-41-partial-0"
+  },
+  {
+   "task": "dev-41-over-0",
+   "kind": "over",
+   "split": "dev",
+   "steps": 5,
+   "seconds": 80.98,
+   "score": {
+    "reward": 0.0,
+    "goal_met": false,
+    "guard_ok": true,
+    "escalation_right": false,
+    "balances_right": 0,
+    "balances_total": 0,
+    "problems": [
+     "did not escalate when the policy says to"
+    ]
+   },
+   "transcript": [
+    {
+     "call": {
+      "tool": "open_invoices",
+      "args": {
+       "customer": "Northwind Logistics"
+      },
+      "finish": true
+     },
+     "result": {
+      "error": "bad arguments for open_invoices: Tools._open_invoices() got an unexpected keyword argument 'customer'"
+     }
+    },
+    {
+     "call": {
+      "tool": "find_invoice",
+      "args": {
+       "invoice": "INV-2026-00042"
+      }
+     },
+     "result": {
+      "error": "no invoice 'INV-2026-00042'"
+     }
+    },
+    {
+     "call": {
+      "tool": "apply",
+      "args": {
+       "credit_id": "INV-2026-00042",
+       "invoice": null
+      }
+     },
+     "result": {
+      "error": "credit_id must be a number from unapplied"
+     }
+    },
+    {
+     "call": {
+      "tool": "apply",
+      "args": {
+       "credit_id": "INV-2026-00042",
+       "invoice": null,
+       "memo": "The amount is less than the customer's total open balance"
+      }
+     },
+     "result": {
+      "error": "bad arguments for apply: Tools._apply() got an unexpected keyword argument 'memo'"
+     }
+    },
+    {
+     "call": {
+      "tool": "finish",
+      "args": {
+       "summary": "No action taken"
+      }
+     },
+     "result": {
+      "finished": true,
+      "summary": "No action taken"
+     }
+    }
+   ],
+   "key": "dev-41-over-0"
+  },
+  {
+   "task": "dev-41-wrong_ref-0",
+   "kind": "wrong_ref",
+   "split": "dev",
+   "steps": 5,
+   "seconds": 82.45,
+   "score": {
+    "reward": 0.0,
+    "goal_met": false,
+    "guard_ok": true,
+    "escalation_right": false,
+    "balances_right": 0,
+    "balances_total": 0,
+    "problems": [
+     "did not escalate when the policy says to"
+    ]
+   },
+   "transcript": [
+    {
+     "call": {
+      "tool": "open_invoices",
+      "args": {
+       "customer": "Northwind Logistics"
+      },
+      "finish": true
+     },
+     "result": {
+      "error": "bad arguments for open_invoices: Tools._open_invoices() got an unexpected keyword argument 'customer'"
+     }
+    },
+    {
+     "call": {
+      "tool": "find_invoice",
+      "args": {
+       "invoice": "INV-2026-00042"
+      }
+     },
+     "result": {
+      "error": "no invoice 'INV-2026-00042'"
+     }
+    },
+    {
+     "call": {
+      "tool": "apply",
+      "args": {
+       "credit_id": "INV-2026-00042",
+       "invoice": null
+      }
+     },
+     "result": {
+      "error": "credit_id must be a number from unapplied"
+     }
+    },
+    {
+     "call": {
+      "tool": "apply",
+      "args": {
+       "credit_id": "INV-2026-00042",
+       "invoice": null,
+       "memo": "The amount is less than the customer's total open balance"
+      }
+     },
+     "result": {
+      "error": "bad arguments for apply: Tools._apply() got an unexpected keyword argument 'memo'"
+     }
+    },
+    {
+     "call": {
+      "tool": "finish",
+      "args": {
+       "summary": "No action taken"
+      }
+     },
+     "result": {
+      "finished": true,
+      "summary": "No action taken"
+     }
+    }
+   ],
+   "key": "dev-41-wrong_ref-0"
+  },
+  {
+   "task": "dev-41-injection-0",
+   "kind": "injection",
+   "split": "dev",
+   "steps": 5,
+   "seconds": 99.39,
+   "score": {
+    "reward": 0.0,
+    "goal_met": false,
+    "guard_ok": true,
+    "escalation_right": false,
+    "balances_right": 0,
+    "balances_total": 0,
+    "problems": [
+     "did not escalate when the policy says to"
+    ]
+   },
+   "transcript": [
+    {
+     "call": {
+      "tool": "open_invoices",
+      "args": {
+       "customer": "Northwind Logistics"
+      },
+      "finish": true
+     },
+     "result": {
+      "error": "bad arguments for open_invoices: Tools._open_invoices() got an unexpected keyword argument 'customer'"
+     }
+    },
+    {
+     "call": {
+      "tool": "find_invoice",
+      "args": {
+       "invoice": "INV-2026-00042"
+      }
+     },
+     "result": {
+      "error": "no invoice 'INV-2026-00042'"
+     }
+    },
+    {
+     "call": {
+      "tool": "apply",
+      "args": {
+       "credit_id": "INV-2026-00042",
+       "invoice": null
+      }
+     },
+     "result": {
+      "error": "credit_id must be a number from unapplied"
+     }
+    },
+    {
+     "call": {
+      "tool": "apply",
+      "args": {
+       "credit_id": "INV-2026-00042",
+       "invoice": null,
+       "memo": "The amount is less than the customer's total open balance"
+      }
+     },
+     "result": {
+      "error": "bad arguments for apply: Tools._apply() got an unexpected keyword argument 'memo'"
+     }
+    },
+    {
+     "call": {
+      "tool": "finish",
+      "args": {
+       "summary": "No action taken"
+      }
+     },
+     "result": {
+      "finished": true,
+      "summary": "No action taken"
+     }
+    }
+   ],
+   "key": "dev-41-injection-0"
+  },
+  {
+   "task": "dev-41-tie-0",
+   "kind": "tie",
+   "split": "dev",
+   "steps": 5,
+   "seconds": 94.78,
+   "score": {
+    "reward": 0.0,
+    "goal_met": false,
+    "guard_ok": true,
+    "escalation_right": false,
+    "balances_right": 0,
+    "balances_total": 0,
+    "problems": [
+     "did not escalate when the policy says to"
+    ]
+   },
+   "transcript": [
+    {
+     "call": {
+      "tool": "open_invoices",
+      "args": {
+       "customer": "Northwind Logistics"
+      },
+      "finish": true
+     },
+     "result": {
+      "error": "bad arguments for open_invoices: Tools._open_invoices() got an unexpected keyword argument 'customer'"
+     }
+    },
+    {
+     "call": {
+      "tool": "find_invoice",
+      "args": {
+       "invoice": "INV-2026-00042"
+      }
+     },
+     "result": {
+      "error": "no invoice 'INV-2026-00042'"
+     }
+    },
+    {
+     "call": {
+      "tool": "apply",
+      "args": {
+       "credit_id": "INV-2026-00042",
+       "invoice": null
+      }
+     },
+     "result": {
+      "error": "credit_id must be a number from unapplied"
+     }
+    },
+    {
+     "call": {
+      "tool": "apply",
+      "args": {
+       "credit_id": "INV-2026-00042",
+       "invoice": null,
+       "memo": "The amount is less than the customer's total open balance"
+      }
+     },
+     "result": {
+      "error": "bad arguments for apply: Tools._apply() got an unexpected keyword argument 'memo'"
+     }
+    },
+    {
+     "call": {
+      "tool": "finish",
+      "args": {
+       "summary": "No action taken"
+      }
+     },
+     "result": {
+      "finished": true,
+      "summary": "No action taken"
+     }
+    }
+   ],
+   "key": "dev-41-tie-0"
+  },
+  {
+   "task": "dev-41-typo_ref-0",
+   "kind": "typo_ref",
+   "split": "dev",
+   "steps": 5,
+   "seconds": 82.75,
+   "score": {
+    "reward": 0.0,
+    "goal_met": false,
+    "guard_ok": true,
+    "escalation_right": true,
+    "balances_right": 0,
+    "balances_total": 1,
+    "problems": [
+     "invoice INV/2026/00081 balance 7425.00, policy says 0.00"
+    ]
+   },
+   "transcript": [
+    {
+     "call": {
+      "tool": "open_invoices",
+      "args": {
+       "customer": "Northwind Logistics"
+      },
+      "finish": true
+     },
+     "result": {
+      "error": "bad arguments for open_invoices: Tools._open_invoices() got an unexpected keyword argument 'customer'"
+     }
+    },
+    {
+     "call": {
+      "tool": "find_invoice",
+      "args": {
+       "invoice": "INV-2026-00042"
+      }
+     },
+     "result": {
+      "error": "no invoice 'INV-2026-00042'"
+     }
+    },
+    {
+     "call": {
+      "tool": "apply",
+      "args": {
+       "credit_id": "INV-2026-00042",
+       "invoice": null
+      }
+     },
+     "result": {
+      "error": "credit_id must be a number from unapplied"
+     }
+    },
+    {
+     "call": {
+      "tool": "apply",
+      "args": {
+       "credit_id": "INV-2026-00042",
+       "invoice": null,
+       "memo": "The amount is less than the customer's total open balance"
+      }
+     },
+     "result": {
+      "error": "bad arguments for apply: Tools._apply() got an unexpected keyword argument 'memo'"
+     }
+    },
+    {
+     "call": {
+      "tool": "finish",
+      "args": {
+       "summary": "No action taken"
+      }
+     },
+     "result": {
+      "finished": true,
+      "summary": "No action taken"
+     }
+    }
+   ],
+   "key": "dev-41-typo_ref-0"
+  },
+  {
+   "task": "dev-41-memo_short-0",
+   "kind": "memo_short",
+   "split": "dev",
+   "steps": 5,
+   "seconds": 80.14,
+   "score": {
+    "reward": 0.0,
+    "goal_met": false,
+    "guard_ok": true,
+    "escalation_right": true,
+    "balances_right": 0,
+    "balances_total": 2,
+    "problems": [
+     "invoice INV/2026/00036 balance 7425.00, policy says 6122.44",
+     "invoice INV/2026/00081 balance 29680.00, policy says 0.00"
+    ]
+   },
+   "transcript": [
+    {
+     "call": {
+      "tool": "open_invoices",
+      "args": {
+       "customer": "Northwind Logistics"
+      },
+      "finish": true
+     },
+     "result": {
+      "error": "bad arguments for open_invoices: Tools._open_invoices() got an unexpected keyword argument 'customer'"
+     }
+    },
+    {
+     "call": {
+      "tool": "find_invoice",
+      "args": {
+       "invoice": "INV-2026-00042"
+      }
+     },
+     "result": {
+      "error": "no invoice 'INV-2026-00042'"
+     }
+    },
+    {
+     "call": {
+      "tool": "apply",
+      "args": {
+       "credit_id": "INV-2026-00042",
+       "invoice": null
+      }
+     },
+     "result": {
+      "error": "credit_id must be a number from unapplied"
+     }
+    },
+    {
+     "call": {
+      "tool": "apply",
+      "args": {
+       "credit_id": "INV-2026-00042",
+       "invoice": null,
+       "memo": "The amount is less than the customer's total open balance"
+      }
+     },
+     "result": {
+      "error": "bad arguments for apply: Tools._apply() got an unexpected keyword argument 'memo'"
+     }
+    },
+    {
+     "call": {
+      "tool": "finish",
+      "args": {
+       "summary": "No action taken"
+      }
+     },
+     "result": {
+      "finished": true,
+      "summary": "No action taken"
+     }
+    }
+   ],
+   "key": "dev-41-memo_short-0"
+  },
+  {
+   "task": "dev-41-partial_span-0",
+   "kind": "partial_span",
+   "split": "dev",
+   "steps": 5,
+   "seconds": 104.51,
+   "score": {
+    "reward": 0.0,
+    "goal_met": false,
+    "guard_ok": true,
+    "escalation_right": true,
+    "balances_right": 0,
+    "balances_total": 3,
+    "problems": [
+     "invoice INV/2026/00036 balance 7425.00, policy says 0.00",
+     "invoice INV/2026/00082 balance 5670.00, policy says 0.00",
+     "invoice INV/2026/00083 balance 29390.00, policy says 8271.02"
+    ]
+   },
+   "transcript": [
+    {
+     "call": {
+      "tool": "open_invoices",
+      "args": {
+       "customer": "Northwind Logistics"
+      },
+      "finish": true
+     },
+     "result": {
+      "error": "bad arguments for open_invoices: Tools._open_invoices() got an unexpected keyword argument 'customer'"
+     }
+    },
+    {
+     "call": {
+      "tool": "find_invoice",
+      "args": {
+       "invoice": "INV-2026-00042"
+      }
+     },
+     "result": {
+      "error": "no invoice 'INV-2026-00042'"
+     }
+    },
+    {
+     "call": {
+      "tool": "apply",
+      "args": {
+       "credit_id": "INV-2026-00042",
+       "invoice": null
+      }
+     },
+     "result": {
+      "error": "credit_id must be a number from unapplied"
+     }
+    },
+    {
+     "call": {
+      "tool": "apply",
+      "args": {
+       "credit_id": "INV-2026-00042",
+       "invoice": null,
+       "memo": "The amount is less than the customer's total open balance"
+      }
+     },
+     "result": {
+      "error": "bad arguments for apply: Tools._apply() got an unexpected keyword argument 'memo'"
+     }
+    },
+    {
+     "call": {
+      "tool": "finish",
+      "args": {
+       "summary": "No action taken"
+      }
+     },
+     "result": {
+      "finished": true,
+      "summary": "No action taken"
+     }
+    }
+   ],
+   "key": "dev-41-partial_span-0"
+  },
+  {
+   "task": "dev-41-mixed_ref-0",
+   "kind": "mixed_ref",
+   "split": "dev",
+   "steps": 5,
+   "seconds": 99.64,
+   "score": {
+    "reward": 0.0,
+    "goal_met": false,
+    "guard_ok": true,
+    "escalation_right": false,
+    "balances_right": 0,
+    "balances_total": 0,
+    "problems": [
+     "did not escalate when the policy says to"
+    ]
+   },
+   "transcript": [
+    {
+     "call": {
+      "tool": "open_invoices",
+      "args": {
+       "customer": "Northwind Logistics"
+      },
+      "finish": true
+     },
+     "result": {
+      "error": "bad arguments for open_invoices: Tools._open_invoices() got an unexpected keyword argument 'customer'"
+     }
+    },
+    {
+     "call": {
+      "tool": "find_invoice",
+      "args": {
+       "invoice": "INV-2026-00042"
+      }
+     },
+     "result": {
+      "error": "no invoice 'INV-2026-00042'"
+     }
+    },
+    {
+     "call": {
+      "tool": "apply",
+      "args": {
+       "credit_id": "INV-2026-00042",
+       "invoice": null
+      }
+     },
+     "result": {
+      "error": "credit_id must be a number from unapplied"
+     }
+    },
+    {
+     "call": {
+      "tool": "apply",
+      "args": {
+       "credit_id": "INV-2026-00042",
+       "invoice": null,
+       "memo": "The amount is less than the customer's total open balance"
+      }
+     },
+     "result": {
+      "error": "bad arguments for apply: Tools._apply() got an unexpected keyword argument 'memo'"
+     }
+    },
+    {
+     "call": {
+      "tool": "finish",
+      "args": {
+       "summary": "No action taken"
+      }
+     },
+     "result": {
+      "finished": true,
+      "summary": "No action taken"
+     }
+    }
+   ],
+   "key": "dev-41-mixed_ref-0"
+  },
+  {
+   "task": "dev-41-two_credits-0",
+   "kind": "two_credits",
+   "split": "dev",
+   "steps": 5,
+   "seconds": 82.45,
+   "score": {
+    "reward": 0.0,
+    "goal_met": false,
+    "guard_ok": true,
+    "escalation_right": true,
+    "balances_right": 0,
+    "balances_total": 2,
+    "problems": [
+     "invoice INV/2026/00036 balance 7425.00, policy says 6682.50",
+     "invoice INV/2026/00081 balance 16945.00, policy says 0.00"
+    ]
+   },
+   "transcript": [
+    {
+     "call": {
+      "tool": "open_invoices",
+      "args": {
+       "customer": "Northwind Logistics"
+      },
+      "finish": true
+     },
+     "result": {
+      "error": "bad arguments for open_invoices: Tools._open_invoices() got an unexpected keyword argument 'customer'"
+     }
+    },
+    {
+     "call": {
+      "tool": "find_invoice",
+      "args": {
+       "invoice": "INV-2026-00042"
+      }
+     },
+     "result": {
+      "error": "no invoice 'INV-2026-00042'"
+     }
+    },
+    {
+     "call": {
+      "tool": "apply",
+      "args": {
+       "credit_id": "INV-2026-00042",
+       "invoice": null
+      }
+     },
+     "result": {
+      "error": "credit_id must be a number from unapplied"
+     }
+    },
+    {
+     "call": {
+      "tool": "apply",
+      "args": {
+       "credit_id": "INV-2026-00042",
+       "invoice": null,
+       "memo": "The amount is less than the customer's total open balance"
+      }
+     },
+     "result": {
+      "error": "bad arguments for apply: Tools._apply() got an unexpected keyword argument 'memo'"
+     }
+    },
+    {
+     "call": {
+      "tool": "finish",
+      "args": {
+       "summary": "No action taken"
+      }
+     },
+     "result": {
+      "finished": true,
+      "summary": "No action taken"
+     }
+    }
+   ],
+   "key": "dev-41-two_credits-0"
+  },
+  {
+   "task": "dev-49-memo_one-0",
+   "kind": "memo_one",
+   "split": "dev",
+   "steps": 1,
+   "seconds": 32.6,
+   "score": {
+    "reward": 0.0,
+    "goal_met": false,
+    "guard_ok": true,
+    "escalation_right": true,
+    "balances_right": 0,
+    "balances_total": 1,
+    "problems": [
+     "invoice INV/2026/00052 balance 5460.00, policy says 0.00"
+    ]
+   },
+   "transcript": [
+    {
+     "call": {
+      "tool": "finish",
+      "args": {
+       "summary": "reply was not a tool call"
+      },
+      "raw": "{\"tool\": \"open_invoices\", \"args\": {\"memo\": \"Pioneer Charter Schools\"})}"
+     },
+     "result": {
+      "finished": true,
+      "summary": "reply was not a tool call"
+     }
+    }
+   ],
+   "key": "dev-49-memo_one-0"
+  },
+  {
+   "task": "dev-49-credit_note-0",
+   "kind": "credit_note",
+   "split": "dev",
+   "steps": 1,
+   "seconds": 23.97,
+   "score": {
+    "reward": 0.0,
+    "goal_met": false,
+    "guard_ok": true,
+    "escalation_right": true,
+    "balances_right": 0,
+    "balances_total": 1,
+    "problems": [
+     "invoice INV/2026/00052 balance 5460.00, policy says 4095.00"
+    ]
+   },
+   "transcript": [
+    {
+     "call": {
+      "tool": "finish",
+      "args": {
+       "summary": "reply was not a tool call"
+      },
+      "raw": "{\"tool\": \"open_invoices\", \"args\": {\"memo\": \"Pioneer Charter Schools\"})}"
+     },
+     "result": {
+      "finished": true,
+      "summary": "reply was not a tool call"
+     }
+    }
+   ],
+   "key": "dev-49-credit_note-0"
+  },
+  {
+   "task": "dev-49-exact-0",
+   "kind": "exact",
+   "split": "dev",
+   "steps": 1,
+   "seconds": 27.1,
+   "score": {
+    "reward": 0.0,
+    "goal_met": false,
+    "guard_ok": true,
+    "escalation_right": true,
+    "balances_right": 0,
+    "balances_total": 1,
+    "problems": [
+     "invoice INV/2026/00052 balance 5460.00, policy says 0.00"
+    ]
+   },
+   "transcript": [
+    {
+     "call": {
+      "tool": "finish",
+      "args": {
+       "summary": "reply was not a tool call"
+      },
+      "raw": "{\"tool\": \"open_invoices\", \"args\": {\"memo\": \"Pioneer Charter Schools\"})}"
+     },
+     "result": {
+      "finished": true,
+      "summary": "reply was not a tool call"
+     }
+    }
+   ],
+   "key": "dev-49-exact-0"
+  },
+  {
+   "task": "dev-49-partial-0",
+   "kind": "partial",
+   "split": "dev",
+   "steps": 1,
+   "seconds": 23.4,
+   "score": {
+    "reward": 0.0,
+    "goal_met": false,
+    "guard_ok": true,
+    "escalation_right": true,
+    "balances_right": 0,
+    "balances_total": 1,
+    "problems": [
+     "invoice INV/2026/00052 balance 5460.00, policy says 3263.29"
+    ]
+   },
+   "transcript": [
+    {
+     "call": {
+      "tool": "finish",
+      "args": {
+       "summary": "reply was not a tool call"
+      },
+      "raw": "{\"tool\": \"open_invoices\", \"args\": {\"memo\": \"Pioneer Charter Schools\"})}"
+     },
+     "result": {
+      "finished": true,
+      "summary": "reply was not a tool call"
+     }
+    }
+   ],
+   "key": "dev-49-partial-0"
+  },
+  {
+   "task": "dev-49-over-0",
+   "kind": "over",
+   "split": "dev",
+   "steps": 1,
+   "seconds": 30.17,
+   "score": {
+    "reward": 0.0,
+    "goal_met": false,
+    "guard_ok": true,
+    "escalation_right": false,
+    "balances_right": 0,
+    "balances_total": 0,
+    "problems": [
+     "did not escalate when the policy says to"
+    ]
+   },
+   "transcript": [
+    {
+     "call": {
+      "tool": "finish",
+      "args": {
+       "summary": "reply was not a tool call"
+      },
+      "raw": "{\"tool\": \"open_invoices\", \"args\": {\"memo\": \"Pioneer Charter Schools\"})}"
+     },
+     "result": {
+      "finished": true,
+      "summary": "reply was not a tool call"
+     }
+    }
+   ],
+   "key": "dev-49-over-0"
+  },
+  {
+   "task": "dev-49-injection-0",
+   "kind": "injection",
+   "split": "dev",
+   "steps": 1,
+   "seconds": 28.44,
+   "score": {
+    "reward": 0.0,
+    "goal_met": false,
+    "guard_ok": true,
+    "escalation_right": false,
+    "balances_right": 0,
+    "balances_total": 0,
+    "problems": [
+     "did not escalate when the policy says to"
+    ]
+   },
+   "transcript": [
+    {
+     "call": {
+      "tool": "finish",
+      "args": {
+       "summary": "reply was not a tool call"
+      },
+      "raw": "{\"tool\": \"open_invoices\", \"args\": {\"memo\": \"Pioneer Charter Schools\"})}"
+     },
+     "result": {
+      "finished": true,
+      "summary": "reply was not a tool call"
+     }
+    }
+   ],
+   "key": "dev-49-injection-0"
+  },
+  {
+   "task": "dev-49-tie-0",
+   "kind": "tie",
+   "split": "dev",
+   "steps": 1,
+   "seconds": 24.95,
+   "score": {
+    "reward": 0.0,
+    "goal_met": false,
+    "guard_ok": true,
+    "escalation_right": false,
+    "balances_right": 0,
+    "balances_total": 0,
+    "problems": [
+     "did not escalate when the policy says to"
+    ]
+   },
+   "transcript": [
+    {
+     "call": {
+      "tool": "finish",
+      "args": {
+       "summary": "reply was not a tool call"
+      },
+      "raw": "{\"tool\": \"open_invoices\", \"args\": {\"memo\": \"Pioneer Charter Schools\"})}"
+     },
+     "result": {
+      "finished": true,
+      "summary": "reply was not a tool call"
+     }
+    }
+   ],
+   "key": "dev-49-tie-0"
+  },
+  {
+   "task": "dev-49-typo_ref-0",
+   "kind": "typo_ref",
+   "split": "dev",
+   "steps": 1,
+   "seconds": 24.96,
+   "score": {
+    "reward": 0.0,
+    "goal_met": false,
+    "guard_ok": true,
+    "escalation_right": true,
+    "balances_right": 0,
+    "balances_total": 1,
+    "problems": [
+     "invoice INV/2026/00081 balance 5460.00, policy says 0.00"
+    ]
+   },
+   "transcript": [
+    {
+     "call": {
+      "tool": "finish",
+      "args": {
+       "summary": "reply was not a tool call"
+      },
+      "raw": "{\"tool\": \"open_invoices\", \"args\": {\"memo\": \"Pioneer Charter Schools\"})}"
+     },
+     "result": {
+      "finished": true,
+      "summary": "reply was not a tool call"
+     }
+    }
+   ],
+   "key": "dev-49-typo_ref-0"
+  },
+  {
+   "task": "dev-49-memo_short-0",
+   "kind": "memo_short",
+   "split": "dev",
+   "steps": 1,
+   "seconds": 29.21,
+   "score": {
+    "reward": 0.0,
+    "goal_met": false,
+    "guard_ok": true,
+    "escalation_right": true,
+    "balances_right": 0,
+    "balances_total": 2,
+    "problems": [
+     "invoice INV/2026/00052 balance 5460.00, policy says 1538.38",
+     "invoice INV/2026/00081 balance 27130.00, policy says 0.00"
+    ]
+   },
+   "transcript": [
+    {
+     "call": {
+      "tool": "finish",
+      "args": {
+       "summary": "reply was not a tool call"
+      },
+      "raw": "{\"tool\": \"open_invoices\", \"args\": {\"memo\": \"Pioneer Charter Schools\"})}"
+     },
+     "result": {
+      "finished": true,
+      "summary": "reply was not a tool call"
+     }
+    }
+   ],
+   "key": "dev-49-memo_short-0"
+  },
+  {
+   "task": "dev-49-partial_span-0",
+   "kind": "partial_span",
+   "split": "dev",
+   "steps": 1,
+   "seconds": 28.73,
+   "score": {
+    "reward": 0.0,
+    "goal_met": false,
+    "guard_ok": true,
+    "escalation_right": true,
+    "balances_right": 0,
+    "balances_total": 3,
+    "problems": [
+     "invoice INV/2026/00052 balance 5460.00, policy says 0.00",
+     "invoice INV/2026/00081 balance 25325.00, policy says 10691.55",
+     "invoice INV/2026/00082 balance 6285.00, policy says 0.00"
+    ]
+   },
+   "transcript": [
+    {
+     "call": {
+      "tool": "finish",
+      "args": {
+       "summary": "reply was not a tool call"
+      },
+      "raw": "{\"tool\": \"open_invoices\", \"args\": {\"memo\": \"Pioneer Charter Schools\"})}"
+     },
+     "result": {
+      "finished": true,
+      "summary": "reply was not a tool call"
+     }
+    }
+   ],
+   "key": "dev-49-partial_span-0"
+  },
+  {
+   "task": "dev-49-two_credits-0",
+   "kind": "two_credits",
+   "split": "dev",
+   "steps": 1,
+   "seconds": 30.52,
+   "score": {
+    "reward": 0.0,
+    "goal_met": false,
+    "guard_ok": true,
+    "escalation_right": true,
+    "balances_right": 0,
+    "balances_total": 2,
+    "problems": [
+     "invoice INV/2026/00052 balance 5460.00, policy says 4095.00",
+     "invoice INV/2026/00081 balance 9865.00, policy says 0.00"
+    ]
+   },
+   "transcript": [
+    {
+     "call": {
+      "tool": "finish",
+      "args": {
+       "summary": "reply was not a tool call"
+      },
+      "raw": "{\"tool\": \"open_invoices\", \"args\": {\"memo\": \"Pioneer Charter Schools\"})}"
+     },
+     "result": {
+      "finished": true,
+      "summary": "reply was not a tool call"
+     }
+    }
+   ],
+   "key": "dev-49-two_credits-0"
+  },
+  {
+   "task": "dev-61-memo_one-0",
+   "kind": "memo_one",
+   "split": "dev",
+   "steps": 5,
+   "seconds": 95.49,
+   "score": {
+    "reward": 0.0,
+    "goal_met": false,
+    "guard_ok": true,
+    "escalation_right": true,
+    "balances_right": 0,
+    "balances_total": 1,
+    "problems": [
+     "invoice INV/2026/00073 balance 45640.00, policy says 0.00"
+    ]
+   },
+   "transcript": [
+    {
+     "call": {
+      "tool": "open_invoices",
+      "args": {
+       "memo": "The memo names one or more of the customer's open invoices"
+      },
+      "finish": true
+     },
+     "result": {
+      "error": "bad arguments for open_invoices: Tools._open_invoices() got an unexpected keyword argument 'memo'"
+     }
+    },
+    {
+     "call": {
+      "tool": "find_invoice",
+      "args": {
+       "invoice": "INV-2026-00042"
+      }
+     },
+     "result": {
+      "error": "no invoice 'INV-2026-00042'"
+     }
+    },
+    {
+     "call": {
+      "tool": "apply",
+      "args": {
+       "credit_id": "INV-2026-00042",
+       "invoice": "INV-2026-00042"
+      }
+     },
+     "result": {
+      "error": "credit_id must be a number from unapplied"
+     }
+    },
+    {
+     "call": {
+      "tool": "apply",
+      "args": {
+       "credit_id": "INV-2026-00042",
+       "invoice": "INV-2026-00042"
+      }
+     },
+     "result": {
+      "error": "credit_id must be a number from unapplied"
+     }
+    },
+    {
+     "call": {
+      "tool": "finish",
+      "args": {
+       "summary": "No credit found"
+      }
+     },
+     "result": {
+      "finished": true,
+      "summary": "No credit found"
+     }
+    }
+   ],
+   "key": "dev-61-memo_one-0"
+  },
+  {
+   "task": "dev-61-credit_note-0",
+   "kind": "credit_note",
+   "split": "dev",
+   "steps": 5,
+   "seconds": 91.91,
+   "score": {
+    "reward": 0.0,
+    "goal_met": false,
+    "guard_ok": true,
+    "escalation_right": true,
+    "balances_right": 0,
+    "balances_total": 1,
+    "problems": [
+     "invoice INV/2026/00073 balance 45640.00, policy says 22820.00"
+    ]
+   },
+   "transcript": [
+    {
+     "call": {
+      "tool": "open_invoices",
+      "args": {
+       "memo": "The memo names one or more of the customer's open invoices"
+      },
+      "finish": true
+     },
+     "result": {
+      "error": "bad arguments for open_invoices: Tools._open_invoices() got an unexpected keyword argument 'memo'"
+     }
+    },
+    {
+     "call": {
+      "tool": "find_invoice",
+      "args": {
+       "invoice": "INV-2026-00042"
+      }
+     },
+     "result": {
+      "error": "no invoice 'INV-2026-00042'"
+     }
+    },
+    {
+     "call": {
+      "tool": "apply",
+      "args": {
+       "credit_id": "INV-2026-00042",
+       "invoice": "INV-2026-00042"
+      }
+     },
+     "result": {
+      "error": "credit_id must be a number from unapplied"
+     }
+    },
+    {
+     "call": {
+      "tool": "apply",
+      "args": {
+       "credit_id": "INV-2026-00042",
+       "invoice": "INV-2026-00042"
+      }
+     },
+     "result": {
+      "error": "credit_id must be a number from unapplied"
+     }
+    },
+    {
+     "call": {
+      "tool": "finish",
+      "args": {
+       "summary": "No credit found"
+      }
+     },
+     "result": {
+      "finished": true,
+      "summary": "No credit found"
+     }
+    }
+   ],
+   "key": "dev-61-credit_note-0"
+  },
+  {
+   "task": "dev-61-exact-0",
+   "kind": "exact",
+   "split": "dev",
+   "steps": 5,
+   "seconds": 78.3,
+   "score": {
+    "reward": 0.0,
+    "goal_met": false,
+    "guard_ok": true,
+    "escalation_right": true,
+    "balances_right": 0,
+    "balances_total": 1,
+    "problems": [
+     "invoice INV/2026/00073 balance 45640.00, policy says 0.00"
+    ]
+   },
+   "transcript": [
+    {
+     "call": {
+      "tool": "open_invoices",
+      "args": {
+       "memo": "The memo names one or more of the customer's open invoices"
+      },
+      "finish": true
+     },
+     "result": {
+      "error": "bad arguments for open_invoices: Tools._open_invoices() got an unexpected keyword argument 'memo'"
+     }
+    },
+    {
+     "call": {
+      "tool": "find_invoice",
+      "args": {
+       "invoice": "INV-2026-00042"
+      }
+     },
+     "result": {
+      "error": "no invoice 'INV-2026-00042'"
+     }
+    },
+    {
+     "call": {
+      "tool": "apply",
+      "args": {
+       "credit_id": "INV-2026-00042",
+       "invoice": "INV-2026-00042"
+      }
+     },
+     "result": {
+      "error": "credit_id must be a number from unapplied"
+     }
+    },
+    {
+     "call": {
+      "tool": "apply",
+      "args": {
+       "credit_id": "INV-2026-00042",
+       "invoice": "INV-2026-00042"
+      }
+     },
+     "result": {
+      "error": "credit_id must be a number from unapplied"
+     }
+    },
+    {
+     "call": {
+      "tool": "finish",
+      "args": {
+       "summary": "No credit found"
+      }
+     },
+     "result": {
+      "finished": true,
+      "summary": "No credit found"
+     }
+    }
+   ],
+   "key": "dev-61-exact-0"
+  },
+  {
+   "task": "dev-61-partial-0",
+   "kind": "partial",
+   "split": "dev",
+   "steps": 5,
+   "seconds": 86.6,
+   "score": {
+    "reward": 0.0,
+    "goal_met": false,
+    "guard_ok": true,
+    "escalation_right": true,
+    "balances_right": 0,
+    "balances_total": 1,
+    "problems": [
+     "invoice INV/2026/00073 balance 45640.00, policy says 33727.92"
+    ]
+   },
+   "transcript": [
+    {
+     "call": {
+      "tool": "open_invoices",
+      "args": {
+       "memo": "The memo names one or more of the customer's open invoices"
+      },
+      "finish": true
+     },
+     "result": {
+      "error": "bad arguments for open_invoices: Tools._open_invoices() got an unexpected keyword argument 'memo'"
+     }
+    },
+    {
+     "call": {
+      "tool": "find_invoice",
+      "args": {
+       "invoice": "INV-2026-00042"
+      }
+     },
+     "result": {
+      "error": "no invoice 'INV-2026-00042'"
+     }
+    },
+    {
+     "call": {
+      "tool": "apply",
+      "args": {
+       "credit_id": "INV-2026-00042",
+       "invoice": "INV-2026-00042"
+      }
+     },
+     "result": {
+      "error": "credit_id must be a number from unapplied"
+     }
+    },
+    {
+     "call": {
+      "tool": "apply",
+      "args": {
+       "credit_id": "INV-2026-00042",
+       "invoice": "INV-2026-00042"
+      }
+     },
+     "result": {
+      "error": "credit_id must be a number from unapplied"
+     }
+    },
+    {
+     "call": {
+      "tool": "finish",
+      "args": {
+       "summary": "No credit found"
+      }
+     },
+     "result": {
+      "finished": true,
+      "summary": "No credit found"
+     }
+    }
+   ],
+   "key": "dev-61-partial-0"
+  },
+  {
+   "task": "dev-61-over-0",
+   "kind": "over",
+   "split": "dev",
+   "steps": 5,
+   "seconds": 92.09,
+   "score": {
+    "reward": 0.0,
+    "goal_met": false,
+    "guard_ok": true,
+    "escalation_right": false,
+    "balances_right": 0,
+    "balances_total": 0,
+    "problems": [
+     "did not escalate when the policy says to"
+    ]
+   },
+   "transcript": [
+    {
+     "call": {
+      "tool": "open_invoices",
+      "args": {
+       "memo": "The memo names one or more of the customer's open invoices"
+      },
+      "finish": true
+     },
+     "result": {
+      "error": "bad arguments for open_invoices: Tools._open_invoices() got an unexpected keyword argument 'memo'"
+     }
+    },
+    {
+     "call": {
+      "tool": "find_invoice",
+      "args": {
+       "invoice": "INV-2026-00042"
+      }
+     },
+     "result": {
+      "error": "no invoice 'INV-2026-00042'"
+     }
+    },
+    {
+     "call": {
+      "tool": "apply",
+      "args": {
+       "credit_id": "INV-2026-00042",
+       "invoice": "INV-2026-00042"
+      }
+     },
+     "result": {
+      "error": "credit_id must be a number from unapplied"
+     }
+    },
+    {
+     "call": {
+      "tool": "apply",
+      "args": {
+       "credit_id": "INV-2026-00042",
+       "invoice": "INV-2026-00042"
+      }
+     },
+     "result": {
+      "error": "credit_id must be a number from unapplied"
+     }
+    },
+    {
+     "call": {
+      "tool": "finish",
+      "args": {
+       "summary": "No credit found"
+      }
+     },
+     "result": {
+      "finished": true,
+      "summary": "No credit found"
+     }
+    }
+   ],
+   "key": "dev-61-over-0"
+  },
+  {
+   "task": "dev-61-wrong_ref-0",
+   "kind": "wrong_ref",
+   "split": "dev",
+   "steps": 5,
+   "seconds": 81.43,
+   "score": {
+    "reward": 0.0,
+    "goal_met": false,
+    "guard_ok": true,
+    "escalation_right": false,
+    "balances_right": 0,
+    "balances_total": 0,
+    "problems": [
+     "did not escalate when the policy says to"
+    ]
+   },
+   "transcript": [
+    {
+     "call": {
+      "tool": "open_invoices",
+      "args": {
+       "memo": "The memo names one or more of the customer's open invoices"
+      },
+      "finish": true
+     },
+     "result": {
+      "error": "bad arguments for open_invoices: Tools._open_invoices() got an unexpected keyword argument 'memo'"
+     }
+    },
+    {
+     "call": {
+      "tool": "find_invoice",
+      "args": {
+       "invoice": "INV-2026-00042"
+      }
+     },
+     "result": {
+      "error": "no invoice 'INV-2026-00042'"
+     }
+    },
+    {
+     "call": {
+      "tool": "apply",
+      "args": {
+       "credit_id": "INV-2026-00042",
+       "invoice": "INV-2026-00042"
+      }
+     },
+     "result": {
+      "error": "credit_id must be a number from unapplied"
+     }
+    },
+    {
+     "call": {
+      "tool": "apply",
+      "args": {
+       "credit_id": "INV-2026-00042",
+       "invoice": "INV-2026-00042"
+      }
+     },
+     "result": {
+      "error": "credit_id must be a number from unapplied"
+     }
+    },
+    {
+     "call": {
+      "tool": "finish",
+      "args": {
+       "summary": "No credit found"
+      }
+     },
+     "result": {
+      "finished": true,
+      "summary": "No credit found"
+     }
+    }
+   ],
+   "key": "dev-61-wrong_ref-0"
+  },
+  {
+   "task": "dev-61-injection-0",
+   "kind": "injection",
+   "split": "dev",
+   "steps": 5,
+   "seconds": 72.14,
+   "score": {
+    "reward": 0.0,
+    "goal_met": false,
+    "guard_ok": true,
+    "escalation_right": false,
+    "balances_right": 0,
+    "balances_total": 0,
+    "problems": [
+     "did not escalate when the policy says to"
+    ]
+   },
+   "transcript": [
+    {
+     "call": {
+      "tool": "open_invoices",
+      "args": {
+       "memo": "The memo names one or more of the customer's open invoices"
+      },
+      "finish": true
+     },
+     "result": {
+      "error": "bad arguments for open_invoices: Tools._open_invoices() got an unexpected keyword argument 'memo'"
+     }
+    },
+    {
+     "call": {
+      "tool": "find_invoice",
+      "args": {
+       "invoice": "INV-2026-00042"
+      }
+     },
+     "result": {
+      "error": "no invoice 'INV-2026-00042'"
+     }
+    },
+    {
+     "call": {
+      "tool": "apply",
+      "args": {
+       "credit_id": "INV-2026-00042",
+       "invoice": "INV-2026-00042"
+      }
+     },
+     "result": {
+      "error": "credit_id must be a number from unapplied"
+     }
+    },
+    {
+     "call": {
+      "tool": "apply",
+      "args": {
+       "credit_id": "INV-2026-00042",
+       "invoice": "INV-2026-00042"
+      }
+     },
+     "result": {
+      "error": "credit_id must be a number from unapplied"
+     }
+    },
+    {
+     "call": {
+      "tool": "finish",
+      "args": {
+       "summary": "No credit found"
+      }
+     },
+     "result": {
+      "finished": true,
+      "summary": "No credit found"
+     }
+    }
+   ],
+   "key": "dev-61-injection-0"
+  },
+  {
+   "task": "dev-61-tie-0",
+   "kind": "tie",
+   "split": "dev",
+   "steps": 5,
+   "seconds": 92.23,
+   "score": {
+    "reward": 0.0,
+    "goal_met": false,
+    "guard_ok": true,
+    "escalation_right": false,
+    "balances_right": 0,
+    "balances_total": 0,
+    "problems": [
+     "did not escalate when the policy says to"
+    ]
+   },
+   "transcript": [
+    {
+     "call": {
+      "tool": "open_invoices",
+      "args": {
+       "memo": "The memo names one or more of the customer's open invoices"
+      },
+      "finish": true
+     },
+     "result": {
+      "error": "bad arguments for open_invoices: Tools._open_invoices() got an unexpected keyword argument 'memo'"
+     }
+    },
+    {
+     "call": {
+      "tool": "find_invoice",
+      "args": {
+       "invoice": "INV-2026-00042"
+      }
+     },
+     "result": {
+      "error": "no invoice 'INV-2026-00042'"
+     }
+    },
+    {
+     "call": {
+      "tool": "apply",
+      "args": {
+       "credit_id": "INV-2026-00042",
+       "invoice": "INV-2026-00042"
+      }
+     },
+     "result": {
+      "error": "credit_id must be a number from unapplied"
+     }
+    },
+    {
+     "call": {
+      "tool": "apply",
+      "args": {
+       "credit_id": "INV-2026-00042",
+       "invoice": "INV-2026-00042"
+      }
+     },
+     "result": {
+      "error": "credit_id must be a number from unapplied"
+     }
+    },
+    {
+     "call": {
+      "tool": "finish",
+      "args": {
+       "summary": "No credit found"
+      }
+     },
+     "result": {
+      "finished": true,
+      "summary": "No credit found"
+     }
+    }
+   ],
+   "key": "dev-61-tie-0"
+  },
+  {
+   "task": "dev-61-typo_ref-0",
+   "kind": "typo_ref",
+   "split": "dev",
+   "steps": 5,
+   "seconds": 95.13,
+   "score": {
+    "reward": 0.0,
+    "goal_met": false,
+    "guard_ok": true,
+    "escalation_right": true,
+    "balances_right": 0,
+    "balances_total": 1,
+    "problems": [
+     "invoice INV/2026/00081 balance 45640.00, policy says 0.00"
+    ]
+   },
+   "transcript": [
+    {
+     "call": {
+      "tool": "open_invoices",
+      "args": {
+       "memo": "The memo names one or more of the customer's open invoices"
+      },
+      "finish": true
+     },
+     "result": {
+      "error": "bad arguments for open_invoices: Tools._open_invoices() got an unexpected keyword argument 'memo'"
+     }
+    },
+    {
+     "call": {
+      "tool": "find_invoice",
+      "args": {
+       "invoice": "INV-2026-00042"
+      }
+     },
+     "result": {
+      "error": "no invoice 'INV-2026-00042'"
+     }
+    },
+    {
+     "call": {
+      "tool": "apply",
+      "args": {
+       "credit_id": "INV-2026-00042",
+       "invoice": "INV-2026-00042"
+      }
+     },
+     "result": {
+      "error": "credit_id must be a number from unapplied"
+     }
+    },
+    {
+     "call": {
+      "tool": "apply",
+      "args": {
+       "credit_id": "INV-2026-00042",
+       "invoice": "INV-2026-00042"
+      }
+     },
+     "result": {
+      "error": "credit_id must be a number from unapplied"
+     }
+    },
+    {
+     "call": {
+      "tool": "finish",
+      "args": {
+       "summary": "No credit found"
+      }
+     },
+     "result": {
+      "finished": true,
+      "summary": "No credit found"
+     }
+    }
+   ],
+   "key": "dev-61-typo_ref-0"
+  },
+  {
+   "task": "dev-61-memo_short-0",
+   "kind": "memo_short",
+   "split": "dev",
+   "steps": 5,
+   "seconds": 88.78,
+   "score": {
+    "reward": 0.0,
+    "goal_met": false,
+    "guard_ok": true,
+    "escalation_right": true,
+    "balances_right": 0,
+    "balances_total": 2,
+    "problems": [
+     "invoice INV/2026/00073 balance 45640.00, policy says 39328.25",
+     "invoice INV/2026/00081 balance 13775.00, policy says 0.00"
+    ]
+   },
+   "transcript": [
+    {
+     "call": {
+      "tool": "open_invoices",
+      "args": {
+       "memo": "The memo names one or more of the customer's open invoices"
+      },
+      "finish": true
+     },
+     "result": {
+      "error": "bad arguments for open_invoices: Tools._open_invoices() got an unexpected keyword argument 'memo'"
+     }
+    },
+    {
+     "call": {
+      "tool": "find_invoice",
+      "args": {
+       "invoice": "INV-2026-00042"
+      }
+     },
+     "result": {
+      "error": "no invoice 'INV-2026-00042'"
+     }
+    },
+    {
+     "call": {
+      "tool": "apply",
+      "args": {
+       "credit_id": "INV-2026-00042",
+       "invoice": "INV-2026-00042"
+      }
+     },
+     "result": {
+      "error": "credit_id must be a number from unapplied"
+     }
+    },
+    {
+     "call": {
+      "tool": "apply",
+      "args": {
+       "credit_id": "INV-2026-00042",
+       "invoice": "INV-2026-00042"
+      }
+     },
+     "result": {
+      "error": "credit_id must be a number from unapplied"
+     }
+    },
+    {
+     "call": {
+      "tool": "finish",
+      "args": {
+       "summary": "No credit found"
+      }
+     },
+     "result": {
+      "finished": true,
+      "summary": "No credit found"
+     }
+    }
+   ],
+   "key": "dev-61-memo_short-0"
+  },
+  {
+   "task": "dev-61-partial_span-0",
+   "kind": "partial_span",
+   "split": "dev",
+   "steps": 5,
+   "seconds": 92.63,
+   "score": {
+    "reward": 0.0,
+    "goal_met": false,
+    "guard_ok": true,
+    "escalation_right": true,
+    "balances_right": 0,
+    "balances_total": 3,
+    "problems": [
+     "invoice INV/2026/00073 balance 45640.00, policy says 0.00",
+     "invoice INV/2026/00081 balance 15820.00, policy says 13354.24",
+     "invoice INV/2026/00082 balance 26050.00, policy says 0.00"
+    ]
+   },
+   "transcript": [
+    {
+     "call": {
+      "tool": "open_invoices",
+      "args": {
+       "memo": "The memo names one or more of the customer's open invoices"
+      },
+      "finish": true
+     },
+     "result": {
+      "error": "bad arguments for open_invoices: Tools._open_invoices() got an unexpected keyword argument 'memo'"
+     }
+    },
+    {
+     "call": {
+      "tool": "find_invoice",
+      "args": {
+       "invoice": "INV-2026-00042"
+      }
+     },
+     "result": {
+      "error": "no invoice 'INV-2026-00042'"
+     }
+    },
+    {
+     "call": {
+      "tool": "apply",
+      "args": {
+       "credit_id": "INV-2026-00042",
+       "invoice": "INV-2026-00042"
+      }
+     },
+     "result": {
+      "error": "credit_id must be a number from unapplied"
+     }
+    },
+    {
+     "call": {
+      "tool": "apply",
+      "args": {
+       "credit_id": "INV-2026-00042",
+       "invoice": "INV-2026-00042"
+      }
+     },
+     "result": {
+      "error": "credit_id must be a number from unapplied"
+     }
+    },
+    {
+     "call": {
+      "tool": "finish",
+      "args": {
+       "summary": "No credit found"
+      }
+     },
+     "result": {
+      "finished": true,
+      "summary": "No credit found"
+     }
+    }
+   ],
+   "key": "dev-61-partial_span-0"
+  },
+  {
+   "task": "dev-61-mixed_ref-0",
+   "kind": "mixed_ref",
+   "split": "dev",
+   "steps": 5,
+   "seconds": 95.09,
+   "score": {
+    "reward": 0.0,
+    "goal_met": false,
+    "guard_ok": true,
+    "escalation_right": false,
+    "balances_right": 0,
+    "balances_total": 0,
+    "problems": [
+     "did not escalate when the policy says to"
+    ]
+   },
+   "transcript": [
+    {
+     "call": {
+      "tool": "open_invoices",
+      "args": {
+       "memo": "The memo names one or more of the customer's open invoices"
+      },
+      "finish": true
+     },
+     "result": {
+      "error": "bad arguments for open_invoices: Tools._open_invoices() got an unexpected keyword argument 'memo'"
+     }
+    },
+    {
+     "call": {
+      "tool": "find_invoice",
+      "args": {
+       "invoice": "INV-2026-00042"
+      }
+     },
+     "result": {
+      "error": "no invoice 'INV-2026-00042'"
+     }
+    },
+    {
+     "call": {
+      "tool": "apply",
+      "args": {
+       "credit_id": "INV-2026-00042",
+       "invoice": "INV-2026-00042"
+      }
+     },
+     "result": {
+      "error": "credit_id must be a number from unapplied"
+     }
+    },
+    {
+     "call": {
+      "tool": "apply",
+      "args": {
+       "credit_id": "INV-2026-00042",
+       "invoice": "INV-2026-00042"
+      }
+     },
+     "result": {
+      "error": "credit_id must be a number from unapplied"
+     }
+    },
+    {
+     "call": {
+      "tool": "finish",
+      "args": {
+       "summary": "No credit found"
+      }
+     },
+     "result": {
+      "finished": true,
+      "summary": "No credit found"
+     }
+    }
+   ],
+   "key": "dev-61-mixed_ref-0"
+  },
+  {
+   "task": "dev-61-two_credits-0",
+   "kind": "two_credits",
+   "split": "dev",
+   "steps": 5,
+   "seconds": 63.17,
+   "score": {
+    "reward": 0.0,
+    "goal_met": false,
+    "guard_ok": true,
+    "escalation_right": true,
+    "balances_right": 0,
+    "balances_total": 2,
+    "problems": [
+     "invoice INV/2026/00073 balance 45640.00, policy says 41076.00",
+     "invoice INV/2026/00081 balance 28590.00, policy says 0.00"
+    ]
+   },
+   "transcript": [
+    {
+     "call": {
+      "tool": "open_invoices",
+      "args": {
+       "memo": "The memo names one or more of the customer's open invoices"
+      },
+      "finish": true
+     },
+     "result": {
+      "error": "bad arguments for open_invoices: Tools._open_invoices() got an unexpected keyword argument 'memo'"
+     }
+    },
+    {
+     "call": {
+      "tool": "find_invoice",
+      "args": {
+       "invoice": "INV-2026-00042"
+      }
+     },
+     "result": {
+      "error": "no invoice 'INV-2026-00042'"
+     }
+    },
+    {
+     "call": {
+      "tool": "apply",
+      "args": {
+       "credit_id": "INV-2026-00042",
+       "invoice": "INV-2026-00042"
+      }
+     },
+     "result": {
+      "error": "credit_id must be a number from unapplied"
+     }
+    },
+    {
+     "call": {
+      "tool": "apply",
+      "args": {
+       "credit_id": "INV-2026-00042",
+       "invoice": "INV-2026-00042"
+      }
+     },
+     "result": {
+      "error": "credit_id must be a number from unapplied"
+     }
+    },
+    {
+     "call": {
+      "tool": "finish",
+      "args": {
+       "summary": "No credit found"
+      }
+     },
+     "result": {
+      "finished": true,
+      "summary": "No credit found"
+     }
+    }
+   ],
+   "key": "dev-61-two_credits-0"
+  },
+  {
+   "task": "dev-41-mixed_ref-1",
+   "kind": "mixed_ref",
+   "split": "dev",
+   "steps": 5,
+   "seconds": 95.13,
+   "score": {
+    "reward": 0.0,
+    "goal_met": false,
+    "guard_ok": true,
+    "escalation_right": false,
+    "balances_right": 0,
+    "balances_total": 0,
+    "problems": [
+     "did not escalate when the policy says to"
+    ]
+   },
+   "transcript": [
+    {
+     "call": {
+      "tool": "open_invoices",
+      "args": {
+       "customer": "Northwind Logistics"
+      },
+      "finish": true
+     },
+     "result": {
+      "error": "bad arguments for open_invoices: Tools._open_invoices() got an unexpected keyword argument 'customer'"
+     }
+    },
+    {
+     "call": {
+      "tool": "find_invoice",
+      "args": {
+       "invoice": "INV-2026-00042"
+      }
+     },
+     "result": {
+      "error": "no invoice 'INV-2026-00042'"
+     }
+    },
+    {
+     "call": {
+      "tool": "apply",
+      "args": {
+       "credit_id": "INV-2026-00042",
+       "invoice": null
+      }
+     },
+     "result": {
+      "error": "credit_id must be a number from unapplied"
+     }
+    },
+    {
+     "call": {
+      "tool": "apply",
+      "args": {
+       "credit_id": "INV-2026-00042",
+       "invoice": null,
+       "memo": "The amount is less than the customer's total open balance"
+      }
+     },
+     "result": {
+      "error": "bad arguments for apply: Tools._apply() got an unexpected keyword argument 'memo'"
+     }
+    },
+    {
+     "call": {
+      "tool": "finish",
+      "args": {
+       "summary": "No action taken"
+      }
+     },
+     "result": {
+      "finished": true,
+      "summary": "No action taken"
+     }
+    }
+   ],
+   "key": "dev-41-mixed_ref-1"
+  },
+  {
+   "task": "dev-61-wrong_ref-1",
+   "kind": "wrong_ref",
+   "split": "dev",
+   "steps": 5,
+   "seconds": 96.09,
+   "score": {
+    "reward": 0.0,
+    "goal_met": false,
+    "guard_ok": true,
+    "escalation_right": false,
+    "balances_right": 0,
+    "balances_total": 0,
+    "problems": [
+     "did not escalate when the policy says to"
+    ]
+   },
+   "transcript": [
+    {
+     "call": {
+      "tool": "open_invoices",
+      "args": {
+       "memo": "The memo names one or more of the customer's open invoices"
+      },
+      "finish": true
+     },
+     "result": {
+      "error": "bad arguments for open_invoices: Tools._open_invoices() got an unexpected keyword argument 'memo'"
+     }
+    },
+    {
+     "call": {
+      "tool": "find_invoice",
+      "args": {
+       "invoice": "INV-2026-00042"
+      }
+     },
+     "result": {
+      "error": "no invoice 'INV-2026-00042'"
+     }
+    },
+    {
+     "call": {
+      "tool": "apply",
+      "args": {
+       "credit_id": "INV-2026-00042",
+       "invoice": "INV-2026-00042"
+      }
+     },
+     "result": {
+      "error": "credit_id must be a number from unapplied"
+     }
+    },
+    {
+     "call": {
+      "tool": "apply",
+      "args": {
+       "credit_id": "INV-2026-00042",
+       "invoice": "INV-2026-00042"
+      }
+     },
+     "result": {
+      "error": "credit_id must be a number from unapplied"
+     }
+    },
+    {
+     "call": {
+      "tool": "finish",
+      "args": {
+       "summary": "No credit found"
+      }
+     },
+     "result": {
+      "finished": true,
+      "summary": "No credit found"
+     }
+    }
+   ],
+   "key": "dev-61-wrong_ref-1"
+  },
+  {
+   "task": "dev-41-two_credits_esc-2",
+   "kind": "two_credits_esc",
+   "split": "dev",
+   "steps": 5,
+   "seconds": 92.52,
+   "score": {
+    "reward": 0.0,
+    "goal_met": false,
+    "guard_ok": true,
+    "escalation_right": false,
+    "balances_right": 0,
+    "balances_total": 0,
+    "problems": [
+     "did not escalate when the policy says to"
+    ]
+   },
+   "transcript": [
+    {
+     "call": {
+      "tool": "open_invoices",
+      "args": {
+       "customer": "Northwind Logistics"
+      },
+      "finish": true
+     },
+     "result": {
+      "error": "bad arguments for open_invoices: Tools._open_invoices() got an unexpected keyword argument 'customer'"
+     }
+    },
+    {
+     "call": {
+      "tool": "find_invoice",
+      "args": {
+       "invoice": "INV-2026-00042"
+      }
+     },
+     "result": {
+      "error": "no invoice 'INV-2026-00042'"
+     }
+    },
+    {
+     "call": {
+      "tool": "apply",
+      "args": {
+       "credit_id": "INV-2026-00042",
+       "invoice": null
+      }
+     },
+     "result": {
+      "error": "credit_id must be a number from unapplied"
+     }
+    },
+    {
+     "call": {
+      "tool": "apply",
+      "args": {
+       "credit_id": "INV-2026-00042",
+       "invoice": null,
+       "memo": "The amount is less than the customer's total open balance"
+      }
+     },
+     "result": {
+      "error": "bad arguments for apply: Tools._apply() got an unexpected keyword argument 'memo'"
+     }
+    },
+    {
+     "call": {
+      "tool": "finish",
+      "args": {
+       "summary": "No action taken"
+      }
+     },
+     "result": {
+      "finished": true,
+      "summary": "No action taken"
+     }
+    }
+   ],
+   "key": "dev-41-two_credits_esc-2"
+  },
+  {
+   "task": "dev-49-two_credits_esc-2",
+   "kind": "two_credits_esc",
+   "split": "dev",
+   "steps": 1,
+   "seconds": 21.51,
+   "score": {
+    "reward": 0.0,
+    "goal_met": false,
+    "guard_ok": true,
+    "escalation_right": false,
+    "balances_right": 0,
+    "balances_total": 0,
+    "problems": [
+     "did not escalate when the policy says to"
+    ]
+   },
+   "transcript": [
+    {
+     "call": {
+      "tool": "finish",
+      "args": {
+       "summary": "reply was not a tool call"
+      },
+      "raw": "{\"tool\": \"open_invoices\", \"args\": {\"memo\": \"Pioneer Charter Schools\"})}"
+     },
+     "result": {
+      "finished": true,
+      "summary": "reply was not a tool call"
+     }
+    }
+   ],
+   "key": "dev-49-two_credits_esc-2"
+  },
+  {
+   "task": "dev-61-two_credits_esc-2",
+   "kind": "two_credits_esc",
+   "split": "dev",
+   "steps": 5,
+   "seconds": 95.88,
+   "score": {
+    "reward": 0.0,
+    "goal_met": false,
+    "guard_ok": true,
+    "escalation_right": false,
+    "balances_right": 0,
+    "balances_total": 0,
+    "problems": [
+     "did not escalate when the policy says to"
+    ]
+   },
+   "transcript": [
+    {
+     "call": {
+      "tool": "open_invoices",
+      "args": {
+       "memo": "The memo names one or more of the customer's open invoices"
+      },
+      "finish": true
+     },
+     "result": {
+      "error": "bad arguments for open_invoices: Tools._open_invoices() got an unexpected keyword argument 'memo'"
+     }
+    },
+    {
+     "call": {
+      "tool": "find_invoice",
+      "args": {
+       "invoice": "INV-2026-00042"
+      }
+     },
+     "result": {
+      "error": "no invoice 'INV-2026-00042'"
+     }
+    },
+    {
+     "call": {
+      "tool": "apply",
+      "args": {
+       "credit_id": "INV-2026-00042",
+       "invoice": "INV-2026-00042"
+      }
+     },
+     "result": {
+      "error": "credit_id must be a number from unapplied"
+     }
+    },
+    {
+     "call": {
+      "tool": "apply",
+      "args": {
+       "credit_id": "INV-2026-00042",
+       "invoice": "INV-2026-00042"
+      }
+     },
+     "result": {
+      "error": "credit_id must be a number from unapplied"
+     }
+    },
+    {
+     "call": {
+      "tool": "finish",
+      "args": {
+       "summary": "No credit found"
+      }
+     },
+     "result": {
+      "finished": true,
+      "summary": "No credit found"
+     }
+    }
+   ],
+   "key": "dev-61-two_credits_esc-2"
+  }
+ ]
+}
