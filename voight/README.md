@@ -89,7 +89,7 @@ python -m voight baseline --split dev --model sonnet   # a model through its com
 VOIGHT_LIVE=1 python -m pytest -q voight
 ```
 
-`baseline` uses the analyst's command-line model route, so it is signed in through the model's own command line and calls no API key. CI runs `freeze`, `build` and the tests on every push, with no model.
+`baseline` uses the analyst's command-line model route, so it is signed in through the model's own command line and calls no API key. CI runs `freeze`, `build` and the tests on every push, right after `edp.demo` builds the company, with no model.
 
 ## What comes next
 
