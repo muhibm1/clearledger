@@ -1,0 +1,14 @@
+{"t": 1793886653.7, "model": "haiku", "input": 7890, "output": 172, "ms": 1635}
+{"t": 1793886658.5, "model": "haiku", "input": 8127, "output": 413, "ms": 3442}
+{"t": 1793886665.1, "model": "haiku", "input": 15889, "output": 295, "ms": 2569}
+{"t": 1793886669.7, "model": "haiku", "input": 8123, "output": 452, "ms": 3160}
+{"t": 1793886676.8, "model": "haiku", "input": 15865, "output": 251, "ms": 2797}
+{"t": 1793886682.3, "model": "haiku", "input": 16709, "output": 786, "ms": 4215}
+{"t": 1793886687.7, "model": "haiku", "input": 7890, "output": 191, "ms": 2011}
+{"t": 1793886692.0, "model": "haiku", "input": 8111, "output": 427, "ms": 3018}
+{"t": 1793886697.4, "model": "haiku", "input": 7892, "output": 216, "ms": 1977}
+{"t": 1793886701.4, "model": "haiku", "input": 8135, "output": 433, "ms": 2495}
+{"t": 1793886707.0, "model": "haiku", "input": 7890, "output": 230, "ms": 2440}
+{"t": 1793886711.8, "model": "haiku", "input": 8116, "output": 464, "ms": 3499}
+{"t": 1793886716.9, "model": "haiku", "input": 7889, "output": 249, "ms": 2243}
+{"t": 1793886721.1, "model": "haiku", "input": 8117, "output": 463, "ms": 2981}

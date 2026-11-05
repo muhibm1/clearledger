@@ -29,7 +29,8 @@ staging → intermediate → marts
    ├─ drills      five failures on purpose, each caught and recovered
    ├─ Fathom      lineage, owners, rules, incidents: what a change would break
    ├─ eval/       finance questions with SQL answers: train, dev and test sets
-   └─ remit/      the collections agent: plans, drafts, waits for approval, writes to Odoo once
+   ├─ remit/      the collections agent: plans, drafts, waits for approval, writes to Odoo once
+   └─ voight/     a training ground: fresh copies of this Odoo, finance tasks, a checker that reads the books
 ```
 
 1. **Extract.** `edp extract` reads deals, customers, orders, invoices and payments through Odoo's API, the way you would at a client: no database access to the ERP needed. It fetches only what changed since the last load, so a rerun stores nothing new. A field the load needs going missing stops the load and names the field; a custom field a client adds is picked up automatically.
@@ -43,6 +44,7 @@ staging → intermediate → marts
 9. **Let an agent ask.** `edp mcp` serves six tools to any AI agent over MCP (the same tools run as `edp tool <name>` on the command line): find a customer, summarise what they owe, list invoices, follow won deals to cash, run one read-only query, and check citations. Every row carries the exact Odoo record version it came from, `query` runs as a database role that can only read the modelled tables, and `check_citations` confirms a cited record is real and current. An agent cannot cite what it was not shown, and a person can check any answer without trusting the agent. [`voice/`](voice/README.md) puts the same six tools behind a voice agent on ElevenAgents, with the tools still running next to the warehouse.
 10. **Evaluate and train.** `eval/` builds 184 finance questions over 31 customers, six kinds, from the same records retrieval would hand a model, mess included. Answers come from SQL. Train, dev and test never share a customer, and the build fails if any customer, question, invoice or record set crosses a split. Train is exported as chat examples for fine-tuning. See the [dataset card](eval/DATASET.md) and [results](eval/RESULTS.md).
 11. **Collect.** [Remit](remit/README.md) is a collections agent on top of the warehouse. Each morning it plans the playbook's next step for every late customer, holds what a person must look at first (credit not yet matched, an invoice changed after posting, a dispute tag, an instruction hidden in invoice text), drafts the reminder, and waits for approval. Approved actions are written into Odoo once, through three allowed calls, and survive a crash without writing twice. A 90-day simulation on this company found it does not move the late balance, which is mostly over 60 days old, but cuts the wait for a first reminder from 5 days to 1 and saves the person about 18 calls.
+12. **Train.** [Voight](voight/README.md) turns this company into a training ground for finance agents (an RL environment). Each episode is a fresh one-second copy of the Odoo database with one payment or credit note to apply. The agent works through six tools; a checker reads the copy's books and scores the result, failing any attempt that changed something outside its task. 215 tasks, split by customer, the test split pinned by its hash.
 
 ## The data
 
