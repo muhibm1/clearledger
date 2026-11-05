@@ -1,0 +1,113 @@
+/* The finance desk's layout. Reads only tokens.css names. The sheet styles come from Auspex's
+   details.css, with the sheet fixed to the window instead of a trace panel. */
+
+.crm-app { min-height: 100dvh; background: var(--page); color: var(--ink); }
+.crm-muted { color: var(--muted); }
+.crm-small { font-size: var(--fs-xs); }
+.crm-bad { color: var(--bad); }
+.crm-owed { color: var(--ink); font-weight: 650; }
+
+/* Header */
+.crm-head { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; justify-content: space-between; gap: var(--s-3);
+  height: 53px; padding: 0 var(--s-6); background: var(--surface); border-bottom: 1px solid var(--line); }
+.crm-brand { display: flex; align-items: center; gap: var(--s-2); font-size: var(--fs-l); font-weight: 650; letter-spacing: -0.015em; min-width: 0; }
+.crm-asof { font-weight: 400; letter-spacing: 0; margin-left: var(--s-2); white-space: nowrap; }
+.crm-head-right { display: flex; align-items: center; gap: var(--s-2); }
+.crm-kbd { font-family: var(--font-sans); font-size: var(--fs-xs); color: var(--faint); padding: 0 6px; border: 1px solid var(--line-2); border-radius: var(--r-1); }
+
+.crm-main { max-width: 1280px; margin: 0 auto; padding: var(--s-6); display: flex; flex-direction: column; gap: var(--s-5); }
+
+/* Totals */
+.crm-totals { margin: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s-3); }
+.crm-totals > div { padding: var(--s-4) var(--s-5); background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-3); box-shadow: var(--shadow-1); }
+.crm-totals dt { font-size: var(--fs-s); color: var(--muted); }
+.crm-totals dd { margin: var(--s-1) 0 0; font-size: var(--fs-num); font-weight: 650; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+
+/* The customer grid */
+.crm-grid-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-3); box-shadow: var(--shadow-1); }
+.crm-grid { width: 100%; border-collapse: collapse; font-size: var(--fs-s); font-variant-numeric: tabular-nums; }
+.crm-grid th { position: sticky; top: 0; background: var(--surface-2); border-bottom: 1px solid var(--line); text-align: left; font-weight: 500; white-space: nowrap; }
+.crm-grid th button { display: flex; flex-direction: column; align-items: inherit; gap: 1px; width: 100%; padding: var(--s-2) var(--s-4); border: 0; background: none; color: var(--muted); cursor: pointer; text-align: inherit; font-weight: 500; }
+.crm-grid th button:hover { color: var(--ink); }
+.crm-grid th.num button { align-items: flex-end; }
+.crm-side { font-size: 10px; font-weight: 600; letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--faint); }
+.crm-grid td { padding: var(--s-2) var(--s-4); border-bottom: 1px solid var(--line); white-space: nowrap; }
+.crm-grid tbody tr { background: var(--surface); cursor: pointer; transition: background-color var(--dur-1) var(--ease-out); }
+.crm-grid tbody tr:hover { background: var(--hover); }
+.crm-grid tbody tr[aria-current='true'] { background: var(--selected); }
+.crm-grid tbody tr:last-child td { border-bottom: 0; }
+/* The name column stays put when the grid scrolls sideways on a phone. */
+.crm-grid th:first-child, .crm-grid td.crm-name { position: sticky; left: 0; z-index: 1; background: inherit; }
+.crm-grid th:first-child { z-index: 2; background: var(--surface-2); }
+.crm-name button { border: 0; background: none; padding: 0; cursor: pointer; font-weight: 500; color: var(--ink); text-align: left; }
+.num { text-align: right; }
+.crm-foot { margin: 0; }
+
+/* Sheet (from Auspex) */
+.sheet { position: fixed; top: 0; right: 0; bottom: 0; z-index: 40; width: min(600px, 100%); display: flex; flex-direction: column;
+  background: var(--surface); border-left: 1px solid var(--line); box-shadow: var(--shadow-pop); transform: translateX(100%); visibility: hidden;
+  transition: transform var(--dur-3) var(--ease-out), visibility 0s linear var(--dur-3); outline: none; }
+.sheet.open { transform: translateX(0); visibility: visible; transition: transform var(--dur-3) var(--ease-out), visibility 0s; }
+.sheet-head { padding: var(--s-5) var(--s-6); border-bottom: 1px solid var(--line); }
+.sheet-body { flex: 1; min-height: 0; overflow-y: auto; padding: var(--s-5) var(--s-6) var(--s-8); display: flex; flex-direction: column; gap: var(--s-6); line-height: 1.5; }
+.crm-sheet-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s-3); }
+.crm-sheet-titles { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.crm-sheet-name { margin: 0; font-size: var(--fs-xl); font-weight: 650; letter-spacing: -0.015em; }
+.crm-stats { margin: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s-2); }
+.crm-stats > div { padding: var(--s-3); background: var(--raised); border-radius: var(--r-2); min-width: 0; }
+.crm-stats dt { font-size: var(--fs-xs); color: var(--muted); }
+.crm-stats dd { margin: 2px 0 0; font-size: var(--fs-l); font-weight: 600; font-variant-numeric: tabular-nums; }
+.crm-sec { display: flex; flex-direction: column; gap: var(--s-2); }
+.crm-sec h3 { margin: 0; display: flex; align-items: center; gap: var(--s-2); }
+.crm-tag { font-size: 10px; letter-spacing: 0.04em; padding: 1px 6px; border-radius: var(--r-1); background: var(--accent-soft); color: var(--accent); }
+.crm-mini { width: 100%; border-collapse: collapse; font-size: var(--fs-s); font-variant-numeric: tabular-nums; }
+.crm-mini th { text-align: left; font-weight: 500; color: var(--muted); font-size: var(--fs-xs); padding: var(--s-1) var(--s-2); border-bottom: 1px solid var(--line); }
+.crm-mini td { padding: 6px var(--s-2); border-bottom: 1px solid var(--line); }
+.crm-mini tr { transition: background-color var(--dur-3) var(--ease-out), box-shadow var(--dur-3) var(--ease-out); }
+.crm-mini th.num { text-align: right; }
+.crm-mini .mono { font-size: var(--fs-xs); }
+.crm-lit { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+
+.crm-aging { display: flex; flex-direction: column; gap: var(--s-2); }
+.crm-aging-bar { display: flex; gap: 2px; height: 10px; border-radius: var(--r-pill); overflow: hidden; background: var(--raised); }
+.crm-aging-bar span { min-width: 4px; }
+.crm-aging-key { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: var(--s-1) var(--s-4); font-size: var(--fs-xs); color: var(--muted); }
+.crm-aging-key i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 6px; }
+.crm-aging-key b { color: var(--ink); font-weight: 600; margin-left: 4px; }
+.crm-aging p { margin: 0; }
+
+/* ⌘K */
+.crm-jump-back { position: fixed; inset: 0; z-index: 60; background: color-mix(in srgb, var(--page) 55%, transparent); display: grid; place-items: start center; padding-top: 14vh; }
+.crm-jump { width: min(520px, calc(100vw - 32px)); background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-3); box-shadow: var(--shadow-pop); overflow: hidden;
+  animation: crm-pop var(--dur-2) var(--ease-out) both; }
+.crm-jump input { width: 100%; height: 48px; padding: 0 var(--s-4); border: 0; border-bottom: 1px solid var(--line); background: none; font-size: var(--fs-l); outline: none; }
+.crm-jump ul { margin: 0; padding: var(--s-1); list-style: none; }
+.crm-jump li { display: flex; justify-content: space-between; gap: var(--s-3); padding: var(--s-2) var(--s-3); border-radius: var(--r-2); cursor: pointer; font-size: var(--fs-s); }
+.crm-jump li[aria-selected='true'] { background: var(--selected); }
+@keyframes crm-pop { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: none; } }
+
+/* Call panel */
+.crm-call { position: fixed; left: var(--s-6); bottom: var(--s-6); z-index: 30; width: min(380px, calc(100vw - 32px)); max-height: 46vh; display: flex; flex-direction: column;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-3); box-shadow: var(--shadow-pop); animation: crm-pop var(--dur-3) var(--ease-out) both; }
+.crm-call-head { gap: var(--s-2); }
+.crm-call-head > span:first-child { flex: 1; }
+.crm-call-head { display: flex; align-items: center; justify-content: space-between; padding: var(--s-3) var(--s-4); border-bottom: 1px solid var(--line); }
+.crm-call-lines { margin: 0; padding: var(--s-3) var(--s-4); list-style: none; overflow-y: auto; display: flex; flex-direction: column; gap: var(--s-2); font-size: var(--fs-s); }
+.crm-line b { font-weight: 600; margin-right: 4px; }
+.crm-line.agent b { color: var(--accent); }
+.crm-line.tool { font-size: var(--fs-xs); color: var(--ink-2); overflow-wrap: anywhere; }
+.crm-line.err { color: var(--bad); font-size: var(--fs-xs); }
+
+@media (max-width: 900px) {
+  .crm-totals, .crm-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 600px) {
+  .crm-head { padding: 0 var(--s-4); }
+  .crm-main { padding: var(--s-4); }
+  .crm-asof, .crm-hide-s { display: none; }
+  .crm-call { left: var(--s-4); bottom: var(--s-4); }
+  /* The sidebar's tables scroll sideways rather than wrap a deal name over three lines. */
+  .crm-mini { display: block; overflow-x: auto; white-space: nowrap; }
+  .sheet-head, .sheet-body { padding-left: var(--s-4); padding-right: var(--s-4); }
+}
+@media (prefers-reduced-motion: reduce) { .crm-jump, .crm-call { animation: none; } }
