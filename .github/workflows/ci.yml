@@ -56,6 +56,16 @@ jobs:
         run: |
           createdb warehouse
           .venv/bin/python -m edp.demo
+      - name: Voight, the training ground, against a frozen copy of this Odoo (no model is called)
+        # Straight after the demo, before the drills add a day of new business and Remit
+        # writes notes: the tasks are built from the company exactly as edp.demo leaves it,
+        # so the rebuilt test split must match its pinned hash. Then the oracle must solve
+        # one task of every kind, and the guard must fail an agent that changes books
+        # outside its task.
+        run: |
+          .venv/bin/python -m voight freeze
+          .venv/bin/python -m voight build
+          VOIGHT_LIVE=1 .venv/bin/python -m pytest -q voight
       - name: Tests
         run: .venv/bin/python -m pytest -q
       - name: Analyst agent tests, on the finance warehouse and the ads demo (no model is called)
