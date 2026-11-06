@@ -69,6 +69,8 @@ def main(argv=None) -> int:
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--threads", type=int, default=0)
     ap.add_argument("--kinds", default="", help="comma-separated task kinds to sample from (default: all train tasks)")
+    ap.add_argument("--attacks", default="",
+                    help="comma-separated range techniques: half of each batch is train tasks attacked this way")
     ap.add_argument("--bf16", action="store_true", help="bfloat16 weights and gradient checkpointing, for 1.5B on a 16 GB machine")
     a = ap.parse_args(argv)
     if a.threads:
@@ -91,18 +93,29 @@ def main(argv=None) -> int:
     if a.kinds:
         wanted = set(a.kinds.split(","))
         train = [t for t in train if t["kind"] in wanted]
+    attacked = []
+    if a.attacks:
+        from .. import range as attack_range
+        wanted_t = set(a.attacks.split(","))
+        attacked = [t for t in attack_range.build("train", per_goal=1000) if t["range"]["technique"] in wanted_t]
     rng = random.Random(a.seed)
     log_path = out / "log.jsonl"
     started = time.time()
     for it in range(a.iterations):
         t0 = time.time()
-        picked = rng.sample(train, a.tasks_per_iter)
+        if attacked:
+            half = a.tasks_per_iter // 2
+            picked = rng.sample(attacked, half) + rng.sample(train, a.tasks_per_iter - half)
+        else:
+            picked = rng.sample(train, a.tasks_per_iter)
         model.eval()
         batcher = lm.Batcher(model, tok, temperature=a.temperature)
         items = [{"task": t, "key": f"{it}:{t['id']}:{g}"} for t in picked for g in range(a.group)]
         runs = rollout.run_many(items, batcher, slots=a.slots)
         batcher.close()
         rollout_s = time.time() - t0
+        if all(r.get("score") is None for r in runs):  # the environment is down, not the model: stop, do not log empty iterations
+            raise SystemExit(f"every episode failed in iteration {it}: {runs[0].get('error')}")
         model.train()
         losses, used, skipped, errors = [], 0, 0, 0
         for t in picked:

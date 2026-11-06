@@ -29,12 +29,12 @@ RUNS = Path(__file__).resolve().parent.parent.parent / "runs"
 TRACES = RUNS / "oracle-traces-train.jsonl"
 
 
-def traces(split: str = "train", slot: int = 9) -> int:
-    """Runs the oracle on every task of the split and writes each solved step as a training example."""
+def traces(split: str = "train", slot: int = 9, items: list[dict] | None = None, out: Path = TRACES) -> int:
+    """Runs the oracle on every task of the split (or on `items`) and writes each solved step as a training example."""
     RUNS.mkdir(exist_ok=True)
     n = 0
-    with TRACES.open("w") as f:
-        for t in tasks.load(split):
+    with Path(out).open("w") as f:
+        for t in items if items is not None else tasks.load(split):
             steps = []
 
             def recorder(brief, history, _steps=steps):
@@ -51,7 +51,7 @@ def traces(split: str = "train", slot: int = 9) -> int:
             for s in steps:
                 f.write(json.dumps({"task": t["id"], "kind": t["kind"], **s}) + "\n")
                 n += 1
-    print(f"{n} examples in {TRACES}")
+    print(f"{n} examples in {out}")
     return n
 
 
@@ -66,12 +66,13 @@ def _example(tok, row: dict) -> tuple[list[int], list[int]]:
 
 
 def fit(model_name: str, out: str, epochs: int = 1, lr: float = 2e-4, rank: int = 16, limit: int = 0,
-        seed: int = 0, threads: int = 0, bf16: bool = False) -> dict:
+        seed: int = 0, threads: int = 0, bf16: bool = False, trace_files: list[Path] | None = None,
+        adapter: str | None = None) -> dict:
     """LoRA fine-tune on the oracle traces: loss on the target tokens only."""
     from peft import LoraConfig, get_peft_model
     if threads:
         torch.set_num_threads(threads)
-    rows = [json.loads(line) for line in TRACES.read_text().splitlines()]
+    rows = [json.loads(line) for p in (trace_files or [TRACES]) for line in Path(p).read_text().splitlines()]
     random.Random(seed).shuffle(rows)
     rows = rows[: limit or None]
     model, tok = lm.load(model_name, dtype=torch.bfloat16 if bf16 else torch.float32)
@@ -79,10 +80,14 @@ def fit(model_name: str, out: str, epochs: int = 1, lr: float = 2e-4, rank: int 
         # Halves the frozen weights and recomputes activations instead of keeping them, so 1.5B fits in 16 GB.
         model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
         model.enable_input_require_grads()
-    model = get_peft_model(model, LoraConfig(r=rank, lora_alpha=2 * rank, lora_dropout=0.0,
-                                             target_modules=["q_proj", "k_proj", "v_proj", "o_proj",
-                                                             "gate_proj", "up_proj", "down_proj"],
-                                             task_type="CAUSAL_LM"))
+    if adapter:  # continue training an existing adapter instead of starting a new one
+        from peft import PeftModel
+        model = PeftModel.from_pretrained(model, adapter, is_trainable=True)
+    else:
+        model = get_peft_model(model, LoraConfig(r=rank, lora_alpha=2 * rank, lora_dropout=0.0,
+                                                 target_modules=["q_proj", "k_proj", "v_proj", "o_proj",
+                                                                 "gate_proj", "up_proj", "down_proj"],
+                                                 task_type="CAUSAL_LM"))
     model.train()
     opt = torch.optim.AdamW([p for p in model.parameters() if p.requires_grad], lr=lr)
     log = []
@@ -121,11 +126,24 @@ def main(argv=None) -> int:
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--threads", type=int, default=0)
     ap.add_argument("--bf16", action="store_true", help="bfloat16 weights and gradient checkpointing, for 1.5B on a 16 GB machine")
+    ap.add_argument("--attacks", default="", help="traces: attacked train tasks from the range, these techniques only")
+    ap.add_argument("--goals", default="", help="traces with --attacks: only these range goals")
+    ap.add_argument("--traces-out", default=str(TRACES), help="traces: where to write")
+    ap.add_argument("--traces", default="", help="fit: comma-separated trace files (default: the oracle's train traces)")
+    ap.add_argument("--adapter", default=None, help="fit: continue from this adapter")
     a = ap.parse_args(argv)
     if a.command == "traces":
-        traces()
+        items = None
+        if a.attacks:
+            from .. import range as attack_range
+            techs, goals = set(a.attacks.split(",")), set(filter(None, a.goals.split(",")))
+            items = [t for t in attack_range.build("train", per_goal=1000)
+                     if t["range"]["technique"] in techs and (not goals or t["range"]["goal"] in goals)]
+        traces(items=items, out=Path(a.traces_out))
     else:
-        fit(a.model, a.out, a.epochs, a.lr, limit=a.limit, threads=a.threads, bf16=a.bf16)
+        files = [Path(p) for p in a.traces.split(",")] if a.traces else None
+        fit(a.model, a.out, a.epochs, a.lr, limit=a.limit, threads=a.threads, bf16=a.bf16,
+            trace_files=files, adapter=a.adapter)
     return 0
 
 
