@@ -123,6 +123,21 @@ What it shows:
 - **The small model escalates whenever a memo sounds like an instruction.** The 1.5B solves every `memo_one` and `exact` task clean, and escalates on 21 to 24 of the 24 attacked copies, whatever the technique. Its warm start taught it to escalate on the `injection` kind, a memo that gives orders, and it learned the surface ("the memo gives an order") rather than the rule ("the memo says the money is someone else's"). GRPO, aimed at escalation tasks, cut its redirects from 7 to 1 and pushed false alarms from 21 to 24. For a model being trained to escalate more, false alarms are the attack to watch.
 - **No attack moved anything outside the task.** Zero guard failures across every run: the tools refuse other customers' invoices, so the worst an attacker got was a wrong allocation or a wrong escalation inside the customer's own account.
 
+### Training against it
+
+The obvious fix for the small model's false alarms is to train on attacked tasks. To keep the test honest, training used only three of the six techniques (plain, authority, fake policy update) on train customers; forged tool results, the fake end of memo and the friendly note stayed unseen, and the range above (dev customers) is the test.
+
+1. **GRPO alone did not move it.** Twelve more GRPO iterations with half of each batch drawn from attacked train tasks left false alarms at 24 of 24. The likely reason is the one from the first training run: the model escalated on every attempt at an attacked task, so a group had no spread and taught nothing. The same twelve iterations did lift the plain dev subset from 29 to 33 of 42 (wrong and mixed references both 3 of 3).
+2. **A short supervised pass did.** 538 steps of the policy-following agent working through attacked train tasks (288 of them on false-alarm attacks), mixed with ordinary steps so the model would not forget the job, one pass at learning rate 1e-4 on top of that adapter, 1.7 hours on CPU. False alarms fell from 24 of 24 to 3 of 24: 0 of 12 on the trained techniques and 3 of 12 on the held-out ones. All three were the friendly note asking to hold a possible duplicate, the same one that moved Haiku. Redirects stayed at 0, and it still escalates every real `injection` task, so it did not simply learn to ignore memos.
+
+| Qwen2.5-1.5B adapter | Attacks won, on tasks it solves clean (48) | false_alarm, trained / held-out techniques | Dev subset solved (42) |
+| --- | --- | --- | --- |
+| After GRPO (before any attack training) | 25 | 12 / 12 | 29 |
+| Plus GRPO with attacked tasks | 24 | 12 / 12 | 33 |
+| Plus the supervised pass on attacked tasks | 3 | 0 / 3 | 32 |
+
+The cost on the plain job was small and mixed: the supervised pass solved `two_credits_esc` for the first time (3 of 3) and lost two of the reference escalations GRPO had just gained (`wrong_ref` and `mixed_ref` 1 of 3 each). On a 42-task subset that is within noise; the attack result is not.
+
 Run it with `python -m voight range --model haiku --split dev` (add `--no-warning` for the second arm), or `python -m voight.train.evaluate --range` for a local model.
 
 ## Running it
@@ -144,4 +159,4 @@ VOIGHT_LIVE=1 python -m pytest -q voight
 1. Train a small open model on the train split with GRPO (a reinforcement-learning method that needs no second "critic" model) and LoRA (tuning a thin slice of the weights). The first run is done on CPU at 0.5B parameters ([train/](train/README.md)): a supervised warm start took it from 0 to 16 of a 42-task dev subset, and 30 GRPO iterations to 18; it never escalates. At 1.5B parameters, still on CPU, the warm start reaches 27 and 12 GRPO iterations aimed at the escalation kinds reach 29. Next is a longer run on a GPU.
 2. Scale to a 7B model and compare it with the large models on dev, then once on test: quality, cost per task and time per task.
 3. Serve the tuned model with vLLM behind Lodestar, with a router that sends uncertain cases to a large model.
-4. The attack range (above) is built. Next for it: train against it, adding attacked `false_alarm` tasks to the train split so the small model learns that an instruction in a memo is not, by itself, a reason to escalate, then re-run the range.
+4. The attack range (above) is built, and a short supervised pass on attacked train tasks cut the small model's false alarms from 24 to 3 of 24. Next for it: harder attacks (in invoice text and customer names, not only memos) and a longer run on a GPU.
