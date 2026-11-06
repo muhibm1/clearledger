@@ -108,7 +108,7 @@ VOIGHT_LIVE=1 python -m pytest -q voight
 
 ## What comes next
 
-1. Train a small open model on the train split with GRPO (a reinforcement-learning method that needs no second "critic" model) and LoRA (tuning a thin slice of the weights), first at 1.5B parameters on free GPUs.
+1. Train a small open model on the train split with GRPO (a reinforcement-learning method that needs no second "critic" model) and LoRA (tuning a thin slice of the weights). The first run is done on CPU at 0.5B parameters ([train/](train/README.md)): a supervised warm start took it from 0 to 16 of a 42-task dev subset, and 30 GRPO iterations to 18; it still never escalates. Next is 1.5B on a GPU.
 2. Scale to a 7B model and compare it with the large models on dev, then once on test: quality, cost per task and time per task.
 3. Serve the tuned model with vLLM behind Lodestar, with a router that sends uncertain cases to a large model.
 4. Reuse the same environment as an attack range: harder injections in memos and invoice text, aimed at the trained model.
