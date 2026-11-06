@@ -36,13 +36,17 @@ Licences: PyTorch BSD-3-Clause, Transformers and PEFT Apache-2.0, Accelerate Apa
 
 ## Results
 
-All rows below are Qwen2.5-0.5B-Instruct on CPU, scored greedily on a fixed dev subset: the first 3 tasks of each of the 14 kinds, 42 tasks ([../results/](../results/)).
+All rows below ran on CPU (4 cores, 16 GB), scored greedily on a fixed dev subset: the first 3 tasks of each of the 14 kinds, 42 tasks ([../results/](../results/)).
 
 | Model | Solved (42) | Mean reward | Tool calls it could not parse |
 | --- | --- | --- | --- |
+| **Qwen2.5-0.5B-Instruct** | | | |
 | Untrained | 0 | 0.00 | many: it writes prose and invents arguments |
 | After warm start (841 oracle steps, one pass, 84 minutes on 4 CPU cores) | 16 | 0.41 | 0 |
 | After GRPO (30 iterations of 4 tasks x 4 attempts from the warm start, 3.6 hours on 4 CPU cores) | 18 | 0.46 | 0 |
+| **Qwen2.5-1.5B-Instruct** (bfloat16 weights, gradient checkpointing) | | | |
+| After warm start (same 841 steps, 2.2 hours) | 27 | 0.64 | 0 |
+| After GRPO (12 iterations, mostly escalation kinds, 2.2 hours) | 29 | 0.69 | 0 |
 
 The warm start teaches the format and the happy path. The model solves every `memo_one`, `credit_note`, `exact`, `partial` and `typo_ref` task in the subset, and never escalates: 18 of its 26 misses are escalations it did not make (`tie`, `over`, `wrong_ref`, `mixed_ref`, `injection`, `two_credits_esc`). That is the gap GRPO is for: those tasks give a group of attempts different rewards as soon as one attempt escalates.
 
@@ -51,3 +55,9 @@ GRPO moved the score a little and in one place: `memo_short` went from 1 to 3 of
 Why escalation did not move: GRPO can only push up behaviour the model already tries. 79 of the 841 warm-start examples (9%) are an `escalate` call, and the warm-started model never produces one, so on an escalation task every attempt in a group scores 0, the group has no spread, and it is skipped. A tie episode shows the shape: the model lists two invoices of 7,425.00, sees a payment of 7,425.00, and pays the one due later. The fixes are known and cheap to try: more sampling (higher temperature or larger groups on escalation kinds), a warm start that weights the escalate step, and above all a bigger model. A 1.5B model on a GPU is the next run; CPU is the limit here, at about 8.5 minutes per iteration for 16 episodes.
 
 What this run does show: the whole loop works end to end on a laptop-class machine. Rollouts run in parallel database copies, the checker scores every attempt, GRPO updates a LoRA adapter, and the adapter is scored by the same code that scores the hosted models. In all three dev runs of the small model (126 episodes) nothing in the books outside the task moved: zero guard failures.
+
+### 1.5B: size first, then GRPO on what it misses
+
+The same warm start on the 1.5B model solves 27 of 42, against 16 for the 0.5B. It gets every `injection` task right (escalating), and every `two_credits` and `partial_span` task, which the 0.5B never did. It still misses `tie`, `over`, `wrong_ref`, `mixed_ref` and `two_credits_esc`: all escalations, 15 of its 15 misses.
+
+Because the 1.5B escalates sometimes, GRPO has something to push on. The run sampled train tasks of eight kinds only, the five it misses plus three it solves (`exact`, `partial`, `memo_one`) so it would not forget how to apply money (`--kinds`). Twelve iterations of 4 tasks x 4 attempts, learning rate 2e-5, no KL term. Result: 29 of 42. It newly escalates on one `wrong_ref` and one `mixed_ref` task and lost nothing it had. That is a small change on a 42-task subset, so read it as direction, not size: the reward signal reaches the behaviour the warm start could not teach, and a longer run on a GPU is what would show how far it goes. Ties and overpayments are still untouched; both need the model to compare amounts, which is where a small model is weakest.
