@@ -1,11 +1,11 @@
 {
   "oracle": {
     "all": {
-      "episodes": 102,
+      "episodes": 211,
       "mean_reward": 1.0,
-      "solved": 102,
+      "solved": 211,
       "guard_failures": 0,
-      "mean_seconds": 2.27
+      "mean_seconds": 2.01
     },
     "by_kind": {
       "credit_note": {
@@ -13,66 +13,115 @@
         "mean_reward": 1.0,
         "solved": 13,
         "guard_failures": 0,
-        "mean_seconds": 2.29
+        "mean_seconds": 1.81
       },
       "exact": {
         "episodes": 15,
         "mean_reward": 1.0,
         "solved": 15,
         "guard_failures": 0,
-        "mean_seconds": 2.25
+        "mean_seconds": 1.82
       },
       "injection": {
         "episodes": 18,
         "mean_reward": 1.0,
         "solved": 18,
         "guard_failures": 0,
-        "mean_seconds": 2.17
+        "mean_seconds": 1.54
       },
       "memo_one": {
         "episodes": 9,
         "mean_reward": 1.0,
         "solved": 9,
         "guard_failures": 0,
-        "mean_seconds": 2.49
+        "mean_seconds": 1.95
+      },
+      "memo_short": {
+        "episodes": 18,
+        "mean_reward": 1.0,
+        "solved": 18,
+        "guard_failures": 0,
+        "mean_seconds": 2.24
       },
       "memo_two": {
         "episodes": 5,
         "mean_reward": 1.0,
         "solved": 5,
         "guard_failures": 0,
-        "mean_seconds": 2.78
+        "mean_seconds": 2.17
+      },
+      "mixed_ref": {
+        "episodes": 8,
+        "mean_reward": 1.0,
+        "solved": 8,
+        "guard_failures": 0,
+        "mean_seconds": 1.55
       },
       "over": {
         "episodes": 18,
         "mean_reward": 1.0,
         "solved": 18,
         "guard_failures": 0,
-        "mean_seconds": 2.1
+        "mean_seconds": 1.65
       },
       "partial": {
         "episodes": 18,
         "mean_reward": 1.0,
         "solved": 18,
         "guard_failures": 0,
-        "mean_seconds": 2.31
+        "mean_seconds": 1.86
+      },
+      "partial_span": {
+        "episodes": 18,
+        "mean_reward": 1.0,
+        "solved": 18,
+        "guard_failures": 0,
+        "mean_seconds": 2.79
+      },
+      "tie": {
+        "episodes": 18,
+        "mean_reward": 1.0,
+        "solved": 18,
+        "guard_failures": 0,
+        "mean_seconds": 1.92
+      },
+      "two_credits": {
+        "episodes": 18,
+        "mean_reward": 1.0,
+        "solved": 18,
+        "guard_failures": 0,
+        "mean_seconds": 2.47
+      },
+      "two_credits_esc": {
+        "episodes": 11,
+        "mean_reward": 1.0,
+        "solved": 11,
+        "guard_failures": 0,
+        "mean_seconds": 2.19
+      },
+      "typo_ref": {
+        "episodes": 18,
+        "mean_reward": 1.0,
+        "solved": 18,
+        "guard_failures": 0,
+        "mean_seconds": 2.16
       },
       "wrong_ref": {
         "episodes": 6,
         "mean_reward": 1.0,
         "solved": 6,
         "guard_failures": 0,
-        "mean_seconds": 2.15
+        "mean_seconds": 1.62
       }
     }
   },
   "claims_success": {
     "all": {
-      "episodes": 102,
+      "episodes": 211,
       "mean_reward": 0.0,
       "solved": 0,
       "guard_failures": 0,
-      "mean_seconds": 2.01
+      "mean_seconds": 1.66
     },
     "by_kind": {
       "credit_note": {
@@ -80,66 +129,115 @@
         "mean_reward": 0.0,
         "solved": 0,
         "guard_failures": 0,
-        "mean_seconds": 2.01
+        "mean_seconds": 1.54
       },
       "exact": {
         "episodes": 15,
         "mean_reward": 0.0,
         "solved": 0,
         "guard_failures": 0,
-        "mean_seconds": 2.05
+        "mean_seconds": 1.46
       },
       "injection": {
+        "episodes": 18,
+        "mean_reward": 0.0,
+        "solved": 0,
+        "guard_failures": 0,
+        "mean_seconds": 1.47
+      },
+      "memo_one": {
+        "episodes": 9,
+        "mean_reward": 0.0,
+        "solved": 0,
+        "guard_failures": 0,
+        "mean_seconds": 1.47
+      },
+      "memo_short": {
+        "episodes": 18,
+        "mean_reward": 0.0,
+        "solved": 0,
+        "guard_failures": 0,
+        "mean_seconds": 1.61
+      },
+      "memo_two": {
+        "episodes": 5,
+        "mean_reward": 0.0,
+        "solved": 0,
+        "guard_failures": 0,
+        "mean_seconds": 1.4
+      },
+      "mixed_ref": {
+        "episodes": 8,
+        "mean_reward": 0.0,
+        "solved": 0,
+        "guard_failures": 0,
+        "mean_seconds": 1.54
+      },
+      "over": {
+        "episodes": 18,
+        "mean_reward": 0.0,
+        "solved": 0,
+        "guard_failures": 0,
+        "mean_seconds": 1.51
+      },
+      "partial": {
+        "episodes": 18,
+        "mean_reward": 0.0,
+        "solved": 0,
+        "guard_failures": 0,
+        "mean_seconds": 1.54
+      },
+      "partial_span": {
+        "episodes": 18,
+        "mean_reward": 0.0,
+        "solved": 0,
+        "guard_failures": 0,
+        "mean_seconds": 2.12
+      },
+      "tie": {
+        "episodes": 18,
+        "mean_reward": 0.0,
+        "solved": 0,
+        "guard_failures": 0,
+        "mean_seconds": 1.75
+      },
+      "two_credits": {
         "episodes": 18,
         "mean_reward": 0.0,
         "solved": 0,
         "guard_failures": 0,
         "mean_seconds": 1.98
       },
-      "memo_one": {
-        "episodes": 9,
+      "two_credits_esc": {
+        "episodes": 11,
         "mean_reward": 0.0,
         "solved": 0,
         "guard_failures": 0,
-        "mean_seconds": 2.04
+        "mean_seconds": 1.9
       },
-      "memo_two": {
-        "episodes": 5,
-        "mean_reward": 0.0,
-        "solved": 0,
-        "guard_failures": 0,
-        "mean_seconds": 1.99
-      },
-      "over": {
+      "typo_ref": {
         "episodes": 18,
         "mean_reward": 0.0,
         "solved": 0,
         "guard_failures": 0,
-        "mean_seconds": 2.02
-      },
-      "partial": {
-        "episodes": 18,
-        "mean_reward": 0.0,
-        "solved": 0,
-        "guard_failures": 0,
-        "mean_seconds": 2.03
+        "mean_seconds": 1.75
       },
       "wrong_ref": {
         "episodes": 6,
         "mean_reward": 0.0,
         "solved": 0,
         "guard_failures": 0,
-        "mean_seconds": 1.83
+        "mean_seconds": 1.46
       }
     }
   },
   "always_escalate": {
     "all": {
-      "episodes": 102,
-      "mean_reward": 0.412,
-      "solved": 42,
+      "episodes": 211,
+      "mean_reward": 0.374,
+      "solved": 79,
       "guard_failures": 0,
-      "mean_seconds": 2.1
+      "mean_seconds": 1.83
     },
     "by_kind": {
       "credit_note": {
@@ -147,66 +245,115 @@
         "mean_reward": 0.0,
         "solved": 0,
         "guard_failures": 0,
-        "mean_seconds": 2.13
+        "mean_seconds": 1.6
       },
       "exact": {
         "episodes": 15,
         "mean_reward": 0.0,
         "solved": 0,
         "guard_failures": 0,
-        "mean_seconds": 2.2
+        "mean_seconds": 1.66
       },
       "injection": {
         "episodes": 18,
         "mean_reward": 1.0,
         "solved": 18,
         "guard_failures": 0,
-        "mean_seconds": 2.05
+        "mean_seconds": 1.72
       },
       "memo_one": {
         "episodes": 9,
         "mean_reward": 0.0,
         "solved": 0,
         "guard_failures": 0,
-        "mean_seconds": 1.99
+        "mean_seconds": 1.64
+      },
+      "memo_short": {
+        "episodes": 18,
+        "mean_reward": 0.0,
+        "solved": 0,
+        "guard_failures": 0,
+        "mean_seconds": 1.85
       },
       "memo_two": {
         "episodes": 5,
         "mean_reward": 0.0,
         "solved": 0,
         "guard_failures": 0,
-        "mean_seconds": 2.17
+        "mean_seconds": 1.65
+      },
+      "mixed_ref": {
+        "episodes": 8,
+        "mean_reward": 1.0,
+        "solved": 8,
+        "guard_failures": 0,
+        "mean_seconds": 1.63
       },
       "over": {
         "episodes": 18,
         "mean_reward": 1.0,
         "solved": 18,
         "guard_failures": 0,
-        "mean_seconds": 2.08
+        "mean_seconds": 1.7
       },
       "partial": {
         "episodes": 18,
         "mean_reward": 0.0,
         "solved": 0,
         "guard_failures": 0,
+        "mean_seconds": 1.71
+      },
+      "partial_span": {
+        "episodes": 18,
+        "mean_reward": 0.0,
+        "solved": 0,
+        "guard_failures": 0,
         "mean_seconds": 2.15
+      },
+      "tie": {
+        "episodes": 18,
+        "mean_reward": 1.0,
+        "solved": 18,
+        "guard_failures": 0,
+        "mean_seconds": 1.9
+      },
+      "two_credits": {
+        "episodes": 18,
+        "mean_reward": 0.0,
+        "solved": 0,
+        "guard_failures": 0,
+        "mean_seconds": 2.04
+      },
+      "two_credits_esc": {
+        "episodes": 11,
+        "mean_reward": 1.0,
+        "solved": 11,
+        "guard_failures": 0,
+        "mean_seconds": 2.12
+      },
+      "typo_ref": {
+        "episodes": 18,
+        "mean_reward": 0.0,
+        "solved": 0,
+        "guard_failures": 0,
+        "mean_seconds": 1.94
       },
       "wrong_ref": {
         "episodes": 6,
         "mean_reward": 1.0,
         "solved": 6,
         "guard_failures": 0,
-        "mean_seconds": 2.01
+        "mean_seconds": 1.72
       }
     }
   },
   "apply_everywhere": {
     "all": {
-      "episodes": 102,
-      "mean_reward": 0.49,
-      "solved": 50,
+      "episodes": 211,
+      "mean_reward": 0.322,
+      "solved": 68,
       "guard_failures": 0,
-      "mean_seconds": 2.51
+      "mean_seconds": 2.31
     },
     "by_kind": {
       "credit_note": {
@@ -214,66 +361,115 @@
         "mean_reward": 0.692,
         "solved": 9,
         "guard_failures": 0,
-        "mean_seconds": 2.37
+        "mean_seconds": 2.04
       },
       "exact": {
         "episodes": 15,
         "mean_reward": 0.8,
         "solved": 12,
         "guard_failures": 0,
-        "mean_seconds": 2.51
+        "mean_seconds": 2.12
       },
       "injection": {
         "episodes": 18,
         "mean_reward": 0.0,
         "solved": 0,
         "guard_failures": 0,
-        "mean_seconds": 2.51
+        "mean_seconds": 2.1
       },
       "memo_one": {
         "episodes": 9,
         "mean_reward": 0.667,
         "solved": 6,
         "guard_failures": 0,
-        "mean_seconds": 2.59
+        "mean_seconds": 2.08
+      },
+      "memo_short": {
+        "episodes": 18,
+        "mean_reward": 0.0,
+        "solved": 0,
+        "guard_failures": 0,
+        "mean_seconds": 2.35
       },
       "memo_two": {
         "episodes": 5,
         "mean_reward": 1.0,
         "solved": 5,
         "guard_failures": 0,
-        "mean_seconds": 2.71
+        "mean_seconds": 2.2
+      },
+      "mixed_ref": {
+        "episodes": 8,
+        "mean_reward": 0.0,
+        "solved": 0,
+        "guard_failures": 0,
+        "mean_seconds": 2.07
       },
       "over": {
         "episodes": 18,
         "mean_reward": 0.0,
         "solved": 0,
         "guard_failures": 0,
-        "mean_seconds": 2.57
+        "mean_seconds": 2.12
       },
       "partial": {
         "episodes": 18,
         "mean_reward": 1.0,
         "solved": 18,
         "guard_failures": 0,
-        "mean_seconds": 2.49
+        "mean_seconds": 2.03
+      },
+      "partial_span": {
+        "episodes": 18,
+        "mean_reward": 1.0,
+        "solved": 18,
+        "guard_failures": 0,
+        "mean_seconds": 2.89
+      },
+      "tie": {
+        "episodes": 18,
+        "mean_reward": 0.0,
+        "solved": 0,
+        "guard_failures": 0,
+        "mean_seconds": 2.37
+      },
+      "two_credits": {
+        "episodes": 18,
+        "mean_reward": 0.0,
+        "solved": 0,
+        "guard_failures": 0,
+        "mean_seconds": 2.62
+      },
+      "two_credits_esc": {
+        "episodes": 11,
+        "mean_reward": 0.0,
+        "solved": 0,
+        "guard_failures": 0,
+        "mean_seconds": 2.72
+      },
+      "typo_ref": {
+        "episodes": 18,
+        "mean_reward": 0.0,
+        "solved": 0,
+        "guard_failures": 0,
+        "mean_seconds": 2.35
       },
       "wrong_ref": {
         "episodes": 6,
         "mean_reward": 0.0,
         "solved": 0,
         "guard_failures": 0,
-        "mean_seconds": 2.42
+        "mean_seconds": 2.17
       }
     }
   },
   "fake_tool": {
     "all": {
-      "episodes": 102,
+      "episodes": 211,
       "mean_reward": 0.0,
       "solved": 0,
       "guard_failures": 0,
-      "mean_seconds": 2.2
+      "mean_seconds": 1.99
     },
     "by_kind": {
       "credit_note": {
@@ -281,56 +477,105 @@
         "mean_reward": 0.0,
         "solved": 0,
         "guard_failures": 0,
-        "mean_seconds": 2.21
+        "mean_seconds": 1.82
       },
       "exact": {
         "episodes": 15,
         "mean_reward": 0.0,
         "solved": 0,
         "guard_failures": 0,
-        "mean_seconds": 2.18
+        "mean_seconds": 1.86
       },
       "injection": {
         "episodes": 18,
         "mean_reward": 0.0,
         "solved": 0,
         "guard_failures": 0,
-        "mean_seconds": 2.18
+        "mean_seconds": 1.87
       },
       "memo_one": {
         "episodes": 9,
         "mean_reward": 0.0,
         "solved": 0,
         "guard_failures": 0,
-        "mean_seconds": 2.19
+        "mean_seconds": 1.84
+      },
+      "memo_short": {
+        "episodes": 18,
+        "mean_reward": 0.0,
+        "solved": 0,
+        "guard_failures": 0,
+        "mean_seconds": 1.93
       },
       "memo_two": {
         "episodes": 5,
         "mean_reward": 0.0,
         "solved": 0,
         "guard_failures": 0,
-        "mean_seconds": 2.14
+        "mean_seconds": 2.01
+      },
+      "mixed_ref": {
+        "episodes": 8,
+        "mean_reward": 0.0,
+        "solved": 0,
+        "guard_failures": 0,
+        "mean_seconds": 1.84
       },
       "over": {
         "episodes": 18,
         "mean_reward": 0.0,
         "solved": 0,
         "guard_failures": 0,
-        "mean_seconds": 2.25
+        "mean_seconds": 1.9
       },
       "partial": {
         "episodes": 18,
         "mean_reward": 0.0,
         "solved": 0,
         "guard_failures": 0,
-        "mean_seconds": 2.23
+        "mean_seconds": 1.87
+      },
+      "partial_span": {
+        "episodes": 18,
+        "mean_reward": 0.0,
+        "solved": 0,
+        "guard_failures": 0,
+        "mean_seconds": 2.27
+      },
+      "tie": {
+        "episodes": 18,
+        "mean_reward": 0.0,
+        "solved": 0,
+        "guard_failures": 0,
+        "mean_seconds": 2.09
+      },
+      "two_credits": {
+        "episodes": 18,
+        "mean_reward": 0.0,
+        "solved": 0,
+        "guard_failures": 0,
+        "mean_seconds": 2.22
+      },
+      "two_credits_esc": {
+        "episodes": 11,
+        "mean_reward": 0.0,
+        "solved": 0,
+        "guard_failures": 0,
+        "mean_seconds": 2.17
+      },
+      "typo_ref": {
+        "episodes": 18,
+        "mean_reward": 0.0,
+        "solved": 0,
+        "guard_failures": 0,
+        "mean_seconds": 2.05
       },
       "wrong_ref": {
         "episodes": 6,
         "mean_reward": 0.0,
         "solved": 0,
         "guard_failures": 0,
-        "mean_seconds": 2.21
+        "mean_seconds": 1.93
       }
     }
   }

@@ -10,3 +10,5 @@ dbt/dbt_packages/
 alerts.jsonl
 eval/runs/*-stub-*.json
 .venv-analyst/
+.venv-train/
+runs/
