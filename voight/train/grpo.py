@@ -68,13 +68,18 @@ def main(argv=None) -> int:
     ap.add_argument("--save-every", type=int, default=5)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--threads", type=int, default=0)
+    ap.add_argument("--kinds", default="", help="comma-separated task kinds to sample from (default: all train tasks)")
+    ap.add_argument("--bf16", action="store_true", help="bfloat16 weights and gradient checkpointing, for 1.5B on a 16 GB machine")
     a = ap.parse_args(argv)
     if a.threads:
         torch.set_num_threads(a.threads)
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
     env.start_server()
-    base, tok = lm.load(a.model)
+    base, tok = lm.load(a.model, dtype=torch.bfloat16 if a.bf16 else torch.float32)
+    if a.bf16:
+        base.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
+        base.enable_input_require_grads()
     if a.adapter:
         model = PeftModel.from_pretrained(base, a.adapter, is_trainable=True)
     else:
@@ -83,6 +88,9 @@ def main(argv=None) -> int:
                                                                 "gate_proj", "up_proj", "down_proj"]))
     opt = torch.optim.AdamW([p for p in model.parameters() if p.requires_grad], lr=a.lr)
     train = tasks.load("train")
+    if a.kinds:
+        wanted = set(a.kinds.split(","))
+        train = [t for t in train if t["kind"] in wanted]
     rng = random.Random(a.seed)
     log_path = out / "log.jsonl"
     started = time.time()

@@ -66,7 +66,7 @@ def _example(tok, row: dict) -> tuple[list[int], list[int]]:
 
 
 def fit(model_name: str, out: str, epochs: int = 1, lr: float = 2e-4, rank: int = 16, limit: int = 0,
-        seed: int = 0, threads: int = 0) -> dict:
+        seed: int = 0, threads: int = 0, bf16: bool = False) -> dict:
     """LoRA fine-tune on the oracle traces: loss on the target tokens only."""
     from peft import LoraConfig, get_peft_model
     if threads:
@@ -74,7 +74,11 @@ def fit(model_name: str, out: str, epochs: int = 1, lr: float = 2e-4, rank: int 
     rows = [json.loads(line) for line in TRACES.read_text().splitlines()]
     random.Random(seed).shuffle(rows)
     rows = rows[: limit or None]
-    model, tok = lm.load(model_name)
+    model, tok = lm.load(model_name, dtype=torch.bfloat16 if bf16 else torch.float32)
+    if bf16:
+        # Halves the frozen weights and recomputes activations instead of keeping them, so 1.5B fits in 16 GB.
+        model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
+        model.enable_input_require_grads()
     model = get_peft_model(model, LoraConfig(r=rank, lora_alpha=2 * rank, lora_dropout=0.0,
                                              target_modules=["q_proj", "k_proj", "v_proj", "o_proj",
                                                              "gate_proj", "up_proj", "down_proj"],
@@ -99,7 +103,7 @@ def fit(model_name: str, out: str, epochs: int = 1, lr: float = 2e-4, rank: int 
     Path(out).mkdir(parents=True, exist_ok=True)
     model.save_pretrained(out)
     summary = {"model": model_name, "examples": len(rows), "epochs": epochs, "lr": lr, "rank": rank,
-               "first_loss": log[0]["loss"], "last_20_mean_loss": round(sum(x["loss"] for x in log[-20:]) / min(20, len(log)), 4),
+               "bf16": bf16, "first_loss": log[0]["loss"], "last_20_mean_loss": round(sum(x["loss"] for x in log[-20:]) / min(20, len(log)), 4),
                "seconds": round(time.time() - started, 1)}
     (Path(out) / "train-log.json").write_text(json.dumps({"summary": summary, "log": log}, indent=1))
     print(json.dumps(summary))
@@ -116,11 +120,12 @@ def main(argv=None) -> int:
     ap.add_argument("--lr", type=float, default=2e-4)
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--threads", type=int, default=0)
+    ap.add_argument("--bf16", action="store_true", help="bfloat16 weights and gradient checkpointing, for 1.5B on a 16 GB machine")
     a = ap.parse_args(argv)
     if a.command == "traces":
         traces()
     else:
-        fit(a.model, a.out, a.epochs, a.lr, limit=a.limit, threads=a.threads)
+        fit(a.model, a.out, a.epochs, a.lr, limit=a.limit, threads=a.threads, bf16=a.bf16)
     return 0
 
 
