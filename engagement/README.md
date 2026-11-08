@@ -50,7 +50,9 @@ Follows one finance question through four steps on one warehouse: trace a receiv
 | RECORDED | Read from a file an earlier real run wrote. The output names the file, and says what it is when it differs from the live step (the trace recording is a `revenue_by_customer` trace; the Agent Harbor snapshot is the cap-refusal drill on the echo agent with a stub model). |
 | SKIPPED | Not run, with the reason (no warehouse, no analyst environment, no `dbt` or `fathom`). |
 
-Step 2 runs in the analyst's own environment, `EDP_ANALYST_PYTHON` (default `.venv-analyst/bin/python`), because its pins break dbt. Set `LODESTAR_URL` to send the question to a running Agent Harbor service; otherwise step 4 reads `engagement/recorded/agent-harbor-cap.json`. `--via cli` has the analyst call the local `claude` command line instead of the scripted model. The exit code is 1 only when a step that ran fails.
+Step 2 runs in the analyst's own environment, `EDP_ANALYST_PYTHON` (default `.venv-analyst/bin/python`), because its pins break dbt. Set `LODESTAR_URL` to send the question to a running Agent Harbor service; otherwise step 4 reads `engagement/recorded/agent-harbor-cap.json`. `--via cli` has the analyst call the local `claude` command line instead of the scripted model. Exit code: 1 if a LIVE or a STUB step fails (a STUB step runs real SQL, so its failure is real); RECORDED and SKIPPED never fail the run.
+
+Configuration is by environment variables only: `EDP_DSN` (warehouse, default as the tests), `EDP_ANALYST_PYTHON` (analyst interpreter), `LODESTAR_URL` (Agent Harbor service) and `LODESTAR_API_TOKEN` (sent as a bearer token when set). To run it on your own data, point `EDP_DSN` at a warehouse built by this repository's dbt models and create the analyst environment; the questions assume the `receivables_aging` mart.
 
 ## The pack, in the order an engagement produces it
 

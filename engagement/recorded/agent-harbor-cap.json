@@ -5,9 +5,9 @@
     "path": "docs/drills/2026-11-06/drills.json",
     "drill": "cost-cap"
   },
-  "what_it_is": "Agent Harbor (Lodestar) daily cost cap drill. The drill ran the echo agent on its stub model (priced as claude-sonnet-5-5 for the ledger, so the dollar figures are simulated), not the analyst and not a real model.",
+  "what_it_is": "Agent Harbor (Lodestar) daily cost cap drill. The drill ran the echo agent on its stub model, not the analyst and not a real model; the dollar figures are what the same tokens would cost at a list price.",
   "agent": "echo",
-  "model": "stub (simulated price table entry: claude-sonnet-5-5)",
+  "model": "stub",
   "cap_usd": 1.3e-05,
   "title": "Daily cost cap reached",
   "did": "Set the daily cap to $0.000013 (about one stub run), ran one small run, then a padded one, then another.",

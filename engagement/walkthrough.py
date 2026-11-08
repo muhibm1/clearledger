@@ -9,7 +9,9 @@ STUB      ran now, with a scripted stand-in for the language model.
 RECORDED  read from a file an earlier real run wrote; the output says which file.
 SKIPPED   not run, with the reason.
 
-The exit code is 1 only when a step that ran (LIVE, or the STUB model's real SQL) fails.
+Exit code: 1 if a LIVE step or a STUB step fails (a STUB step runs real SQL, so its failure is real);
+RECORDED and SKIPPED steps never fail the run. Configuration is by environment variables only: EDP_DSN,
+EDP_ANALYST_PYTHON, LODESTAR_URL, LODESTAR_API_TOKEN.
 """
 
 from __future__ import annotations
@@ -57,13 +59,16 @@ def trace_step(conn, why_not):
                     "recorded earlier (not a receivable).", text=text), None
     try:
         from edp.trace import trace
-        row = conn.execute("select customer_name, late_over_90 from marts.receivables_aging "
-                           "where late_over_90 > 0 order by late_over_90 desc, customer_key limit 1").fetchone()
+        # A name that no other customer's name contains, because edp trace looks a customer up by substring.
+        row = conn.execute("select a.customer_name, a.late_over_90 from marts.receivables_aging a "
+                           "where a.late_over_90 > 0 and (select count(*) from marts.receivables_aging b "
+                           "where b.customer_name ilike '%' || a.customer_name || '%') = 1 "
+                           "order by a.late_over_90 desc, a.customer_key limit 1").fetchone()
         if row is None:
             return step(1, "Trace one receivable", "LIVE", "no customer has a balance over 90 days late",
                         ok=False), None
         text = trace(conn, "receivables_aging", row[0])
-    except Exception as exc:  # a live step failing is reported, never hidden
+    except (Exception, SystemExit) as exc:  # edp.trace raises SystemExit on an ambiguous name
         return step(1, "Trace one receivable", "LIVE", f"failed: {type(exc).__name__}: {exc}", ok=False), None
     ok = "DOES NOT ADD UP" not in text
     return step(1, "Trace one receivable", "LIVE",
@@ -72,7 +77,7 @@ def trace_step(conn, why_not):
 
 
 # Step 2: the analyst, in its own environment, as a subprocess.
-def analyst_step(has_warehouse, why_not, via, customer):
+def analyst_step(has_warehouse, why_not, via):
     name = "Analyst answers with citations"
     python = Path(os.environ.get("EDP_ANALYST_PYTHON", ROOT / ".venv-analyst/bin/python"))
     if not python.exists():
@@ -81,11 +86,17 @@ def analyst_step(has_warehouse, why_not, via, customer):
     if not has_warehouse:
         return step(2, name, "SKIPPED", f"{why_not}; the analyst needs it to run its SQL")
     cmd = [str(python), "-m", "engagement.analyst_step", "--json", "--via", via]
+    r = None
     try:
         r = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, timeout=600)
         out = json.loads(r.stdout)
     except (subprocess.TimeoutExpired, json.JSONDecodeError, OSError) as exc:
-        return step(2, name, "STUB", f"the analyst subprocess failed: {type(exc).__name__}", ok=False)
+        err = getattr(exc, "stderr", None) or (r.stderr if r else "") or ""
+        if isinstance(err, bytes):
+            err = err.decode(errors="replace")
+        tail = " | ".join(err.strip().splitlines()[-5:])
+        return step(2, name, "STUB", f"the analyst subprocess failed: {type(exc).__name__}"
+                    + (f": {tail}" if tail else ""), ok=False)
     if out.get("mode") == "SKIPPED":
         return step(2, name, "SKIPPED", out["reason"])
     mode = out["mode"]
@@ -118,7 +129,10 @@ def harbor_step(question):
                     f"LODESTAR_URL is not set. Cap-refusal drill snapshot from {s['repo']} commit {s['commit']}, "
                     f"{s['path']}: the {rec['agent']} agent on a {rec['model']} model, not the analyst",
                     **{k: rec[k] for k in ("source", "agent", "model", "cap_usd", "observed", "refusal")})
-    req = urllib.request.Request(url + "/runs", method="POST", headers={"content-type": "application/json"},
+    headers = {"content-type": "application/json"}
+    if os.environ.get("LODESTAR_API_TOKEN"):
+        headers["Authorization"] = "Bearer " + os.environ["LODESTAR_API_TOKEN"]
+    req = urllib.request.Request(url + "/runs", method="POST", headers=headers,
                                  data=json.dumps({"payload": {"question": question, "domain": "finance"}}).encode())
     try:
         try:
@@ -178,7 +192,7 @@ def run(via="stub", say=print) -> dict:
             conn.close()
     steps.append(s1)
     question = QUESTION_TEMPLATE.format(name=customer) if customer else FALLBACK_QUESTION
-    steps.append(analyst_step(conn is not None, why_not, via, customer))
+    steps.append(analyst_step(conn is not None, why_not, via))
     steps.append(guard_step())
     steps.append(harbor_step(question))
     for s in steps:
@@ -192,6 +206,7 @@ def run(via="stub", say=print) -> dict:
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="python -m engagement walkthrough", description=__doc__.splitlines()[0])
     ap.add_argument("--json", help="also write each step's mode and result to this file")
+    ap.epilog = "Exit 1 if a LIVE or a STUB step fails; RECORDED and SKIPPED never fail the run."
     ap.add_argument("--via", choices=("stub", "cli"), default="stub",
                     help="stub: scripted model (default); cli: the analyst calls the local claude command line")
     args = ap.parse_args(argv)

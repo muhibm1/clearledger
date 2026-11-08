@@ -69,3 +69,19 @@ def test_step_one_is_live_on_a_built_warehouse():
         conn.close()
     assert s1["mode"] == "LIVE" and s1["ok"] and customer
     assert "DOES NOT ADD UP" not in s1["result"]["text"] and "Open invoices" in s1["result"]["text"]
+
+
+def test_an_ambiguous_customer_name_is_a_failed_step_not_the_end_of_the_run(monkeypatch):
+    class Conn:
+        def execute(self, *a, **k):
+            class R:
+                def fetchone(self):
+                    return ("Northwind", 10.0)
+            return R()
+
+    def ambiguous(conn, table, key):
+        raise SystemExit("'Northwind' matches 2 customers in receivables_aging: Northwind, Northwind East")
+
+    monkeypatch.setattr("edp.trace.trace", ambiguous)
+    s1, customer = walkthrough.trace_step(Conn(), None)
+    assert s1["mode"] == "LIVE" and not s1["ok"] and "matches 2 customers" in s1["reason"] and customer is None
