@@ -1,0 +1,27 @@
+{
+  "source": {
+    "repo": "muhibm1/lodestar",
+    "commit": "7770b72",
+    "path": "docs/drills/2026-11-06/drills.json",
+    "drill": "cost-cap"
+  },
+  "what_it_is": "Agent Harbor (Lodestar) daily cost cap drill. The drill ran the echo agent on its stub model (priced as claude-sonnet-5-5 for the ledger, so the dollar figures are simulated), not the analyst and not a real model.",
+  "agent": "echo",
+  "model": "stub (simulated price table entry: claude-sonnet-5-5)",
+  "cap_usd": 1.3e-05,
+  "title": "Daily cost cap reached",
+  "did": "Set the daily cap to $0.000013 (about one stub run), ran one small run, then a padded one, then another.",
+  "expected": "The first run completes under the cap; the second is stopped at a step boundary when its own cost crosses the cap; the third is refused with 429 and the reason before any work.",
+  "observed": [
+    "run 1: `done`, $0.000012 (simulated price)",
+    "run 2: `stopped`, reason `cost_cap`: stopped at a step boundary: the daily cost cap is spent: $0.000274 of $0.000013 today",
+    "run 3: HTTP 429, reason `cost_cap`: the daily cost cap is spent: $0.000274 of $0.000013 today",
+    "health: spent today $0.000274 of $0.000013, open=False"
+  ],
+  "passed": true,
+  "refusal": {
+    "http_status": 429,
+    "reason": "cost_cap",
+    "detail": "the daily cost cap is spent: $0.000274 of $0.000013 today"
+  }
+}
