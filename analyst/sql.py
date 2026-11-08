@@ -8,7 +8,7 @@ Two layers, so a mistake in one is caught by the other:
    server-side function that reads files. The agent gets the reason back and
    can fix its query.
 2. The database decides what actually runs. For the finance warehouse, queries
-   go through `clearledger.ask.query` unchanged: a read-only role over the modelled
+   go through `clearledger.ask.query` unchanged: a read-only role over the modeled
    schemas, a read-only transaction and a 5 second limit. For other domains the
    same rules run here, with the domain's own read-only role, plus its privacy
    rule.

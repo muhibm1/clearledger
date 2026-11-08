@@ -5,7 +5,7 @@
 Training has two steps, in the usual order for agent post-training:
 
 1. **Warm start (SFT, supervised fine-tuning).** A scripted agent that follows the policy solves every train task through the tools. Each of its steps (what it saw, which tool it called) becomes a training example, and the small model is fine-tuned to produce the same call. This mostly teaches the tool-call format and the order of work. It only ever sees train customers.
-2. **GRPO (group relative policy optimisation), a kind of reinforcement learning.** The model tries each train task several times. The checker scores every attempt. Attempts that beat their siblings are made more likely, worse ones less likely. No answer key is shown; the reward is the only signal. This is where the model has to learn the judgement calls: when to escalate, which invoice comes first, ignoring an instruction planted in a memo.
+2. **GRPO (group relative policy optimization), a kind of reinforcement learning.** The model tries each train task several times. The checker scores every attempt. Attempts that beat their siblings are made more likely, worse ones less likely. No answer key is shown; the reward is the only signal. This is where the model has to learn the judgement calls: when to escalate, which invoice comes first, ignoring an instruction planted in a memo.
 
 Both steps train a LoRA adapter (a thin set of extra weights, a few million numbers, on top of the frozen model), so a run saves a file of tens of megabytes, not a new model.
 
@@ -17,7 +17,7 @@ Both steps train a LoRA adapter (a thin set of extra weights, a few million numb
 | [rollout.py](rollout.py) | Runs many episodes at once on slots 10 and up. |
 | [evaluate.py](evaluate.py) | Scores a model, with or without an adapter, on a split, greedily. Same summary shape as the hosted-model baselines. |
 | [sft.py](sft.py) | `traces` records the oracle's steps on train; `fit` trains the warm-start adapter. |
-| [grpo.py](grpo.py) | The GRPO loop: sample tasks, G attempts each, group-normalised advantages, one update per batch, optional KL to the starting model. |
+| [grpo.py](grpo.py) | The GRPO loop: sample tasks, G attempts each, group-normalized advantages, one update per batch, optional KL to the starting model. |
 
 ## Running it
 
@@ -32,7 +32,7 @@ python3.11 -m venv .venv-train
 .venv-train/bin/python -m voight.train.evaluate --adapter runs/grpo-0.5b --split dev
 ```
 
-Licences: PyTorch BSD-3-Clause, Transformers and PEFT Apache-2.0, Accelerate Apache-2.0. Qwen2.5-0.5B-Instruct and 1.5B-Instruct are Apache-2.0.
+Licenses: PyTorch BSD-3-Clause, Transformers and PEFT Apache-2.0, Accelerate Apache-2.0. Qwen2.5-0.5B-Instruct and 1.5B-Instruct are Apache-2.0.
 
 ## Results
 
@@ -52,7 +52,7 @@ The warm start teaches the format and the happy path. The model solves every `me
 
 GRPO moved the score a little and in one place: `memo_short` went from 1 to 3 of 3 (pay the first named invoice in full, the rest to the second). Nothing else changed, and the model still escalated zero times in 42 tasks. Training reward was noisy (each iteration samples different tasks): mean 0.24 over the first ten iterations, 0.29 over the last ten.
 
-Why escalation did not move: GRPO can only push up behaviour the model already tries. 79 of the 841 warm-start examples (9%) are an `escalate` call, and the warm-started model never produces one, so on an escalation task every attempt in a group scores 0, the group has no spread, and it is skipped. A tie episode shows the shape: the model lists two invoices of 7,425.00, sees a payment of 7,425.00, and pays the one due later. The fixes are known and cheap to try: more sampling (higher temperature or larger groups on escalation kinds), a warm start that weights the escalate step, and above all a bigger model. A 1.5B model on a GPU is the next run; CPU is the limit here, at about 8.5 minutes per iteration for 16 episodes.
+Why escalation did not move: GRPO can only push up behavior the model already tries. 79 of the 841 warm-start examples (9%) are an `escalate` call, and the warm-started model never produces one, so on an escalation task every attempt in a group scores 0, the group has no spread, and it is skipped. A tie episode shows the shape: the model lists two invoices of 7,425.00, sees a payment of 7,425.00, and pays the one due later. The fixes are known and cheap to try: more sampling (higher temperature or larger groups on escalation kinds), a warm start that weights the escalate step, and above all a bigger model. A 1.5B model on a GPU is the next run; CPU is the limit here, at about 8.5 minutes per iteration for 16 episodes.
 
 What this run does show: the whole loop works end to end on a laptop-class machine. Rollouts run in parallel database copies, the checker scores every attempt, GRPO updates a LoRA adapter, and the adapter is scored by the same code that scores the hosted models. In all three dev runs of the small model (126 episodes) nothing in the books outside the task moved: zero guard failures.
 
@@ -60,4 +60,4 @@ What this run does show: the whole loop works end to end on a laptop-class machi
 
 The same warm start on the 1.5B model solves 27 of 42, against 16 for the 0.5B. It gets every `injection` task right (escalating), and every `two_credits` and `partial_span` task, which the 0.5B never did. It still misses `tie`, `over`, `wrong_ref`, `mixed_ref` and `two_credits_esc`: all escalations, 15 of its 15 misses.
 
-Because the 1.5B escalates sometimes, GRPO has something to push on. The run sampled train tasks of eight kinds only, the five it misses plus three it solves (`exact`, `partial`, `memo_one`) so it would not forget how to apply money (`--kinds`). Twelve iterations of 4 tasks x 4 attempts, learning rate 2e-5, no KL term. Result: 29 of 42. It newly escalates on one `wrong_ref` and one `mixed_ref` task and lost nothing it had. That is a small change on a 42-task subset, so read it as direction, not size: the reward signal reaches the behaviour the warm start could not teach, and a longer run on a GPU is what would show how far it goes. Ties and overpayments are still untouched; both need the model to compare amounts, which is where a small model is weakest.
+Because the 1.5B escalates sometimes, GRPO has something to push on. The run sampled train tasks of eight kinds only, the five it misses plus three it solves (`exact`, `partial`, `memo_one`) so it would not forget how to apply money (`--kinds`). Twelve iterations of 4 tasks x 4 attempts, learning rate 2e-5, no KL term. Result: 29 of 42. It newly escalates on one `wrong_ref` and one `mixed_ref` task and lost nothing it had. That is a small change on a 42-task subset, so read it as direction, not size: the reward signal reaches the behavior the warm start could not teach, and a longer run on a GPU is what would show how far it goes. Ties and overpayments are still untouched; both need the model to compare amounts, which is where a small model is weakest.

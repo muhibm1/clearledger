@@ -1,1 +1,1 @@
-"""Deal to cash: Odoo CRM and accounting data, extracted, modelled and traceable."""
+"""Deal to cash: Odoo CRM and accounting data, extracted, modeled and traceable."""

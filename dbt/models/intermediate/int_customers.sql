@@ -1,6 +1,6 @@
 -- One customer per real-world company. Odoo can hold the same company twice
 -- (a second rep, a new spelling, "Inc." added), so partners are grouped by a
--- normalised email or a normalised name, and the oldest record is the key.
+-- normalized email or a normalized name, and the oldest record is the key.
 with p as (
     select s.*,
         coalesce(s.commercial_partner_id, s.partner_id) as company_id,

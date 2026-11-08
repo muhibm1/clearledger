@@ -43,7 +43,7 @@ Each stage can be undone without a developer. The commands are in [the runbook](
 | Drafts read badly, or the model misbehaves | Unset `REMIT_MODEL`; reminders come from the playbook's templates | next run | Queued drafts can be rejected |
 | Remit should stop writing | Set `REMIT_MODE=suggest` (or `shadow`) in the scheduled job | next run | Approvals are recorded, nothing is applied |
 | Remit should stop entirely | Remove the `remit daily` line from cron | immediate | Proposals, done keys and the audit log stay for review |
-| A note was written that should not have been | Find it by its proposal marker in Odoo and delete it as an Odoo admin; mark the to-do or call as cancelled | minutes per note | The audit row stays; it cannot be changed or deleted |
+| A note was written that should not have been | Find it by its proposal marker in Odoo and delete it as an Odoo admin; mark the to-do or call as canceled | minutes per note | The audit row stays; it cannot be changed or deleted |
 | The warehouse is wrong | Stop the `clearledger run` cron; reports fall back to Odoo's own | immediate | Odoo is untouched; the warehouse only reads |
 | A change to a finance table broke a report | Revert the dbt change; `clearledger run` rebuilds | one run | Raw history is append-only, so nothing is lost |
 
