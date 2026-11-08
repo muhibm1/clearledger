@@ -100,6 +100,8 @@ CLEARLEDGER_DRILL_ODOO_STOP="scripts/odoo-local.sh stop" CLEARLEDGER_DRILL_ODOO_
 .venv/bin/python eval/build.py       # the question set and its card
 ```
 
+`eval/build.py` rewrites seven committed files (timestamps, load run ids and data counts that depend on how many load runs your warehouse holds), so it leaves a dirty working tree. Run it on a scratch branch, or discard the changes afterward with `git checkout -- eval drills`.
+
 Plain `pytest -q` skips the analyst agent's tests: they run only with `ANALYST_TESTS=1`, in their own environment, after the ads demo database exists (the commands CI runs):
 
 ```bash
