@@ -120,14 +120,16 @@ def guard_step():
 
 # Step 4: Agent Harbor, the daily cost cap.
 def harbor_step(question):
-    name = "Agent Harbor limits spend"
+    name = "Agent Harbor stops further runs once the daily cap is spent (recorded drill)"
     url = os.environ.get("AGENT_HARBOR_URL", "").rstrip("/")
     if not url:
         rec = json.loads(HARBOR_RECORDING.read_text())
         s = rec["source"]
         return step(4, name, "RECORDED",
                     f"AGENT_HARBOR_URL is not set. Cap-refusal drill snapshot from {s['repo']} commit {s['commit']}, "
-                    f"{s['path']}: the {rec['agent']} agent on a {rec['model']} model, not the analyst",
+                    f"{s['path']}: the {rec['agent']} agent on a {rec['model']} model, not the analyst. "
+                    "The stop happens after the cap is spent, at a step boundary: the recorded drill spent more than "
+                    "its cap before refusing",
                     **{k: rec[k] for k in ("source", "agent", "model", "cap_usd", "observed", "refusal")})
     headers = {"content-type": "application/json"}
     if os.environ.get("AGENT_HARBOR_API_TOKEN"):

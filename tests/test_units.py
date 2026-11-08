@@ -8,6 +8,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "eval"))
 from build import split_of  # noqa: E402
 from run import correct, parse  # noqa: E402
 
+from clearledger.ask import grant_set_role_sql
 from clearledger.sources import DOMAINS, SOURCES, table_name
 
 
@@ -75,3 +76,8 @@ def test_query_refuses_unsafe_server_functions_however_written():
     assert unsafe_function("select query_to_xml('select 1', true, false, '')") == "query_to_xml"
     assert unsafe_function("select U&\"\\0073et_config\"('role', 'odoo', true)") == "U&"
     assert unsafe_function("select customer_name, settings_note from marts.revenue_by_customer") is None
+
+
+def test_reader_grant_is_only_for_postgres_16_and_later():
+    assert grant_set_role_sql("clearledger_reader", 150009) is None
+    assert grant_set_role_sql("clearledger_reader", 160000) == "grant clearledger_reader to current_user with set true"
