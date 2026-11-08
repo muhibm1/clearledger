@@ -38,7 +38,7 @@ discount, write-off or fee, no link, a length limit. A draft that fails twice is
 playbook's own template, and the proposal says so. With no model configured, every reminder comes
 from the templates.
 
-The question tools return only rows from the modelled tables, each with the Odoo record version it
+The question tools return only rows from the modeled tables, each with the Odoo record version it
 came from, so an answer can be checked against Odoo by a person (`check_citations`).
 
 ## Text from outside the company

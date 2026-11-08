@@ -16,7 +16,7 @@ models already handle each case the safe way.
 
 | Check | The problem in Odoo | What the models do | On the demo data |
 | --- | --- | --- | --- |
-| `duplicate_customers` | The same company was entered twice ("Northwind Logistics" and "Northwind Logistics Inc."). | Merge them by normalised name or email (`int_customers`); a missing email never matches. | 1 merge |
+| `duplicate_customers` | The same company was entered twice ("Northwind Logistics" and "Northwind Logistics Inc."). | Merge them by normalized name or email (`int_customers`); a missing email never matches. | 1 merge |
 | `invoice_changed_after_posting` | A posted invoice was reopened and changed. | Use the newest version; raw keeps every version. | 1 invoice |
 | `foreign_currency_invoices` | Invoices in euros. | Use Odoo's US dollar amount at the invoice date's rate. | 3 invoices |
 | `won_deal_without_order` | A deal is won in the CRM with no order behind it. | Show it as "won, no order" in `deal_to_cash`. | 4 deals (3 from Odoo's own demo data) |

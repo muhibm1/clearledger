@@ -1,4 +1,4 @@
-"""Summarise the scored runs into one table: python -m analyst.eval.report
+"""Summarize the scored runs into one table: python -m analyst.eval.report
 
 Takes the newest run file for each set, condition and model, so the numbers in
 RESULTS.md can be rebuilt from the files in runs/ without calling a model.

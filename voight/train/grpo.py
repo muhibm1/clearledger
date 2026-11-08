@@ -1,6 +1,6 @@
 """GRPO in Voight: try each task several times, reward what the checker rewards, repeat.
 
-GRPO (group relative policy optimisation) needs no second "critic" model. For
+GRPO (group relative policy optimization) needs no second "critic" model. For
 each task the model makes G attempts. Each attempt's advantage is its reward
 minus the group's mean, divided by the group's spread: better-than-its-siblings
 attempts are pushed up, worse ones down. A group where every attempt scored the
@@ -44,7 +44,7 @@ def _logprobs(model, prompt: list[int], completion: list[int]) -> torch.Tensor:
 
 
 def advantages(rewards: list[float]) -> list[float] | None:
-    """Group-normalised advantages, or None when every attempt scored the same."""
+    """Group-normalized advantages, or None when every attempt scored the same."""
     if len(set(rewards)) == 1:
         return None
     mean, sd = statistics.fmean(rewards), statistics.pstdev(rewards)

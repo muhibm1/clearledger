@@ -6,7 +6,7 @@
 
 **To:** product and engineering
 **From:** the deployed engineer on the Halden collections engagement
-**Ask:** prioritise items 1 to 3 before the next deployment
+**Ask:** prioritize items 1 to 3 before the next deployment
 
 ## In plain words
 

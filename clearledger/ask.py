@@ -5,7 +5,7 @@ needs two things a chat box does not give it: a safe way to read the data, and
 a way to prove where each number came from. These tools give both.
 
 - Every tool is read-only. `query` runs inside a read-only transaction with a
-  time limit, over the modelled schemas only (never raw, never Odoo).
+  time limit, over the modeled schemas only (never raw, never Odoo).
 - Every row that comes from an Odoo record carries a source reference, such as
   `account.move/181@2026-10-27T09:21:59`: the model, the record id, and the
   exact saved version the number used.
@@ -142,7 +142,7 @@ def grant_set_role_sql(role: str, server_version_num: int) -> str | None:
 
 
 def ensure_reader(conn) -> None:
-    """A role that can only SELECT from the modelled schemas. `query` runs as this role, so a
+    """A role that can only SELECT from the modeled schemas. `query` runs as this role, so a
     query cannot read raw tables, files on the server, or anything outside those schemas,
     whatever the agent writes. Default privileges keep it working after dbt rebuilds a table."""
     with conn.cursor() as cur:
@@ -170,7 +170,7 @@ def unsafe_function(sql: str) -> str | None:
 
 
 def query(conn, sql: str) -> dict:
-    """One read-only SELECT over the modelled schemas (marts, intermediate, staging), at most 200 rows,
+    """One read-only SELECT over the modeled schemas (marts, intermediate, staging), at most 200 rows,
     5 second limit. Rows that come from an Odoo record include its source_ref when selected."""
     text = sql.strip().rstrip(";")
     if ";" in text or not re.match(r"(?is)^\s*(select|with)\b", text):

@@ -20,4 +20,4 @@ both is "won, not yet cash": deals sales has closed that finance has not collect
   the page can run the warehouse tools.
 
 The built page is committed in `dist/`. To change it: `cd crm && npm ci && npm run build`. The
-colours, buttons, badges and slide-in panel come from Auspex.
+colors, buttons, badges and slide-in panel come from Auspex.

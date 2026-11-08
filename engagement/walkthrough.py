@@ -1,4 +1,4 @@
-"""One finance question end to end, in four steps, each labelled for what actually ran.
+"""One finance question end to end, in four steps, each labeled for what actually ran.
 
     python -m engagement walkthrough
     python -m engagement walkthrough --json out.json

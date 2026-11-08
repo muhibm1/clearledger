@@ -39,7 +39,7 @@ Two measures, both computed from the warehouse, never estimated:
 2. **Average days to payment**: for invoices paid during the run, payment date minus due date.
 
 The comparison is 90 simulated days with the agent and 90 without, paired by seed (20 seeds),
-reported with the spread across seeds. A customer-behaviour simulator decides when each customer pays, with a
+reported with the spread across seeds. A customer-behavior simulator decides when each customer pays, with a
 chance that rises after a reminder. Because that simulator is ours, the size of the effect is ours
 too. The honest claim is "the agent follows the playbook reliably and safely", and the 90-day
 number shows what that is worth if customers respond the way the simulator assumes. The case study
