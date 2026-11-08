@@ -41,7 +41,7 @@ the full stack. Expected last lines: `12 of 12` seeded failures, `5 of 5` drills
 python -m engagement walkthrough [--json out.json] [--via cli]
 ```
 
-Follows one finance question through four steps on one warehouse: trace a receivable that is more than 90 days late, have the analyst answer a related question with checked citations, run the change guard on dropping that column, and show the spend limit of Agent Harbor. Each step prints one label and the reason for it:
+Follows one finance question through four steps on one warehouse: trace a receivable that is more than 90 days late, have the analyst answer a related question with checked citations, run the change guard on dropping that column, and show that Agent Harbor stops further runs once its daily cost cap is spent (the stop comes after the cap is spent, at a step boundary, so a run can overshoot it). Each step prints one label and the reason for it:
 
 | Label | Meaning |
 | --- | --- |

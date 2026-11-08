@@ -166,6 +166,9 @@ def build(admin_dsn: str, db: str = "adsdemo", seed: int = 2026) -> dict:
               if not exists (select 1 from pg_roles where rolname = '{READER}') then
                 create role {READER} nologin;
               end if;
+              if current_setting('server_version_num')::int >= 160000 then
+                grant {READER} to current_user with set true;
+              end if;
             end $$;
             grant usage on schema reporting to {READER};
             grant select on all tables in schema reporting to {READER};

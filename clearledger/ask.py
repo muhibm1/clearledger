@@ -131,6 +131,16 @@ def list_deals(conn, customer_key: int) -> dict:
 READER = "clearledger_reader"
 
 
+def grant_set_role_sql(role: str, server_version_num: int) -> str | None:
+    """The grant that lets the current user `set role` to `role`. Postgres 16 stops a role that
+    created another from switching to it unless `set true` is granted (a plain membership no
+    longer implies it), so a database user with only CREATEDB and CREATEROLE needs this. Older
+    servers already allow it through the membership the creator gets, so nothing is needed."""
+    if server_version_num < 160000:
+        return None
+    return f"grant {role} to current_user with set true"
+
+
 def ensure_reader(conn) -> None:
     """A role that can only SELECT from the modelled schemas. `query` runs as this role, so a
     query cannot read raw tables, files on the server, or anything outside those schemas,
@@ -139,6 +149,9 @@ def ensure_reader(conn) -> None:
         cur.execute("select 1 from pg_roles where rolname = %s", (READER,))
         if not cur.fetchone():
             cur.execute(f"create role {READER} nologin")
+        grant = grant_set_role_sql(READER, conn.info.server_version)
+        if grant:
+            cur.execute(grant)
         for schema in QUERY_SCHEMAS:
             cur.execute(f"grant usage on schema {schema} to {READER}")
             cur.execute(f"grant select on all tables in schema {schema} to {READER}")
