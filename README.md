@@ -75,11 +75,22 @@ Billed in total: $1,379,155.41. Still owed: $362,891.89, of which $118,375.00 is
 
 Needs Python 3.11 and Postgres 16 with a role named `odoo` that can create databases and roles (`CREATEDB CREATEROLE`; the CRM server makes a read-only role) (by default on a socket in `/tmp`; set `PGHOST` and friends otherwise, as [CI](.github/workflows/ci.yml) does). On Postgres 16 the setup also grants that role `SET` on the read-only roles it creates (`grant <role> to current_user with set true`), because 16 no longer lets a role that created another switch to it without that grant; older versions need nothing extra.
 
+The `/tmp` socket and the role without a password are what the repo's local script sets up (`scripts/odoo-local.sh`). On a standard Ubuntu Postgres the socket is `/var/run/postgresql`, the `odoo` role does not exist, and local connections use peer authentication. Start the server, create the role with a password, and point everything at TCP on localhost (the same variables [CI](.github/workflows/ci.yml) sets):
+
+```bash
+sudo -u postgres psql -c "CREATE ROLE odoo LOGIN CREATEDB CREATEROLE PASSWORD 'choose-a-password'"
+export PGHOST=localhost PGUSER=odoo PGPASSWORD=choose-a-password
+export CLEARLEDGER_PGHOST=localhost CLEARLEDGER_PGPASSWORD=choose-a-password
+export CLEARLEDGER_DSN="host=localhost dbname=warehouse user=odoo"
+```
+
+The `odoo-local.sh install` step downloads and builds Odoo 17 and needs about 1.2 GB and about 5 minutes.
+
 ```bash
 python3.11 -m venv .venv && .venv/bin/pip install -r requirements.txt
 scripts/odoo-local.sh install        # Odoo 17 Community from its official source
 scripts/odoo-local.sh reset          # demo database "acme" with CRM, Sales, Invoicing
-createdb -h /tmp -U odoo warehouse
+createdb -h /tmp -U odoo warehouse   # on a standard Ubuntu install: createdb warehouse (uses PGHOST and PGUSER from above)
 .venv/bin/python -m clearledger.demo         # simulate, load three times, dbt build (about 3 minutes)
 .venv/bin/python -m clearledger.cli trace revenue_by_customer northwind
 .venv/bin/python -m pytest -q
@@ -88,6 +99,18 @@ CLEARLEDGER_DRILL_ODOO_STOP="scripts/odoo-local.sh stop" CLEARLEDGER_DRILL_ODOO_
   .venv/bin/python -m clearledger.drills     # the five failure drills (demo stack only)
 .venv/bin/python eval/build.py       # the question set and its card
 ```
+
+Plain `pytest -q` skips the analyst agent's tests: they run only with `ANALYST_TESTS=1`, in their own environment, after the ads demo database exists (the commands CI runs):
+
+```bash
+python3.11 -m venv .venv-analyst
+.venv-analyst/bin/pip install -r requirements.txt -r analyst/requirements.txt
+export ANALYST_ADS_DSN="host=localhost dbname=adsdemo user=odoo"
+.venv-analyst/bin/python -m analyst.ads.simulate --admin-dsn "host=localhost dbname=postgres user=odoo"
+ANALYST_TESTS=1 ANALYST_TESTS_NEED_DB=1 .venv-analyst/bin/python -m pytest -q analyst
+```
+
+Without the `simulate` step the database-backed analyst tests fail with `database "adsdemo" does not exist`.
 
 Day-to-day operation, failures and hand-off notes are in the [runbook](docs/runbook.md).
 
