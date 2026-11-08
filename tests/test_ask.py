@@ -5,9 +5,9 @@ import os
 import psycopg
 import pytest
 
-from edp import ask
+from clearledger import ask
 
-DSN = os.environ.get("EDP_DSN", "host=/tmp dbname=warehouse user=odoo")
+DSN = os.environ.get("CLEARLEDGER_DSN", "host=/tmp dbname=warehouse user=odoo")
 
 
 @pytest.fixture(scope="module")

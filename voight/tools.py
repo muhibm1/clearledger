@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from edp.odoo import OdooError
+from clearledger.odoo import OdooError
 
 SPECS = [
     {"name": "open_invoices", "args": {},

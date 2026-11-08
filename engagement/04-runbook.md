@@ -14,8 +14,8 @@ does what.
 ## The schedule
 
 ```cron
-*/15 * * * *  cd /srv/erp-data-platform && .venv/bin/python -m edp.cli run >> run.log 2>&1
-30 7 * * 1-5  cd /srv/erp-data-platform && REMIT_MODE=act .venv/bin/python -m remit daily >> remit.log 2>&1
+*/15 * * * *  cd /srv/clearledger && .venv/bin/python -m clearledger.cli run >> run.log 2>&1
+30 7 * * 1-5  cd /srv/clearledger && REMIT_MODE=act .venv/bin/python -m remit daily >> remit.log 2>&1
 ```
 
 `REMIT_MODE` is `shadow`, `suggest` or `act`, by rollout stage ([rollout](02-rollout.md)).
@@ -34,16 +34,16 @@ does what.
 | Who | What | Command |
 | --- | --- | --- |
 | Maya | Read the week: proposals, approvals, edits, holds, checks that fired | `remit report` |
-| Maya | Confirm the warehouse still matches Odoo | `edp monitor` (the `source_totals` line) |
+| Maya | Confirm the warehouse still matches Odoo | `clearledger monitor` (the `source_totals` line) |
 
 ## Before anyone changes a finance table
 
-Run Fathom first. A change that reaches month-end close or the collections queue comes back BLOCK
+Run ChangeLens first. A change that reaches month-end close or the collections queue comes back BLOCK
 and names finance as the team that must sign off.
 
 ```bash
-.venv/bin/fathom sync
-.venv/bin/fathom preflight --intent "<the change, in words>"
+.venv/bin/changelens sync
+.venv/bin/changelens preflight --intent "<the change, in words>"
 ```
 
 ## When an alert fires
@@ -51,9 +51,9 @@ and names finance as the team that must sign off.
 | Alert | Means | Who acts | First step |
 | --- | --- | --- | --- |
 | `last_run` (pipeline) | The newest load failed; usually Odoo was down | Ben | Check Odoo; the next good run catches up on its own |
-| `freshness` | Nothing has loaded for over 2 hours | Ben | Check the scheduler, then `edp run` |
+| `freshness` | Nothing has loaded for over 2 hours | Ben | Check the scheduler, then `clearledger run` |
 | `volume` | A table lost over 20% of its rows | Maya | Ask Ben whether records were archived on purpose before anyone uses the numbers |
-| `source_totals` | The warehouse disagrees with Odoo | Maya | `edp extract --full`, then `edp run` |
+| `source_totals` | The warehouse disagrees with Odoo | Maya | `clearledger extract --full`, then `clearledger run` |
 | `schema` (warning) | A field was added or removed in Odoo | Ben | Confirm it was intended; the load carries on |
 | `last_run` (Remit) | No Remit run for 26 hours | Ben | Check the scheduler and `remit.log`; run `remit daily` |
 | `stalled_queue` (warning) | Proposals waited over 48 hours | Maya | Nobody is working the queue, so late customers hear nothing; cover it, or move Remit back to `shadow` |

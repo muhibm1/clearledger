@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import os
 
-from edp.monitor import Result
+from clearledger.monitor import Result
 
 STALE_HOURS = float(os.environ.get("REMIT_STALE_HOURS", "48"))
 

@@ -29,13 +29,13 @@ models already handle each case the safe way.
 dbt checks can only compare the warehouse with itself. The monitors also ask
 Odoo, so they catch what the warehouse cannot see about itself: rows that went
 missing, a load that stopped, a source that changed shape. They run at the end
-of every `edp run` and on their own with `edp monitor`.
+of every `clearledger run` and on their own with `clearledger monitor`.
 
 | Monitor | Fails when | Caught in the drills |
 | --- | --- | --- |
 | `last_run` | The newest load failed, or has run for over an hour. | Odoo outage |
-| `freshness` | No successful load for longer than `EDP_FRESHNESS_HOURS` (2). | Three hours stale |
-| `volume` | A model lost more than `EDP_VOLUME_DROP` (20%) of its records since the last load. | |
+| `freshness` | No successful load for longer than `CLEARLEDGER_FRESHNESS_HOURS` (2). | Three hours stale |
+| `volume` | A model lost more than `CLEARLEDGER_VOLUME_DROP` (20%) of its records since the last load. | |
 | `schema` | A field the load reads was removed from Odoo (other changes warn). | Custom field added, then deleted |
 | `source_totals` | The finance tables bill or owe a different total than Odoo's own sums. | Three invoices lost from the warehouse, which every dbt check missed (INC-004) |
 
@@ -45,4 +45,4 @@ The first version of `int_customers` matched partners by email with a window
 function. Postgres puts every partner with no email in the same window, so
 three unrelated records became one customer. `duplicate_customers` reported
 two merges where one was expected. The fix and the rule that came out of it
-are recorded as `fathom/incidents/INC-001.md` and `fathom/constraints/CON-102.yaml`.
+are recorded as `changelens/incidents/INC-001.md` and `changelens/constraints/CON-102.yaml`.

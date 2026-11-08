@@ -1,12 +1,12 @@
-erp_data_platform:
+clearledger:
   target: local
   outputs:
     local:
       type: postgres
-      host: "{{ env_var('EDP_PGHOST', '/tmp') }}"
+      host: "{{ env_var('CLEARLEDGER_PGHOST', '/tmp') }}"
       port: 5432
-      user: "{{ env_var('EDP_PGUSER', 'odoo') }}"
-      password: "{{ env_var('EDP_PGPASSWORD', '') }}"
-      dbname: "{{ env_var('EDP_PGDATABASE', 'warehouse') }}"
+      user: "{{ env_var('CLEARLEDGER_PGUSER', 'odoo') }}"
+      password: "{{ env_var('CLEARLEDGER_PGPASSWORD', '') }}"
+      dbname: "{{ env_var('CLEARLEDGER_PGDATABASE', 'warehouse') }}"
       schema: dbt
       threads: 4

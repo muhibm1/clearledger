@@ -12,9 +12,9 @@ from engagement import walkthrough
 
 @pytest.fixture
 def no_stack(monkeypatch, tmp_path):
-    monkeypatch.setenv("EDP_DSN", "host=127.0.0.1 port=1 dbname=none user=none")
-    monkeypatch.setenv("EDP_ANALYST_PYTHON", str(tmp_path / "no-such-python"))
-    monkeypatch.delenv("LODESTAR_URL", raising=False)
+    monkeypatch.setenv("CLEARLEDGER_DSN", "host=127.0.0.1 port=1 dbname=none user=none")
+    monkeypatch.setenv("CLEARLEDGER_ANALYST_PYTHON", str(tmp_path / "no-such-python"))
+    monkeypatch.delenv("AGENT_HARBOR_URL", raising=False)
 
 
 def test_without_a_stack_steps_are_recorded_or_skipped(no_stack, capsys, tmp_path):
@@ -41,12 +41,12 @@ def test_recorded_steps_say_where_they_came_from(no_stack):
 
 
 def test_a_live_step_that_fails_makes_the_exit_code_one(no_stack, monkeypatch):
-    monkeypatch.setattr(walkthrough, "fathom_guard", lambda: (False, "BLOCK missing"))
+    monkeypatch.setattr(walkthrough, "changelens_guard", lambda: (False, "BLOCK missing"))
     assert walkthrough.main([]) == 1
 
 
 def test_a_skipped_guard_does_not_fail_the_run(no_stack, monkeypatch):
-    monkeypatch.setattr(walkthrough, "fathom_guard", lambda: (None, "skipped: dbt or fathom is not installed"))
+    monkeypatch.setattr(walkthrough, "changelens_guard", lambda: (None, "skipped: dbt or changelens is not installed"))
     assert walkthrough.main([]) == 0
 
 
@@ -82,6 +82,6 @@ def test_an_ambiguous_customer_name_is_a_failed_step_not_the_end_of_the_run(monk
     def ambiguous(conn, table, key):
         raise SystemExit("'Northwind' matches 2 customers in receivables_aging: Northwind, Northwind East")
 
-    monkeypatch.setattr("edp.trace.trace", ambiguous)
+    monkeypatch.setattr("clearledger.trace.trace", ambiguous)
     s1, customer = walkthrough.trace_step(Conn(), None)
     assert s1["mode"] == "LIVE" and not s1["ok"] and "matches 2 customers" in s1["reason"] and customer is None

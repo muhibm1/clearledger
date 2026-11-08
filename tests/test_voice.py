@@ -12,11 +12,11 @@ import re
 import psycopg
 import pytest
 
-from edp import ask
+from clearledger import ask
 from voice import agent, deploy, scenarios
 from voice.bridge import Bridge, ToolError
 
-DSN = os.environ.get("EDP_DSN", "host=/tmp dbname=warehouse user=odoo")
+DSN = os.environ.get("CLEARLEDGER_DSN", "host=/tmp dbname=warehouse user=odoo")
 
 
 @pytest.fixture(scope="module")

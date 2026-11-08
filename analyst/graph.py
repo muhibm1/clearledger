@@ -22,7 +22,7 @@
   sentence. If it judges the query was the wrong one, its reason goes back to
   draft for another try (at most MAX_REDRAFTS); otherwise it may decline.
 - cite: code collects source references from the rows and checks they are real
-  and current (finance domain, through `edp.ask.check_citations`).
+  and current (finance domain, through `clearledger.ask.check_citations`).
 
 The conversation is saved per thread by the checkpointer, so "and what about
 last month?" works as a follow-up.
@@ -203,9 +203,9 @@ def build(dom: Domain, model, *, context: bool = True, retriever: Retriever | No
         refs = sorted({str(r[c]) for r in state.get("rows", []) for c in r
                        if c == "source_ref" and r[c]})
         result = {}
-        if refs and dom.citations == "edp":
+        if refs and dom.citations == "clearledger":
             with dom.connect() as conn:
-                result = sqltool._edp().check_citations(conn, refs)
+                result = sqltool._clearledger().check_citations(conn, refs)
         return {"sources": refs, "citations": result}
 
     def remember(state: State) -> dict:

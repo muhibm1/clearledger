@@ -2,7 +2,7 @@ version: 2
 sources:
   - name: odoo
     schema: raw
-    description: Append-only copies of Odoo records, one row per version, written by `edp extract`.
+    description: Append-only copies of Odoo records, one row per version, written by `clearledger extract`.
     tables:
       - name: res_partner
       - name: crm_stage

@@ -17,7 +17,7 @@ the same new invoices and the same payment draws; the comparison is paired by se
 Everything about customers here is an assumption, and the report prints it next
 to the result:
 
-- each customer gets a payment habit, drawn the way `edp/simulate.py` drew the
+- each customer gets a payment habit, drawn the way `clearledger/simulate.py` drew the
   company's year: prompt 55%, slow 20%, irregular 15% (the share that paid in
   part), never 10%;
 - a habit is a daily chance of paying an open invoice once it is due;
@@ -219,12 +219,12 @@ def main(argv=None) -> int:
 
     import psycopg
 
-    from edp.ask import AS_OF
+    from clearledger.ask import AS_OF
     ap = argparse.ArgumentParser(prog="python -m remit.simulate")
     ap.add_argument("--out", default="remit/results/simulation.json")
     args = ap.parse_args(argv)
     as_of = dt.date.fromisoformat(AS_OF)
-    with psycopg.connect(os.environ.get("EDP_DSN", "host=/tmp dbname=warehouse user=odoo")) as conn:
+    with psycopg.connect(os.environ.get("CLEARLEDGER_DSN", "host=/tmp dbname=warehouse user=odoo")) as conn:
         start, history, per_day = from_warehouse(conn, as_of)
     result = compare(start, history, per_day, as_of)
     os.makedirs(os.path.dirname(args.out), exist_ok=True)

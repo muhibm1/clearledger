@@ -1,4 +1,4 @@
-"""edp: load Odoo into the warehouse, run it on a schedule, watch it, trace any number, and serve it to agents."""
+"""clearledger: load Odoo into the warehouse, run it on a schedule, watch it, trace any number, and serve it to agents."""
 
 import argparse
 import datetime as dt
@@ -10,7 +10,7 @@ import psycopg
 
 
 def dsn() -> str:
-    return os.environ.get("EDP_DSN", "host=/tmp dbname=warehouse user=odoo")
+    return os.environ.get("CLEARLEDGER_DSN", "host=/tmp dbname=warehouse user=odoo")
 
 
 def odoo():
@@ -20,11 +20,11 @@ def odoo():
                 os.environ.get("ODOO_DB", "acme"),
                 os.environ.get("ODOO_USER", "admin"),
                 os.environ.get("ODOO_PASSWORD", "admin"),
-                retries=int(os.environ.get("EDP_ODOO_RETRIES", "4")))
+                retries=int(os.environ.get("CLEARLEDGER_ODOO_RETRIES", "4")))
 
 
 def main(argv=None):
-    p = argparse.ArgumentParser(prog="edp")
+    p = argparse.ArgumentParser(prog="clearledger")
     sub = p.add_subparsers(dest="cmd", required=True)
     e = sub.add_parser("extract", help="pull new and changed Odoo records into raw")
     e.add_argument("--full", action="store_true", help="re-read everything (stored versions are skipped)")

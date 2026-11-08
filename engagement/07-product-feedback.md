@@ -1,7 +1,7 @@
 # Product feedback memo
 
 > **Simulated engagement.** Written from the field to the team that builds the pipeline, Remit and
-> Fathom. The client is invented; every item below is something that actually happened while
+> ChangeLens. The client is invented; every item below is something that actually happened while
 > building and running this repository, with the file that shows it.
 
 **To:** product and engineering
@@ -35,9 +35,9 @@ Odoo for its own totals caught it.
 **Build.** Ship the source totals monitor with every new source adapter, on by default, and refuse
 to call a deployment "monitored" without it.
 
-## 3. Fathom's first run should not end in a stack trace
+## 3. The first ChangeLens run should not end in a stack trace
 
-**What happened.** On a fresh clone, `fathom sync` fails with a Python traceback when the dbt
+**What happened.** On a fresh clone, `changelens sync` fails with a Python traceback when the dbt
 manifest does not exist yet. The fix is one command (`dbt parse`), named only at the bottom. Also,
 incident notes that name dbt sources (`source:raw.load_runs`, `source:raw.account_move`) are
 reported as unresolved, so two of the four incidents are not linked to the assets they hit.

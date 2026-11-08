@@ -22,7 +22,7 @@ from pathlib import Path
 
 import psycopg
 
-from edp import ask
+from clearledger import ask
 from voice.bridge import Bridge, ToolError
 
 HERE = Path(__file__).resolve().parent
@@ -182,7 +182,7 @@ class Handler(BaseHTTPRequestHandler):
 
 def main() -> None:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    p.add_argument("--dsn", default=os.environ.get("EDP_DSN", "host=/tmp dbname=warehouse user=odoo"))
+    p.add_argument("--dsn", default=os.environ.get("CLEARLEDGER_DSN", "host=/tmp dbname=warehouse user=odoo"))
     p.add_argument("--port", type=int, default=4320)
     args = p.parse_args()
     with psycopg.connect(args.dsn, autocommit=True) as conn:

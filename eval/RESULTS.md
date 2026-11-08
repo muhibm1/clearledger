@@ -5,7 +5,7 @@
 The runs below hand the model the records. A real assistant has to find them.
 Here Claude Sonnet got only the 47 test questions, with neutral ids (q01 to
 q47) so nothing in the id gave away a customer, and reached the warehouse only
-through the ask-the-warehouse tools (`edp tool ...`, the same functions `edp
+through the ask-the-warehouse tools (`clearledger tool ...`, the same functions `clearledger
 mcp` serves). Every answer had to cite the source records it rests on, and
 `eval/agent.py` graded it in code.
 
@@ -18,7 +18,7 @@ mcp` serves). Every answer had to cite the source records it rests on, and
 It ran 5 commands in all, batching customers, and checked its own
 citations before answering. Its answers are in
 `runs/v2-test-sonnet-agent-tools.json`, and its tool log was checked: it read
-only the question file and called only `edp tool`.
+only the question file and called only `clearledger tool`.
 
 **The miss is the useful part.** Asked how many days past due a customer's most
 overdue unpaid invoice is, it answered 189 and cited INV/2026/00015. The right

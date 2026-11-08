@@ -1,7 +1,7 @@
 """Grade an agent that answered the question set through the ask-the-warehouse tools.
 
 The agent gets only the question text, never the records or the answers, and
-reaches the data only through `edp tool`. Each answer comes with the source
+reaches the data only through `clearledger tool`. Each answer comes with the source
 references it rests on. This scores two things, both by code:
 
 - correct: the answer matches the SQL answer (the same rule as run.py);
@@ -27,7 +27,7 @@ ROOT = Path(__file__).resolve().parent.parent
 def grade(split: str, answers: dict, dsn: str) -> dict:
     import sys
     sys.path.insert(0, str(ROOT))
-    from edp.ask import check_citations
+    from clearledger.ask import check_citations
 
     by = collections.defaultdict(lambda: [0, 0, 0])
     problems = []
@@ -57,6 +57,6 @@ if __name__ == "__main__":
     p = argparse.ArgumentParser()
     p.add_argument("--split", default="test")
     p.add_argument("--answers", required=True)
-    p.add_argument("--dsn", default=os.environ.get("EDP_DSN", "host=/tmp dbname=warehouse user=odoo"))
+    p.add_argument("--dsn", default=os.environ.get("CLEARLEDGER_DSN", "host=/tmp dbname=warehouse user=odoo"))
     a = p.parse_args()
     print(json.dumps(grade(a.split, json.loads(Path(a.answers).read_text()), a.dsn), indent=2, default=str))

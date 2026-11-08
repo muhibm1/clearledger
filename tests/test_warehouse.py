@@ -1,13 +1,13 @@
-"""Checks against a built warehouse. Skipped when there is none (run edp.demo first)."""
+"""Checks against a built warehouse. Skipped when there is none (run clearledger.demo first)."""
 
 import os
 
 import psycopg
 import pytest
 
-from edp.trace import trace
+from clearledger.trace import trace
 
-DSN = os.environ.get("EDP_DSN", "host=/tmp dbname=warehouse user=odoo")
+DSN = os.environ.get("CLEARLEDGER_DSN", "host=/tmp dbname=warehouse user=odoo")
 
 
 @pytest.fixture(scope="module")
@@ -42,8 +42,8 @@ def test_every_won_deal_traces(conn):
 
 
 def test_loading_twice_in_a_row_stores_nothing_the_second_time(conn):
-    from edp.cli import odoo
-    from edp.load import extract
+    from clearledger.cli import odoo
+    from clearledger.load import extract
     try:
         client = odoo()
     except Exception:

@@ -16,7 +16,7 @@ import signal
 import time
 from pathlib import Path
 
-from edp import ask
+from clearledger import ask
 from voice.bridge import Bridge, log
 
 HERE = Path(__file__).resolve().parent
@@ -27,7 +27,7 @@ RUNS = HERE / "runs"
 def main() -> None:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("--agent-id", default=None, help="defaults to the id deploy.py saved")
-    p.add_argument("--dsn", default=os.environ.get("EDP_DSN", "host=/tmp dbname=warehouse user=odoo"))
+    p.add_argument("--dsn", default=os.environ.get("CLEARLEDGER_DSN", "host=/tmp dbname=warehouse user=odoo"))
     args = p.parse_args()
 
     from elevenlabs.client import ElevenLabs

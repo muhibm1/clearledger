@@ -12,7 +12,7 @@ next step for every overdue invoice, writes the reminder, and, once a person app
 in Odoo exactly once. It never writes off a balance, never changes an invoice, and never contacts a
 customer the rules say to leave alone.
 
-The company is simulated (see `edp/simulate.py`), so the customers and the money are invented. The
+The company is simulated (see `clearledger/simulate.py`), so the customers and the money are invented. The
 process, the rules and the measurements are real, and the case study says so in its first line.
 
 ## What finance does today
@@ -101,10 +101,10 @@ each with a known right answer:
 
 | Piece | From |
 | --- | --- |
-| Warehouse, traced numbers, Odoo API client | This repository (`edp/`, `dbt/`) |
+| Warehouse, traced numbers, Odoo API client | This repository (`clearledger/`, `dbt/`) |
 | Belief, evidence and control state; approval interrupt; allowlist; run once; audit log | AgentOps |
 | Real runs mined into tests; a gate on every pull request | Flywheel |
-| What the new mart reaches before it ships | Fathom |
+| What the new mart reaches before it ships | ChangeLens |
 
 ## Open questions
 

@@ -264,7 +264,7 @@ def delete_draft(odoo: Odoo, draft: int) -> None:
 
 
 def main(argv=None):
-    p = argparse.ArgumentParser(prog="edp-simulate")
+    p = argparse.ArgumentParser(prog="clearledger-simulate")
     p.add_argument("phase", choices=["year", "mess", "tick", "delete-draft"])
     p.add_argument("--draft", type=int)
     p.add_argument("--seed", type=int, default=2026)

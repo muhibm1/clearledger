@@ -3,7 +3,7 @@
 Run after every load. Each check returns ok, warn or fail with the evidence.
 Results are stored in raw.monitor_results so a person can see the history,
 appended to an alerts file, and posted to a webhook when one is configured.
-A fail makes `edp monitor` exit non-zero, so a scheduler can page on it.
+A fail makes `clearledger monitor` exit non-zero, so a scheduler can page on it.
 
 Checks:
 - last_run      the newest load finished, and did not fail
@@ -29,8 +29,8 @@ create table if not exists raw.monitor_results (
     model text, status text not null, detail jsonb);
 """
 
-FRESHNESS_LIMIT = dt.timedelta(hours=float(os.environ.get("EDP_FRESHNESS_HOURS", "2")))
-VOLUME_DROP_LIMIT = float(os.environ.get("EDP_VOLUME_DROP", "0.2"))
+FRESHNESS_LIMIT = dt.timedelta(hours=float(os.environ.get("CLEARLEDGER_FRESHNESS_HOURS", "2")))
+VOLUME_DROP_LIMIT = float(os.environ.get("CLEARLEDGER_VOLUME_DROP", "0.2"))
 
 
 @dataclass
@@ -138,7 +138,7 @@ def check_source_totals(cur, odoo) -> list[Result]:
     if abs(odoo_open - wh_open) > 0.01:
         gaps.append(f"open: Odoo {odoo_open:,.2f}, warehouse {wh_open:,.2f}")
     if gaps:
-        return [Result("source_totals", "fail", "; ".join(gaps) + ". Run `edp extract --full`, then rebuild.")]
+        return [Result("source_totals", "fail", "; ".join(gaps) + ". Run `clearledger extract --full`, then rebuild.")]
     return [Result("source_totals", "ok", f"warehouse matches Odoo: billed {wh_billed:,.2f}, open {wh_open:,.2f}")]
 
 
@@ -161,15 +161,15 @@ def run_checks(conn: psycopg.Connection, now=None, odoo=None) -> list[Result]:
 
 
 def alert(results: list[Result]) -> None:
-    """Appends warnings and failures to EDP_ALERT_FILE, and posts them to EDP_ALERT_WEBHOOK if set."""
+    """Appends warnings and failures to CLEARLEDGER_ALERT_FILE, and posts them to CLEARLEDGER_ALERT_WEBHOOK if set."""
     if not results:
         return
     stamp = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
-    path = os.environ.get("EDP_ALERT_FILE", "alerts.jsonl")
+    path = os.environ.get("CLEARLEDGER_ALERT_FILE", "alerts.jsonl")
     with open(path, "a") as f:
         for r in results:
             f.write(json.dumps({"at": stamp, **asdict(r)}) + "\n")
-    hook = os.environ.get("EDP_ALERT_WEBHOOK")
+    hook = os.environ.get("CLEARLEDGER_ALERT_WEBHOOK")
     if hook:
         text = "\n".join(f"[{r.status.upper()}] {r.check_name}: {r.message}" for r in results)
         req = urllib.request.Request(hook, json.dumps({"text": text}).encode(),

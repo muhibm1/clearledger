@@ -41,18 +41,18 @@ the full stack. Expected last lines: `12 of 12` seeded failures, `5 of 5` drills
 python -m engagement walkthrough [--json out.json] [--via cli]
 ```
 
-Follows one finance question through four steps on one warehouse: trace a receivable that is more than 90 days late, have the analyst answer a related question with checked citations, run the change guard on dropping that column, and show the spend limit of Agent Harbor (Lodestar). Each step prints one label and the reason for it:
+Follows one finance question through four steps on one warehouse: trace a receivable that is more than 90 days late, have the analyst answer a related question with checked citations, run the change guard on dropping that column, and show the spend limit of Agent Harbor. Each step prints one label and the reason for it:
 
 | Label | Meaning |
 | --- | --- |
-| LIVE | Ran now against the real thing: the warehouse at `EDP_DSN`, ChangeLens (Fathom), or the service at `LODESTAR_URL`. |
+| LIVE | Ran now against the real thing: the warehouse at `CLEARLEDGER_DSN`, ChangeLens, or the service at `AGENT_HARBOR_URL`. |
 | STUB | Ran now with a scripted stand-in for the language model. The analyst's graph, SQL checks, execution on the warehouse and citation checks are real; only the model's two replies are scripted. |
 | RECORDED | Read from a file an earlier real run wrote. The output names the file, and says what it is when it differs from the live step (the trace recording is a `revenue_by_customer` trace; the Agent Harbor snapshot is the cap-refusal drill on the echo agent with a stub model). |
-| SKIPPED | Not run, with the reason (no warehouse, no analyst environment, no `dbt` or `fathom`). |
+| SKIPPED | Not run, with the reason (no warehouse, no analyst environment, no `dbt` or `changelens`). |
 
-Step 2 runs in the analyst's own environment, `EDP_ANALYST_PYTHON` (default `.venv-analyst/bin/python`), because its pins break dbt. Set `LODESTAR_URL` to send the question to a running Agent Harbor service; otherwise step 4 reads `engagement/recorded/agent-harbor-cap.json`. `--via cli` has the analyst call the local `claude` command line instead of the scripted model. Exit code: 1 if a LIVE or a STUB step fails (a STUB step runs real SQL, so its failure is real); RECORDED and SKIPPED never fail the run.
+Step 2 runs in the analyst's own environment, `CLEARLEDGER_ANALYST_PYTHON` (default `.venv-analyst/bin/python`), because its pins break dbt. Set `AGENT_HARBOR_URL` to send the question to a running Agent Harbor service; otherwise step 4 reads `engagement/recorded/agent-harbor-cap.json`. `--via cli` has the analyst call the local `claude` command line instead of the scripted model. Exit code: 1 if a LIVE or a STUB step fails (a STUB step runs real SQL, so its failure is real); RECORDED and SKIPPED never fail the run.
 
-Configuration is by environment variables only: `EDP_DSN` (warehouse, default as the tests), `EDP_ANALYST_PYTHON` (analyst interpreter), `LODESTAR_URL` (Agent Harbor service) and `LODESTAR_API_TOKEN` (sent as a bearer token when set). To run it on your own data, point `EDP_DSN` at a warehouse built by this repository's dbt models and create the analyst environment; the questions assume the `receivables_aging` mart.
+Configuration is by environment variables only: `CLEARLEDGER_DSN` (warehouse, default as the tests), `CLEARLEDGER_ANALYST_PYTHON` (analyst interpreter), `AGENT_HARBOR_URL` (Agent Harbor service) and `AGENT_HARBOR_API_TOKEN` (sent as a bearer token when set). To run it on your own data, point `CLEARLEDGER_DSN` at a warehouse built by this repository's dbt models and create the analyst environment; the questions assume the `receivables_aging` mart.
 
 ## The pack, in the order an engagement produces it
 
@@ -73,9 +73,9 @@ Configuration is by environment variables only: `EDP_DSN` (warehouse, default as
 
 | Part | Where | One line |
 | --- | --- | --- |
-| Pipeline and warehouse | `edp/`, `dbt/` | Reads Odoo through its API, keeps every version, builds finance tables with 23 checks |
-| Trace | `edp trace` | Turns any finance number back into the invoices and payments behind it |
+| Pipeline and warehouse | `clearledger/`, `dbt/` | Reads Odoo through its API, keeps every version, builds finance tables with 23 checks |
+| Trace | `clearledger trace` | Turns any finance number back into the invoices and payments behind it |
 | Remit | `remit/` | The collections agent: plans, drafts, waits for a person, writes to Odoo once |
-| Change guard | Fathom, `fathom/` | Says what a change to a finance table would break and who must sign off |
-| Drills | `edp/drills.py` | Breaks the pipeline five ways on purpose and checks each is caught |
+| Change guard | ChangeLens, `changelens/` | Says what a change to a finance table would break and who must sign off |
+| Drills | `clearledger/drills.py` | Breaks the pipeline five ways on purpose and checks each is caught |
 | Voight | `voight/` | A practice copy of the books for training finance agents; proposed as phase two |
