@@ -1,0 +1,24 @@
+{
+  "verdict_id": "pf_0123456789abcdef",
+  "severity": "block",
+  "graph_as_of": "2026-11-08T01:24:46+00:00",
+  "summary": "Drop column on receivables_aging.late_over_90 reaches 2 downstream assets, 2 of them tier 1.",
+  "risk": {"score": 72, "factors": [{"name": "tier1_consumers", "value": 2, "contribution": 30}]},
+  "change": {"ops": [{"kind": "drop_column", "asset": "model:receivables_aging", "column": "late_over_90", "from_intent": true}], "unresolved": []},
+  "affected": [
+    {"asset": "report:collections_queue", "tier": 1, "owner": "Revenue ops", "hops": 1, "via": "asset", "evidence": ["edge:e_1"]},
+    {"asset": "report:month_end_close", "tier": 1, "owner": "Finance", "hops": 1, "via": "asset", "evidence": ["edge:e_2"]},
+    {"asset": "model:scratch", "tier": null, "owner": null, "hops": 2, "via": "asset", "evidence": []}
+  ],
+  "constraints": [
+    {"id": "CON-101", "kind": "columns_locked", "severity": "block", "status": "fires", "detail": "drop_column reaches a locked asset"},
+    {"id": "CON-200", "kind": "naming", "severity": "warn", "status": "passes", "detail": "fine"}
+  ],
+  "history": [],
+  "checks": [
+    {"kind": "run_tests", "target": "receivables_aging+", "evidence": []},
+    {"kind": "get_approval", "from": ["team/finance"], "for": "CON-101", "evidence": []},
+    {"kind": "notify_owner", "owner": "Finance", "assets": ["report:month_end_close"], "evidence": []},
+    {"kind": "notify_owner", "owner": "Revenue ops", "assets": ["report:collections_queue"], "evidence": []}
+  ]
+}

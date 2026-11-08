@@ -1,0 +1,10 @@
+Larkspur Foods: owes 12,400.00 (USD) as of the aging date
+  not yet due 0.00, 1-30 late 0.00, 31-60 2,400.00, 61-90 0.00, over 90 10,000.00
+
+Open invoices
+  invoice         due         days_late  usd        paid      open       order   source_ref                         
+  --------------  ----------  ---------  ---------  --------  ---------  ------  -----------------------------------
+  INV/2026/00007  2026-06-30  119        10,000.00  0.00      10,000.00  S00011  account.move/14@2026-10-27T08:30:01
+  INV/2026/00031  2026-09-10  47         4,800.00   2,400.00  2,400.00   S00040  account.move/71@2026-10-27T08:32:40
+
+  owed: 12,400.00 = sum of the records above (12,400.00) OK

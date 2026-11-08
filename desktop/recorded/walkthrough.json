@@ -1,0 +1,61 @@
+{
+  "question": "How much does each customer owe us that is more than 90 days late?",
+  "steps": [
+    {
+      "step": 1,
+      "name": "Trace one receivable",
+      "mode": "RECORDED",
+      "reason": "the warehouse at CLEARLEDGER_DSN did not connect within 3 s (OperationalError). Showing docs/examples/trace-northwind.txt, a revenue_by_customer trace recorded earlier (not a receivable).",
+      "ok": true,
+      "result": {
+        "text": "Northwind Logistics: billed 49,490.00, paid 22,655.00, open 26,835.00 (USD)\n  merged from Odoo partners [41, 71]\n\nInvoices\n  invoice         dated       due         currency  in_currency  usd        paid       open       order   deal          source_ref                          \n  --------------  ----------  ----------  --------  -----------  ---------  ---------  ---------  ------  ------------  ------------------------------------\n  INV/2026/00036  2026-05-24  2026-06-23  USD       9,900.00     9,900.00   2,475.00   7,425.00   S00052  Deal Apr 422  account.move/83@2026-10-27T08:33:00 \n  INV/2026/00050  2026-07-31  2026-08-30  USD       20,180.00    20,180.00  20,180.00  0.00       S00066  Deal Jun 346  account.move/109@2026-10-27T08:33:00\n  INV/2026/00077  2026-09-22  2026-10-22  USD       19,410.00    19,410.00  0.00       19,410.00  S00095  Deal Sep 210  account.move/156@2026-10-27T08:33:02\n\nPayments\n  payment           dated       currency  usd        invoice_ids  source_ref                            \n  ----------------  ----------  --------  ---------  -----------  --------------------------------------\n  PBNK1/2026/00028  2026-07-06  USD       2,475.00   83           account.payment/28@2026-10-27T08:31:38\n  PBNK1/2026/00040  2026-08-31  USD       20,180.00  109          account.payment/40@2026-10-27T08:32:08\n\n  billed: 49,490.00 = sum of the records above (49,490.00) OK\n  open: 26,835.00 = sum of the records above (26,835.00) OK\n  paid: 22,655.00 = sum of the records above (22,655.00) OK\n"
+      }
+    },
+    {
+      "step": 2,
+      "name": "Analyst answers with citations",
+      "mode": "SKIPPED",
+      "reason": "the analyst's environment is missing (.venv-analyst/bin/python); see the CI step 'Analyst agent tests' for how to build .venv-analyst",
+      "ok": true,
+      "result": {}
+    },
+    {
+      "step": 3,
+      "name": "Change guard on dropping late_over_90",
+      "mode": "SKIPPED",
+      "reason": "dbt or changelens is not installed in this environment",
+      "ok": true,
+      "result": {}
+    },
+    {
+      "step": 4,
+      "name": "Agent Harbor limits spend",
+      "mode": "RECORDED",
+      "reason": "AGENT_HARBOR_URL is not set. Cap-refusal drill snapshot from muhibm1/agent-harbor commit 7770b72, docs/drills/2026-11-06/drills.json: the echo agent on a stub model, not the analyst",
+      "ok": true,
+      "result": {
+        "source": {
+          "repo": "muhibm1/agent-harbor",
+          "commit": "7770b72",
+          "path": "docs/drills/2026-11-06/drills.json",
+          "drill": "cost-cap"
+        },
+        "agent": "echo",
+        "model": "stub",
+        "cap_usd": 1.3e-05,
+        "observed": [
+          "run 1: `done`, $0.000012 (simulated price)",
+          "run 2: `stopped`, reason `cost_cap`: stopped at a step boundary: the daily cost cap is spent: $0.000274 of $0.000013 today",
+          "run 3: HTTP 429, reason `cost_cap`: the daily cost cap is spent: $0.000274 of $0.000013 today",
+          "health: spent today $0.000274 of $0.000013, open=False"
+        ],
+        "refusal": {
+          "http_status": 429,
+          "reason": "cost_cap",
+          "detail": "the daily cost cap is spent: $0.000274 of $0.000013 today"
+        }
+      }
+    }
+  ],
+  "failed": []
+}

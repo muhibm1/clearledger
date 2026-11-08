@@ -1,0 +1,13 @@
+Deal 12 'Deal Mar 101' for Larkspur Foods: invoiced
+  expected 5,000.00, ordered 5,000.00, invoiced 5,000.00, paid 0.00, open 5,000.00
+
+Orders
+  (none)
+
+Invoices
+  invoice         dated       due         usd       paid  open      source_ref                        
+  --------------  ----------  ----------  --------  ----  --------  ----------------------------------
+  INV/2026/00009  2026-03-02  2026-04-01  4,000.00  0.00  4,000.00  account.move/20@2026-10-27T08:30:05
+
+  ordered: 5,000.00 = sum of the records above (0.00) DOES NOT ADD UP
+  invoiced: 5,000.00 = sum of the records above (4,000.00) DOES NOT ADD UP

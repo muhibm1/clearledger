@@ -91,6 +91,10 @@ CLEARLEDGER_DRILL_ODOO_STOP="scripts/odoo-local.sh stop" CLEARLEDGER_DRILL_ODOO_
 
 Day-to-day operation, failures and hand-off notes are in the [runbook](docs/runbook.md).
 
+## Desktop app
+
+[`desktop/`](desktop/README.md) is a small Mac app for a finance person: run the engagement demo, trace a number to its records, check what a change to a finance table would break and who must sign off, and see what this machine is missing with the exact fix. It runs the core above as child processes and contains none of it. Whatever did not run on your machine is labelled RECORDED. Build it with npm only (`cd desktop && npm ci && npm test && npm run smoke`); its README lists what still blocks a stranger.
+
 ## Scope
 
 Built in two days to show the data side of an ERP engagement end to end: extraction, trust, traceability, reliability, and data a model can be judged and trained on, with a runbook for the team that takes it over. It has run only against a simulated company in a real Odoo. Next would be a second source system (a CRM or accounting export next to Odoo), a harder question set with longer histories, and a fine-tuning run on the train split.

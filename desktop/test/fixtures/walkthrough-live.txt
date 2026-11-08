@@ -1,0 +1,29 @@
+================================================================================
+ SIMULATED ENGAGEMENT.
+================================================================================
+
+One question, end to end: who owes us money that is more than 90 days late, and can we show why.
+
+1. Trace one receivable   [LIVE]
+--------------------------------------------------------------------------------
+  LIVE: clearledger trace on the warehouse: Larkspur Foods, receivables_aging, over 90 days late 10,000.00 USD
+
+    Larkspur Foods: owes 12,400.00 (USD) as of the aging date
+
+2. Analyst answers with citations   [STUB]
+--------------------------------------------------------------------------------
+  STUB: scripted model; SQL run on the live warehouse; 2 citations checked, all ok
+  question : How much does Larkspur Foods owe us that is more than 90 days late?
+  answer   : 10000.00  (one invoice)
+
+3. Change guard on dropping late_over_90   [LIVE]
+--------------------------------------------------------------------------------
+  LIVE: ChangeLens preflight on the dbt project, no database
+  BLOCK risk 72/100: reaches month_end_close and collections_queue, needs finance sign-off
+  FAILED
+
+4. Agent Harbor limits spend   [SKIPPED]
+--------------------------------------------------------------------------------
+  SKIPPED: not configured
+
+Summary: 1 LIVE, 2 STUB, 3 LIVE, 4 SKIPPED. FAILED: step 3.

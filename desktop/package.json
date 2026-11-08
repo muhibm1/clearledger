@@ -1,0 +1,35 @@
+{
+  "name": "clearledger-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A desktop app around the ClearLedger command line: run the engagement demo, trace a number, check a change, see what this machine is missing. It runs the Python core; it does not contain it.",
+  "license": "MIT",
+  "main": "build/main.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json && tsc -p tsconfig.renderer.json && node scripts/copy-static.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.renderer.json --noEmit",
+    "test": "npm run build && node --test \"test/*.test.mjs\"",
+    "start": "npm run build && electron .",
+    "smoke": "npm run build && electron . --smoke",
+    "check-dist": "npm run build && node scripts/check-dist.mjs",
+    "dist": "npm run build && electron-builder --mac dmg --publish never"
+  },
+  "build": {
+    "appId": "dev.clearledger.desktop",
+    "productName": "ClearLedger",
+    "directories": { "output": "dist" },
+    "files": ["build/**/*", "package.json"],
+    "extraResources": [
+      { "from": "recorded", "to": "recorded" },
+      { "from": "../docs/examples", "to": "examples" }
+    ],
+    "mac": { "category": "public.app-category.finance", "target": [{ "target": "dmg", "arch": ["arm64"] }], "identity": null },
+    "dmg": { "sign": false }
+  },
+  "devDependencies": {
+    "@types/node": "26.6.6",
+    "electron": "45.2.3",
+    "electron-builder": "26.18.0",
+    "typescript": "5.9.3"
+  }
+}

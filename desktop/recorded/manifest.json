@@ -1,0 +1,11 @@
+{
+  "what": "Output of the ClearLedger engagement demo and walkthrough, recorded so the app can show it when no suitable Python is found. It is not your data.",
+  "recorded_on": "2026-11-08",
+  "commit": "f4ac081",
+  "python": "3.11.18",
+  "commands": [
+    "python -m engagement --json demo.json > demo.txt",
+    "python -m engagement walkthrough --json walkthrough.json > walkthrough.txt"
+  ],
+  "environment": "No database reachable (CLEARLEDGER_DSN pointed at a socket folder that does not exist), no analyst environment, no dbt or changelens, AGENT_HARBOR_URL unset."
+}
