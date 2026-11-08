@@ -1,4 +1,4 @@
-BLOCK  risk 72/100  pf_e6cdb6121afcabfa  graph as of 2026-11-07 19:24:46.749235-06:00  (reused)
+BLOCK  risk 72/100  pf_e6cdb6121afcabfa  graph as of 2026-11-08 01:24:46.749235+00:00  (reused)
 Drop column on receivables_aging.late_over_90 reaches 2 downstream assets, 2 of them tier 1 
 (collections_queue, month_end_close). Fires CON-101 (block). Earlier incidents on these assets (INC-003, 
 INC-004, INC-002) are not from this kind of change. Before merging: run tests for receivables_aging+; get 
