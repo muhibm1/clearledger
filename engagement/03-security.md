@@ -14,12 +14,12 @@ it is fooled, code checks every draft before a person sees it.
 
 | Part | Reads | Writes | Enforced by |
 | --- | --- | --- | --- |
-| Pipeline (`edp`) | Odoo, through its JSON-RPC API: deals, customers, orders, invoices, payments | The warehouse only | Uses the API, never Odoo's database; the extractor has no write calls |
-| Question tools (`edp mcp`, the analyst agent) | `marts`, `intermediate`, `staging` | nothing | Postgres role `edp_reader`, a read-only transaction, a 5-second limit per query |
+| Pipeline (`clearledger`) | Odoo, through its JSON-RPC API: deals, customers, orders, invoices, payments | The warehouse only | Uses the API, never Odoo's database; the extractor has no write calls |
+| Question tools (`clearledger mcp`, the analyst agent) | `marts`, `intermediate`, `staging` | nothing | Postgres role `clearledger_reader`, a read-only transaction, a 5-second limit per query |
 | Remit, reading | Customer tags, invoice notes, and its own markers | nothing | `remit/odoo_io.py`: five allowed read calls, anything else raises before Odoo is called |
 | Remit, writing | | A note on an invoice, a follow-up call, a to-do for a person | Three fixed methods and no generic call, so no reply, note or model output can become an edit, delete, payment or write-off |
 | Remit's records | | `remit.proposals`, `remit.done`, `remit.audit` | The audit table rejects every update and delete (a database trigger) |
-| Fathom | The dbt project and the incident notes | Its own local file | Advises only; it never writes to the warehouse or Odoo |
+| ChangeLens | The dbt project and the incident notes | Its own local file | Advises only; it never writes to the warehouse or Odoo |
 
 **One gap to close with Ben.** The code is the barrier today: Remit's writer can only make three
 calls. Odoo itself grants whatever rights the API user has. Before act mode, Halden should give
@@ -52,8 +52,8 @@ invoices are still worked. Two seeded traps in the demo prove both cases.
 ## Secrets
 
 Connection settings come from environment variables (`ODOO_URL`, `ODOO_DB`, `ODOO_USER`,
-`ODOO_PASSWORD`, `EDP_DSN`). Nothing is stored in the repository; `.env` files are ignored by git.
-The alert webhook URL (`EDP_ALERT_WEBHOOK`) is a secret too: anyone with it can post to the channel.
+`ODOO_PASSWORD`, `CLEARLEDGER_DSN`). Nothing is stored in the repository; `.env` files are ignored by git.
+The alert webhook URL (`CLEARLEDGER_ALERT_WEBHOOK`) is a secret too: anyone with it can post to the channel.
 
 ## Things that must never run against Halden's Odoo
 

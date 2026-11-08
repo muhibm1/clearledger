@@ -1,6 +1,6 @@
 """Command line: `python -m voight <build|freeze|serve|check|baseline> ...`.
 
-    freeze     copy the demo company into the golden template (after edp.demo)
+    freeze     copy the demo company into the golden template (after clearledger.demo)
     serve      start the episode-only Odoo server
     build      write tasks/<split>.jsonl; fails if test would change from its pinned hash
     check      run the oracle on every task and every cheat on a split; write results/check-<split>.json

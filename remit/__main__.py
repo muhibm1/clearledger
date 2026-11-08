@@ -10,7 +10,7 @@
     python -m remit daily                            apply yesterday's approvals, plan today, check
     python -m remit watch                            is Remit doing its job? (exit 1 on a failure)
 
-The warehouse is EDP_DSN; Odoo is ODOO_URL, ODOO_DB, ODOO_USER, ODOO_PASSWORD, as for edp.
+The warehouse is CLEARLEDGER_DSN; Odoo is ODOO_URL, ODOO_DB, ODOO_USER, ODOO_PASSWORD, as for clearledger.
 """
 
 import argparse
@@ -22,8 +22,8 @@ from pathlib import Path
 
 import psycopg
 
-from edp.ask import AS_OF
-from edp.odoo import Odoo
+from clearledger.ask import AS_OF
+from clearledger.odoo import Odoo
 
 from .ledger import Ledger
 from .odoo_io import Reader, Writer
@@ -44,7 +44,7 @@ def _model(name: str):
 
 
 def _conn():
-    return psycopg.connect(os.environ.get("EDP_DSN", "host=/tmp dbname=warehouse user=odoo"))
+    return psycopg.connect(os.environ.get("CLEARLEDGER_DSN", "host=/tmp dbname=warehouse user=odoo"))
 
 
 def main(argv=None) -> int:
@@ -99,7 +99,7 @@ def main(argv=None) -> int:
             ledger.decide(args.proposal, args.cmd == "approve", args.by, args.note, body)
             out = {"proposal": args.proposal, "decision": args.cmd}
         elif args.cmd in ("daily", "watch"):
-            from edp.monitor import alert, render
+            from clearledger.monitor import alert, render
 
             from .watch import check
             out = {}

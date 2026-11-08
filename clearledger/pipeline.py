@@ -1,6 +1,6 @@
 """One scheduled run: load, build, check, record. Safe to start twice.
 
-`edp run` takes a Postgres advisory lock first, so a second run started while
+`clearledger run` takes a Postgres advisory lock first, so a second run started while
 one is going (a cron overlap, a person running it by hand) exits at once and
 says so, instead of loading the same records twice in parallel. Then:
 

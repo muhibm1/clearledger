@@ -10,8 +10,8 @@ RECORDED  read from a file an earlier real run wrote; the output says which file
 SKIPPED   not run, with the reason.
 
 Exit code: 1 if a LIVE step or a STUB step fails (a STUB step runs real SQL, so its failure is real);
-RECORDED and SKIPPED steps never fail the run. Configuration is by environment variables only: EDP_DSN,
-EDP_ANALYST_PYTHON, LODESTAR_URL, LODESTAR_API_TOKEN.
+RECORDED and SKIPPED steps never fail the run. Configuration is by environment variables only: CLEARLEDGER_DSN,
+CLEARLEDGER_ANALYST_PYTHON, AGENT_HARBOR_URL, AGENT_HARBOR_API_TOKEN.
 """
 
 from __future__ import annotations
@@ -25,9 +25,9 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-from .demo import BANNER, ROOT, fathom_guard
+from .demo import BANNER, ROOT, changelens_guard
 
-DSN = os.environ.get("EDP_DSN", "host=/tmp dbname=warehouse user=odoo")
+DSN = os.environ.get("CLEARLEDGER_DSN", "host=/tmp dbname=warehouse user=odoo")
 QUESTION_TEMPLATE = "How much does {name} owe us that is more than 90 days late?"
 FALLBACK_QUESTION = "How much does each customer owe us that is more than 90 days late?"
 TRACE_RECORDING = ROOT / "docs/examples/trace-northwind.txt"
@@ -45,9 +45,9 @@ def connect():
     except ImportError:
         return None, "psycopg is not installed"
     try:
-        return psycopg.connect(os.environ.get("EDP_DSN", DSN), connect_timeout=3), None
+        return psycopg.connect(os.environ.get("CLEARLEDGER_DSN", DSN), connect_timeout=3), None
     except psycopg.Error as exc:
-        return None, f"the warehouse at EDP_DSN did not connect within 3 s ({type(exc).__name__})"
+        return None, f"the warehouse at CLEARLEDGER_DSN did not connect within 3 s ({type(exc).__name__})"
 
 
 # Step 1: trace a receivable with a balance more than 90 days late.
@@ -58,8 +58,8 @@ def trace_step(conn, why_not):
                     f"{why_not}. Showing docs/examples/trace-northwind.txt, a revenue_by_customer trace "
                     "recorded earlier (not a receivable).", text=text), None
     try:
-        from edp.trace import trace
-        # A name that no other customer's name contains, because edp trace looks a customer up by substring.
+        from clearledger.trace import trace
+        # A name that no other customer's name contains, because clearledger trace looks a customer up by substring.
         row = conn.execute("select a.customer_name, a.late_over_90 from marts.receivables_aging a "
                            "where a.late_over_90 > 0 and (select count(*) from marts.receivables_aging b "
                            "where b.customer_name ilike '%' || a.customer_name || '%') = 1 "
@@ -68,18 +68,18 @@ def trace_step(conn, why_not):
             return step(1, "Trace one receivable", "LIVE", "no customer has a balance over 90 days late",
                         ok=False), None
         text = trace(conn, "receivables_aging", row[0])
-    except (Exception, SystemExit) as exc:  # edp.trace raises SystemExit on an ambiguous name
+    except (Exception, SystemExit) as exc:  # clearledger.trace raises SystemExit on an ambiguous name
         return step(1, "Trace one receivable", "LIVE", f"failed: {type(exc).__name__}: {exc}", ok=False), None
     ok = "DOES NOT ADD UP" not in text
     return step(1, "Trace one receivable", "LIVE",
-                f"edp trace on the warehouse: {row[0]}, receivables_aging, over 90 days late {row[1]:,.2f} USD",
+                f"clearledger trace on the warehouse: {row[0]}, receivables_aging, over 90 days late {row[1]:,.2f} USD",
                 ok=ok, customer=row[0], late_over_90=float(row[1]), text=text), row[0]
 
 
 # Step 2: the analyst, in its own environment, as a subprocess.
 def analyst_step(has_warehouse, why_not, via):
     name = "Analyst answers with citations"
-    python = Path(os.environ.get("EDP_ANALYST_PYTHON", ROOT / ".venv-analyst/bin/python"))
+    python = Path(os.environ.get("CLEARLEDGER_ANALYST_PYTHON", ROOT / ".venv-analyst/bin/python"))
     if not python.exists():
         return step(2, name, "SKIPPED", f"the analyst's environment is missing ({python}); see the CI step "
                     "'Analyst agent tests' for how to build .venv-analyst")
@@ -112,26 +112,26 @@ def analyst_step(has_warehouse, why_not, via):
 # Step 3: the change guard, no database.
 def guard_step():
     name = "Change guard on dropping late_over_90"
-    ok, what = fathom_guard()
+    ok, what = changelens_guard()
     if ok is None:
         return step(3, name, "SKIPPED", what.removeprefix("skipped: "))
-    return step(3, name, "LIVE", "ChangeLens (Fathom) preflight on the dbt project, no database", ok=ok, summary=what)
+    return step(3, name, "LIVE", "ChangeLens preflight on the dbt project, no database", ok=ok, summary=what)
 
 
 # Step 4: Agent Harbor, the daily cost cap.
 def harbor_step(question):
     name = "Agent Harbor limits spend"
-    url = os.environ.get("LODESTAR_URL", "").rstrip("/")
+    url = os.environ.get("AGENT_HARBOR_URL", "").rstrip("/")
     if not url:
         rec = json.loads(HARBOR_RECORDING.read_text())
         s = rec["source"]
         return step(4, name, "RECORDED",
-                    f"LODESTAR_URL is not set. Cap-refusal drill snapshot from {s['repo']} commit {s['commit']}, "
+                    f"AGENT_HARBOR_URL is not set. Cap-refusal drill snapshot from {s['repo']} commit {s['commit']}, "
                     f"{s['path']}: the {rec['agent']} agent on a {rec['model']} model, not the analyst",
                     **{k: rec[k] for k in ("source", "agent", "model", "cap_usd", "observed", "refusal")})
     headers = {"content-type": "application/json"}
-    if os.environ.get("LODESTAR_API_TOKEN"):
-        headers["Authorization"] = "Bearer " + os.environ["LODESTAR_API_TOKEN"]
+    if os.environ.get("AGENT_HARBOR_API_TOKEN"):
+        headers["Authorization"] = "Bearer " + os.environ["AGENT_HARBOR_API_TOKEN"]
     req = urllib.request.Request(url + "/runs", method="POST", headers=headers,
                                  data=json.dumps({"payload": {"question": question, "domain": "finance"}}).encode())
     try:

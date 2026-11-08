@@ -16,7 +16,7 @@ Two more paragraphs complete it. A reference still names an invoice when it is w
 ## How an episode works
 
 ```
-vtgolden  (frozen copy of the acme company, after edp.demo)
+vtgolden  (frozen copy of the acme company, after clearledger.demo)
    |  CREATE DATABASE vte_slotN TEMPLATE vtgolden    about 1 s
    v
 plant the task     any extra invoices, then the payment(s) or credit note(s), posted through Odoo
@@ -143,7 +143,7 @@ Run it with `python -m voight range --model haiku --split dev` (add `--no-warnin
 ## Running it
 
 ```
-python -m voight freeze                 # after edp.demo: freeze acme into the template
+python -m voight freeze                 # after clearledger.demo: freeze acme into the template
 python -m voight serve                  # start the episode-only Odoo server (port 8070)
 python -m voight build                  # write tasks/*.jsonl, check the test pin
 python -m voight check --split dev      # oracle and cheats on every dev task
@@ -152,11 +152,11 @@ python -m voight range --split dev --model sonnet      # the attack range; --no-
 VOIGHT_LIVE=1 python -m pytest -q voight
 ```
 
-`baseline` uses the analyst's command-line model route, so it is signed in through the model's own command line and calls no API key. CI runs `freeze`, `build` and the tests on every push, right after `edp.demo` builds the company, with no model.
+`baseline` uses the analyst's command-line model route, so it is signed in through the model's own command line and calls no API key. CI runs `freeze`, `build` and the tests on every push, right after `clearledger.demo` builds the company, with no model.
 
 ## What comes next
 
 1. Train a small open model on the train split with GRPO (a reinforcement-learning method that needs no second "critic" model) and LoRA (tuning a thin slice of the weights). The first run is done on CPU at 0.5B parameters ([train/](train/README.md)): a supervised warm start took it from 0 to 16 of a 42-task dev subset, and 30 GRPO iterations to 18; it never escalates. At 1.5B parameters, still on CPU, the warm start reaches 27 and 12 GRPO iterations aimed at the escalation kinds reach 29. Next is a longer run on a GPU.
 2. Scale to a 7B model and compare it with the large models on dev, then once on test: quality, cost per task and time per task.
-3. Serve the tuned model with vLLM behind Lodestar, with a router that sends uncertain cases to a large model.
+3. Serve the tuned model with vLLM behind Agent Harbor, with a router that sends uncertain cases to a large model.
 4. The attack range (above) is built, and a short supervised pass on attacked train tasks cut the small model's false alarms from 24 to 3 of 24. Next for it: harder attacks (in invoice text and customer names, not only memos) and a longer run on a GPU.

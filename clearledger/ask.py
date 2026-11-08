@@ -14,8 +14,8 @@ a way to prove where each number came from. These tools give both.
   is the newest version. An agent can cite only what it was shown, and a
   person can check any answer without trusting the agent.
 
-The same functions are served over MCP (`edp mcp`) and on the command line
-(`edp tool <name> '<json arguments>'`), so any agent framework can use them.
+The same functions are served over MCP (`clearledger mcp`) and on the command line
+(`clearledger tool <name> '<json arguments>'`), so any agent framework can use them.
 """
 
 import datetime as dt
@@ -128,7 +128,7 @@ def list_deals(conn, customer_key: int) -> dict:
     return {"customer_key": customer_key, "won_deals": deals}
 
 
-READER = "edp_reader"
+READER = "clearledger_reader"
 
 
 def ensure_reader(conn) -> None:
@@ -224,7 +224,7 @@ def serve(dsn: str) -> None:
 
     with psycopg.connect(dsn, autocommit=True) as conn:
         ensure_reader(conn)
-    server = MCPServer("erp-warehouse")
+    server = MCPServer("clearledger")
     for name, fn in TOOLS.items():
         def make(fn=fn):
             def tool(**kwargs):

@@ -46,7 +46,7 @@ def resolved_args(args: dict, keys: dict[str, int]) -> dict:
 
 def refresh(dsn: str) -> None:
     """Re-runs every fixture call on the warehouse and saves the results."""
-    from edp import ask
+    from clearledger import ask
 
     FIXTURES.mkdir(exist_ok=True)
     keys = {"northwind": ask.call(dsn, "find_customers", {"name": "northwind"})["customers"][0]["customer_key"]}
@@ -218,6 +218,6 @@ if __name__ == "__main__":
     if sys.argv[1:2] == ["--refresh"]:
         import os
 
-        refresh(os.environ.get("EDP_DSN", "host=/tmp dbname=warehouse user=odoo"))
+        refresh(os.environ.get("CLEARLEDGER_DSN", "host=/tmp dbname=warehouse user=odoo"))
     else:
         sys.exit("usage: python -m voice.scenarios --refresh")

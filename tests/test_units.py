@@ -8,7 +8,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "eval"))
 from build import split_of  # noqa: E402
 from run import correct, parse  # noqa: E402
 
-from edp.sources import DOMAINS, SOURCES, table_name
+from clearledger.sources import DOMAINS, SOURCES, table_name
 
 
 def test_table_names():
@@ -54,21 +54,21 @@ def test_lists_must_match_exactly():
 def test_a_missing_source_field_stops_the_load_and_names_it():
     import pytest
 
-    from edp.load import SourceChanged, _fields
+    from clearledger.load import SourceChanged, _fields
     present = {f: True for f in SOURCES["crm.lead"] if f != "expected_revenue"}
     with pytest.raises(SourceChanged, match="expected_revenue"):
         _fields(present, "crm.lead")
 
 
 def test_custom_fields_are_loaded_too():
-    from edp.load import _fields
+    from clearledger.load import _fields
     present = {**{f: True for f in SOURCES["account.move"]}, "x_po_number": True, "x_computed": False}
     got = _fields(present, "account.move")
     assert "x_po_number" in got and "x_computed" not in got
 
 
 def test_query_refuses_unsafe_server_functions_however_written():
-    from edp.ask import unsafe_function
+    from clearledger.ask import unsafe_function
     assert unsafe_function("select set_config('role', 'odoo', true)") == "set_config"
     assert unsafe_function('select "set_config"(\'role\', \'odoo\', true)') == "set_config"
     assert unsafe_function("select pg_catalog.set_config/* x */('role', 'odoo', true)") == "set_config"

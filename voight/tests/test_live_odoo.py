@@ -1,4 +1,4 @@
-"""Against the episode Odoo server. Set VOIGHT_LIVE=1 (CI does, after edp.demo and voight freeze)."""
+"""Against the episode Odoo server. Set VOIGHT_LIVE=1 (CI does, after clearledger.demo and voight freeze)."""
 
 import os
 

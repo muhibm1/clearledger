@@ -5,14 +5,14 @@ For the team that runs this after hand-off. Each section says what to do, then w
 ## Run the pipeline
 
 ```bash
-.venv/bin/python -m edp.cli run                 # one run: load, dbt build, monitors
-.venv/bin/python -m edp.cli run --every 900     # keep running, every 15 minutes
+.venv/bin/python -m clearledger.cli run                 # one run: load, dbt build, monitors
+.venv/bin/python -m clearledger.cli run --every 900     # keep running, every 15 minutes
 ```
 
 Or from cron, which is what a single server needs:
 
 ```cron
-*/15 * * * * cd /srv/erp-data-platform && .venv/bin/python -m edp.cli run >> run.log 2>&1
+*/15 * * * * cd /srv/clearledger && .venv/bin/python -m clearledger.cli run >> run.log 2>&1
 ```
 
 A load only fetches records whose `write_date` is at or after the newest one
@@ -27,13 +27,13 @@ every step returned.
 
 ## Alerts
 
-Every warning and failure is appended to `alerts.jsonl` (set `EDP_ALERT_FILE`
-to move it) and, when `EDP_ALERT_WEBHOOK` is set, posted to that URL as
+Every warning and failure is appended to `alerts.jsonl` (set `CLEARLEDGER_ALERT_FILE`
+to move it) and, when `CLEARLEDGER_ALERT_WEBHOOK` is set, posted to that URL as
 `{"text": ...}`, which Slack and Teams incoming webhooks accept. Thresholds:
-`EDP_FRESHNESS_HOURS` (default 2) and `EDP_VOLUME_DROP` (default 0.2).
+`CLEARLEDGER_FRESHNESS_HOURS` (default 2) and `CLEARLEDGER_VOLUME_DROP` (default 0.2).
 
 ```bash
-.venv/bin/python -m edp.cli monitor     # the monitors on their own; exit 1 on a failure
+.venv/bin/python -m clearledger.cli monitor     # the monitors on their own; exit 1 on a failure
 ```
 
 ## Connect to the warehouse
@@ -42,7 +42,7 @@ to move it) and, when `EDP_ALERT_WEBHOOK` is set, posted to that URL as
 psql -h /tmp -U odoo warehouse        # the demo defaults; production uses its own host and role
 ```
 
-The pipeline reads the same settings from `EDP_DSN` (a libpq connection
+The pipeline reads the same settings from `CLEARLEDGER_DSN` (a libpq connection
 string). Every query below runs in this session.
 
 ## Check that the data is fresh
@@ -62,8 +62,8 @@ each model's records commit together.
 ## Reload from scratch, or backfill
 
 ```bash
-.venv/bin/python -m edp.cli extract --full            # every record
-.venv/bin/python -m edp.cli run --since 2026-09-01    # records changed since a date, then build and check
+.venv/bin/python -m clearledger.cli extract --full            # every record
+.venv/bin/python -m clearledger.cli run --since 2026-09-01    # records changed since a date, then build and check
 ```
 
 Both re-read from Odoo. Versions already stored are skipped, so they add only
@@ -75,13 +75,13 @@ known gap, such as a weekend outage.
 
 | Monitor | What it means | Do this |
 |---|---|---|
-| `last_run` | The newest load failed or is stuck. The error is in the message. | If Odoo was down, wait for it and `edp run` again; the client already retried with backoff. The next successful run clears this monitor and catches up on everything changed meanwhile. |
-| `freshness` | Nothing has loaded successfully for longer than the limit. | Check the scheduler is running, then `edp run`. |
+| `last_run` | The newest load failed or is stuck. The error is in the message. | If Odoo was down, wait for it and `clearledger run` again; the client already retried with backoff. The next successful run clears this monitor and catches up on everything changed meanwhile. |
+| `freshness` | Nothing has loaded successfully for longer than the limit. | Check the scheduler is running, then `clearledger run`. |
 | `volume` | A model lost more than 20% of its records between loads. | Ask the Odoo admin whether records were archived or deleted on purpose before anyone uses the tables. |
-| `schema` | Fields were added to or removed from Odoo. A fail means a field the load reads is gone. | Warn: nothing to do. Fail: update `edp/sources.py` and the staging model. |
-| `source_totals` | The warehouse bills a different total than Odoo itself. | `edp extract --full`, then `edp run` (it rebuilds every model and re-runs the monitors; no separate `dbt build` is needed). If it still fails, `trace` the biggest customers. |
+| `schema` | Fields were added to or removed from Odoo. A fail means a field the load reads is gone. | Warn: nothing to do. Fail: update `clearledger/sources.py` and the staging model. |
+| `source_totals` | The warehouse bills a different total than Odoo itself. | `clearledger extract --full`, then `clearledger run` (it rebuilds every model and re-runs the monitors; no separate `dbt build` is needed). If it still fails, `trace` the biggest customers. |
 
-`edp monitor` exits 0 when nothing failed (warnings included) and 1 when
+`clearledger monitor` exits 0 when nothing failed (warnings included) and 1 when
 anything failed.
 
 **Which records were missing.** A repair stores only what was missing, tagged
@@ -100,14 +100,14 @@ deletes them there (a manual fix, a restore from an old backup); the loader
 never deletes. Ask who had write access before closing the incident.
 
 Every failure the drills produced, and what was done, is written up in
-`fathom/incidents/`.
+`changelens/incidents/`.
 
 ## Explain a number
 
 ```bash
-.venv/bin/python -m edp.cli trace revenue_by_customer "northwind"
-.venv/bin/python -m edp.cli trace receivables_aging "harbor freight"
-.venv/bin/python -m edp.cli trace deal_to_cash 129
+.venv/bin/python -m clearledger.cli trace revenue_by_customer "northwind"
+.venv/bin/python -m clearledger.cli trace receivables_aging "harbor freight"
+.venv/bin/python -m clearledger.cli trace deal_to_cash 129
 ```
 
 Lists every invoice, payment and order behind the number, with the Odoo id
@@ -129,7 +129,7 @@ See `docs/checks.md` for every check. In short:
 
 - **A field the load needs is gone or renamed.** The load stops before it
   writes anything and names the field: `crm.lead is missing fields [...]; the
-  source changed`. Update `edp/sources.py`, then the staging model that reads it.
+  source changed`. Update `clearledger/sources.py`, then the staging model that reads it.
 - **Someone adds a custom field** (`x_...`). It is loaded automatically into
   the record's `payload`. Nothing breaks; add it to a staging model when it is needed.
 - **Records are deleted.** The load notices (`raw.deleted`) and the models leave them out.
@@ -137,12 +137,12 @@ See `docs/checks.md` for every check. In short:
 ## Connect an AI assistant
 
 ```bash
-claude mcp add erp-warehouse -- /srv/erp-data-platform/.venv/bin/python -m edp.cli mcp
-.venv/bin/python -m edp.cli tool find_customers '{"name": "northwind"}'   # the same tools by hand
+claude mcp add clearledger -- /srv/clearledger/.venv/bin/python -m clearledger.cli mcp
+.venv/bin/python -m clearledger.cli tool find_customers '{"name": "northwind"}'   # the same tools by hand
 ```
 
 Any MCP client works the same way. The tools only read. `query` runs as the
-`edp_reader` role, which can select from `marts`, `intermediate` and
+`clearledger_reader` role, which can select from `marts`, `intermediate` and
 `staging` and nothing else, inside a read-only transaction with a 5-second
 limit. If an assistant's answer is questioned, run `check_citations` on the
 references it gave: each must say `ok`.
@@ -150,21 +150,21 @@ references it gave: each must say `ok`.
 ## Before changing a model
 
 ```bash
-.venv/bin/fathom sync
-.venv/bin/fathom preflight --intent "drop the late_over_90 column from receivables_aging"
+.venv/bin/changelens sync
+.venv/bin/changelens preflight --intent "drop the late_over_90 column from receivables_aging"
 ```
 
-Fathom names what the change reaches (month-end close, the collections queue),
+ChangeLens names what the change reaches (month-end close, the collections queue),
 who owns it, and which rule applies. Changing `revenue_by_customer` or
 `receivables_aging` columns, or the customer matching rule, needs finance
-sign-off (`fathom/constraints/`).
+sign-off (`changelens/constraints/`).
 
 ## Run Remit, the collections agent
 
 Once a day, after the morning load, on a schedule:
 
 ```cron
-30 7 * * 1-5 cd /srv/erp-data-platform && REMIT_MODE=suggest .venv/bin/python -m remit daily >> remit.log 2>&1
+30 7 * * 1-5 cd /srv/clearledger && REMIT_MODE=suggest .venv/bin/python -m remit daily >> remit.log 2>&1
 ```
 
 `remit daily` applies yesterday's approvals (in act mode only), plans today's
@@ -219,8 +219,8 @@ which cannot be changed or deleted.
 ## Failure drills
 
 ```bash
-EDP_DRILL_ODOO_STOP="scripts/odoo-local.sh stop" EDP_DRILL_ODOO_START="scripts/odoo-local.sh start" \
-  .venv/bin/python -m edp.drills
+CLEARLEDGER_DRILL_ODOO_STOP="scripts/odoo-local.sh stop" CLEARLEDGER_DRILL_ODOO_START="scripts/odoo-local.sh start" \
+  .venv/bin/python -m clearledger.drills
 ```
 
 Breaks the pipeline five ways on purpose (Odoo down, overlapping runs, a

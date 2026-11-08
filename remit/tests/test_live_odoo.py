@@ -1,6 +1,6 @@
 """Remit against a real Odoo and the built warehouse: approve, apply once, survive a crash.
 
-Runs only with REMIT_LIVE=1, after `python -m edp.demo` has built the company and
+Runs only with REMIT_LIVE=1, after `python -m clearledger.demo` has built the company and
 the warehouse (CI does this as its last step). It writes notes and activities
 into that Odoo, so it never runs against a database someone works in.
 """
@@ -11,8 +11,8 @@ import os
 import psycopg
 import pytest
 
-from edp.ask import AS_OF
-from edp.odoo import Odoo
+from clearledger.ask import AS_OF
+from clearledger.odoo import Odoo
 from remit.ledger import Ledger
 from remit.odoo_io import Reader, Writer
 from remit.run import _write, apply, run
@@ -28,7 +28,7 @@ def odoo():
 
 @pytest.fixture(scope="module")
 def conn():
-    c = psycopg.connect(os.environ.get("EDP_DSN", "host=/tmp dbname=warehouse user=odoo"))
+    c = psycopg.connect(os.environ.get("CLEARLEDGER_DSN", "host=/tmp dbname=warehouse user=odoo"))
     yield c
     c.close()
 

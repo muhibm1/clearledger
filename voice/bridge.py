@@ -2,7 +2,7 @@
 
 ElevenAgents sends a client tool call as a name and a dict of parameters (plus its own
 `tool_call_id`). The bridge checks the parameters against the tool's declared arguments,
-runs the tool from `edp/ask.py` on a fresh connection, and returns the result as JSON text.
+runs the tool from `clearledger/ask.py` on a fresh connection, and returns the result as JSON text.
 A bad call comes back as an error message the agent can say, never as a crash that would
 end the conversation.
 """
@@ -12,7 +12,7 @@ import json
 import time
 from pathlib import Path
 
-from edp import ask
+from clearledger import ask
 
 
 class ToolError(ValueError):

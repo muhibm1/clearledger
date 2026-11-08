@@ -1,6 +1,6 @@
-# ClearLedger, finance data platform (currently erp-data-platform)
+# ClearLedger, finance data platform
 
-[![ci](https://github.com/muhibm1/erp-data-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/muhibm1/erp-data-platform/actions/workflows/ci.yml)
+[![ci](https://github.com/muhibm1/clearledger/actions/workflows/ci.yml/badge.svg)](https://github.com/muhibm1/clearledger/actions/workflows/ci.yml)
 
 **Gets a company's sales and accounting data out of its ERP, makes it trustworthy, and traces every finance number back to the records behind it.**
 
@@ -14,7 +14,7 @@ It runs on a schedule, watches itself, and has been broken on purpose five ways 
 
 ```
 Odoo (CRM, Sales, Invoicing)
-   │  edp run: lock, extract (JSON-RPC, incremental, retries), dbt build, monitors
+   │  clearledger run: lock, extract (JSON-RPC, incremental, retries), dbt build, monitors
    ▼
 raw.*        every version of every record, deletes noted
    │  dbt
@@ -25,33 +25,33 @@ staging → intermediate → marts
                           deal_to_cash          won deal → order → invoice → payment
                           overdue_invoices      what is late, with what collections must check first
    │
-   ├─ edp trace   any number → the records behind it, checked to add up
-   ├─ edp mcp     read-only, cited tools for AI agents: ask the warehouse
-   ├─ monitors    fresh? complete? same totals as Odoo? → alerts file and webhook
-   ├─ drills      five failures on purpose, each caught and recovered
-   ├─ Fathom      lineage, owners, rules, incidents: what a change would break
-   ├─ eval/       finance questions with SQL answers: train, dev and test sets
-   ├─ remit/      the collections agent: plans, drafts, waits for approval, writes to Odoo once
-   ├─ voight/     a training ground: fresh copies of this Odoo, finance tasks, a checker that reads the books
-   └─ engagement/ the simulated client engagement around all of it, with a one-command demo
+   ├─ clearledger trace  any number → the records behind it, checked to add up
+   ├─ clearledger mcp    read-only, cited tools for AI agents: ask the warehouse
+   ├─ monitors           fresh? complete? same totals as Odoo? → alerts file and webhook
+   ├─ drills             five failures on purpose, each caught and recovered
+   ├─ ChangeLens         lineage, owners, rules, incidents: what a change would break
+   ├─ eval/              finance questions with SQL answers: train, dev and test sets
+   ├─ remit/             the collections agent: plans, drafts, waits for approval, writes to Odoo once
+   ├─ voight/            a training ground: fresh copies of this Odoo, finance tasks, a checker that reads the books
+   └─ engagement/        the simulated client engagement around all of it, with a one-command demo
 ```
 
-1. **Extract.** `edp extract` reads deals, customers, orders, invoices and payments through Odoo's API, the way you would at a client: no database access to the ERP needed. It fetches only what changed since the last load, so a rerun stores nothing new. A field the load needs going missing stops the load and names the field; a custom field a client adds is picked up automatically.
+1. **Extract.** `clearledger extract` reads deals, customers, orders, invoices and payments through Odoo's API, the way you would at a client: no database access to the ERP needed. It fetches only what changed since the last load, so a rerun stores nothing new. A field the load needs going missing stops the load and names the field; a custom field a client adds is picked up automatically.
 2. **Keep history.** Raw tables are append-only, one row per saved version of a record. When accounting reopens a posted invoice and changes it, both versions stay. When a record is deleted in Odoo, the load notices and records it.
 3. **Model.** dbt turns raw records into three finance tables in US dollars, plus the list of overdue invoices Remit works from. Every row carries the Odoo ids it was built from.
 4. **Check.** `dbt build` runs 23 checks. Seventeen hard checks fail the build if the finance tables stop matching Odoo or lose a key. Six source-quality checks list the real-world mess: a customer entered twice, an invoice changed after posting, euro invoices, a deal marked won with no order, a deleted record. Each is handled in the models and listed for a person to fix at the source. See [docs/checks.md](docs/checks.md).
-5. **Trace.** `edp trace` expands a number into its records and checks they add up. A test runs it on every customer and every won deal.
-6. **Guard changes.** [ChangeLens, data change review (currently Fathom)](https://github.com/muhibm1/fathom) reads the dbt project for column-level lineage, owners and rules. Proposing to drop a column from the aging table returns BLOCK: it names month-end close and the collections queue as the reports that would break, and finance as the team that must sign off ([example](docs/examples/preflight-drop-column.txt)).
-7. **Run and watch.** `edp run` does one load, build and check under a database lock, so a second run started at the same time skips instead of loading twice. Run it from cron or with `--every`. Five monitors follow each run: did the load succeed, is the data fresh, did any table shrink, did Odoo's fields change, and does the warehouse bill the same total as Odoo itself. Failures go to an alerts file and, if set, a Slack or Teams webhook.
-8. **Break it on purpose.** `edp.drills` takes Odoo down mid-schedule, starts two runs at once, adds then deletes a custom field in Odoo, deletes invoices from the warehouse, and lets the data go stale. Each is caught and recovered from ([report](drills/report.json)). Two drills found real problems, written up as postmortems in `fathom/incidents/`: a schema change that waited forever on a reader's lock (INC-002), and lost rows that every dbt check missed because the checks compare the warehouse with itself (INC-004). The fix for the second is the monitor that asks Odoo.
-9. **Let an agent ask.** `edp mcp` serves six tools to any AI agent over MCP (the same tools run as `edp tool <name>` on the command line): find a customer, summarise what they owe, list invoices, follow won deals to cash, run one read-only query, and check citations. Every row carries the exact Odoo record version it came from, `query` runs as a database role that can only read the modelled tables, and `check_citations` confirms a cited record is real and current. An agent cannot cite what it was not shown, and a person can check any answer without trusting the agent. [`voice/`](voice/README.md) puts the same six tools behind a voice agent on ElevenAgents, with the tools still running next to the warehouse.
+5. **Trace.** `clearledger trace` expands a number into its records and checks they add up. A test runs it on every customer and every won deal.
+6. **Guard changes.** [ChangeLens, data change review](https://github.com/muhibm1/changelens) reads the dbt project for column-level lineage, owners and rules. Proposing to drop a column from the aging table returns BLOCK: it names month-end close and the collections queue as the reports that would break, and finance as the team that must sign off ([example](docs/examples/preflight-drop-column.txt)).
+7. **Run and watch.** `clearledger run` does one load, build and check under a database lock, so a second run started at the same time skips instead of loading twice. Run it from cron or with `--every`. Five monitors follow each run: did the load succeed, is the data fresh, did any table shrink, did Odoo's fields change, and does the warehouse bill the same total as Odoo itself. Failures go to an alerts file and, if set, a Slack or Teams webhook.
+8. **Break it on purpose.** `clearledger.drills` takes Odoo down mid-schedule, starts two runs at once, adds then deletes a custom field in Odoo, deletes invoices from the warehouse, and lets the data go stale. Each is caught and recovered from ([report](drills/report.json)). Two drills found real problems, written up as postmortems in `changelens/incidents/`: a schema change that waited forever on a reader's lock (INC-002), and lost rows that every dbt check missed because the checks compare the warehouse with itself (INC-004). The fix for the second is the monitor that asks Odoo.
+9. **Let an agent ask.** `clearledger mcp` serves six tools to any AI agent over MCP (the same tools run as `clearledger tool <name>` on the command line): find a customer, summarise what they owe, list invoices, follow won deals to cash, run one read-only query, and check citations. Every row carries the exact Odoo record version it came from, `query` runs as a database role that can only read the modelled tables, and `check_citations` confirms a cited record is real and current. An agent cannot cite what it was not shown, and a person can check any answer without trusting the agent. [`voice/`](voice/README.md) puts the same six tools behind a voice agent on ElevenAgents, with the tools still running next to the warehouse.
 10. **Evaluate and train.** `eval/` builds 184 finance questions over 31 customers, six kinds, from the same records retrieval would hand a model, mess included. Answers come from SQL. Train, dev and test never share a customer, and the build fails if any customer, question, invoice or record set crosses a split. Train is exported as chat examples for fine-tuning. See the [dataset card](eval/DATASET.md) and [results](eval/RESULTS.md).
 11. **Collect.** [Remit](remit/README.md) is a collections agent on top of the warehouse. Each morning it plans the playbook's next step for every late customer, holds what a person must look at first (credit not yet matched, an invoice changed after posting, a dispute tag, an instruction hidden in invoice text), drafts the reminder, and waits for approval. Approved actions are written into Odoo once, through three allowed calls, and survive a crash without writing twice. A 90-day simulation on this company found it does not move the late balance, which is mostly over 60 days old, but cuts the wait for a first reminder from 5 days to 1 and saves the person about 18 calls.
 12. **Train.** [Voight](voight/README.md) turns this company into a training ground for finance agents (an RL environment). Each episode is a fresh one-second copy of the Odoo database with one payment or credit note to apply. The agent works through six tools; a checker reads the copy's books and scores the result, failing any attempt that changed something outside its task. 215 tasks, split by customer, the test split pinned by its hash.
 
 ## The data
 
-The company is simulated, but the system is real. `edp.simulate` runs ten months of business through an actual Odoo 17 using Odoo's own logic: 145 deals (74 won, 41 lost, 30 open), orders confirmed from the won deals, 72 invoices raised through Odoo's invoicing wizard, and 59 payments, some late and some partial. Then it does what operations do to data after it has been loaded once: enters a customer twice, reopens and changes a posted invoice, bills three customers in euros, marks a deal won with no order, and deletes a draft invoice. The warehouse is loaded between those steps, so the mess arrives the way it would in production. The simulation is seeded, so it builds the same company every time.
+The company is simulated, but the system is real. `clearledger.simulate` runs ten months of business through an actual Odoo 17 using Odoo's own logic: 145 deals (74 won, 41 lost, 30 open), orders confirmed from the won deals, 72 invoices raised through Odoo's invoicing wizard, and 59 payments, some late and some partial. Then it does what operations do to data after it has been loaded once: enters a customer twice, reopens and changes a posted invoice, bills three customers in euros, marks a deal won with no order, and deletes a draft invoice. The warehouse is loaded between those steps, so the mess arrives the way it would in production. The simulation is seeded, so it builds the same company every time.
 
 Billed in total: $1,379,155.41. Still owed: $362,891.89, of which $118,375.00 is more than 90 days late.
 
@@ -63,7 +63,7 @@ Billed in total: $1,379,155.41. Still owed: $362,891.89, of which $118,375.00 is
 | Failure drills | 5 of 5 caught and recovered: Odoo down (fails in 6 s, catches up after), two runs at once (one skips), a custom field added and removed (warned, value loaded), 3 invoices lost from the warehouse (caught against Odoo, repaired in under a second), 3 hours stale (fails) |
 | Checks | 23 in `dbt build`: 17 hard checks pass, 6 source-quality checks warn, one for each kind of planted problem, each naming the records |
 | Traceability | Every customer and every won deal traces to records that add up (`tests/test_warehouse.py`) |
-| A real bug the checks caught | Partners with no email were being merged into one customer; recorded as `fathom/incidents/INC-001.md` |
+| A real bug the checks caught | Partners with no email were being merged into one customer; recorded as `changelens/incidents/INC-001.md` |
 | Model on the question set | Claude Sonnet: 47 of 47 on test with or without being told how the records are messy; answering 0 to everything gets 23 ([details](eval/RESULTS.md)) |
 | Agent with tools | Sonnet given only the questions and the tools: 46 of 47 correct, and all 73 of its citations real and current. The miss cited a real record and still had the wrong number, which is why answers are graded and cited separately ([details](eval/RESULTS.md)) |
 | Analyst agent | A question-to-SQL agent that works on this warehouse and a second, ads dataset: 102 of 103 held-out questions right with Sonnet, and all 18 requests that would expose small groups refused by the tool ([analyst/](analyst/README.md)) |
@@ -80,12 +80,12 @@ python3.11 -m venv .venv && .venv/bin/pip install -r requirements.txt
 scripts/odoo-local.sh install        # Odoo 17 Community from its official source
 scripts/odoo-local.sh reset          # demo database "acme" with CRM, Sales, Invoicing
 createdb -h /tmp -U odoo warehouse
-.venv/bin/python -m edp.demo         # simulate, load three times, dbt build (about 3 minutes)
-.venv/bin/python -m edp.cli trace revenue_by_customer northwind
+.venv/bin/python -m clearledger.demo         # simulate, load three times, dbt build (about 3 minutes)
+.venv/bin/python -m clearledger.cli trace revenue_by_customer northwind
 .venv/bin/python -m pytest -q
-.venv/bin/python -m edp.cli run      # one scheduled run: load, build, monitors
-EDP_DRILL_ODOO_STOP="scripts/odoo-local.sh stop" EDP_DRILL_ODOO_START="scripts/odoo-local.sh start" \
-  .venv/bin/python -m edp.drills     # the five failure drills (demo stack only)
+.venv/bin/python -m clearledger.cli run      # one scheduled run: load, build, monitors
+CLEARLEDGER_DRILL_ODOO_STOP="scripts/odoo-local.sh stop" CLEARLEDGER_DRILL_ODOO_START="scripts/odoo-local.sh start" \
+  .venv/bin/python -m clearledger.drills     # the five failure drills (demo stack only)
 .venv/bin/python eval/build.py       # the question set and its card
 ```
 

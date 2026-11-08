@@ -8,7 +8,7 @@ Two layers, so a mistake in one is caught by the other:
    server-side function that reads files. The agent gets the reason back and
    can fix its query.
 2. The database decides what actually runs. For the finance warehouse, queries
-   go through `edp.ask.query` unchanged: a read-only role over the modelled
+   go through `clearledger.ask.query` unchanged: a read-only role over the modelled
    schemas, a read-only transaction and a 5 second limit. For other domains the
    same rules run here, with the domain's own read-only role, plus its privacy
    rule.
@@ -44,8 +44,8 @@ def check(sql: str, schemas: list[str]) -> tuple[bool, str, list[str]]:
         return False, "only a SELECT query may run", []
     if any(tree.find_all(*WRITES)):
         return False, "the query may only read", []
-    banned = _edp().unsafe_function(text) or next(
-        (n for n in (_function_name(f) for f in tree.find_all(exp.Func)) if _edp().UNSAFE_FUNCTIONS.match(n + "(")),
+    banned = _clearledger().unsafe_function(text) or next(
+        (n for n in (_function_name(f) for f in tree.find_all(exp.Func)) if _clearledger().UNSAFE_FUNCTIONS.match(n + "(")),
         None)
     if banned:
         return False, f"the server function {banned} is not allowed", []
@@ -77,18 +77,18 @@ def _plain(v):
     return v
 
 
-def _edp():
+def _clearledger():
     root = Path(__file__).resolve().parent.parent
     if str(root) not in sys.path:
         sys.path.insert(0, str(root))
-    import edp.ask
-    return edp.ask
+    import clearledger.ask
+    return clearledger.ask
 
 
 def prepare(dom, conn) -> None:
     """Make sure the domain's read-only role exists before the first query."""
-    if dom.executor == "edp":
-        _edp().ensure_reader(conn)
+    if dom.executor == "clearledger":
+        _clearledger().ensure_reader(conn)
 
 
 def run(dom, conn, sql: str) -> dict:
@@ -96,8 +96,8 @@ def run(dom, conn, sql: str) -> dict:
     ok, reason, _ = check(sql, dom.schemas)
     if not ok:
         return {"ok": False, "error": reason}
-    if dom.executor == "edp":
-        return _edp().query(conn, sql)
+    if dom.executor == "clearledger":
+        return _clearledger().query(conn, sql)
     text = sql.strip().rstrip(";")
     runs = [text]
     if dom.privacy:

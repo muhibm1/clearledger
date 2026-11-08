@@ -24,7 +24,7 @@ from pathlib import Path
 
 import psycopg
 
-from edp.odoo import Odoo
+from clearledger.odoo import Odoo
 
 ROOT = Path(__file__).resolve().parent.parent
 HOME = ROOT / ".odoo"
@@ -54,7 +54,7 @@ def _filestore(db: str) -> Path:
 
 
 def freeze(source: str = SOURCE_DB) -> None:
-    """Copies the source company into the golden template. Run once after `edp.demo`.
+    """Copies the source company into the golden template. Run once after `clearledger.demo`.
 
     Every other connection to the source is closed first: Postgres can only copy a
     database nobody is connected to. The main Odoo server reconnects on its own.

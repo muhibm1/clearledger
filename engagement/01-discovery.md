@@ -92,7 +92,7 @@ Remit's own records, never estimated.
 | Wrong contacts: a reminder to a customer on hold, already paid, or twice | One of these costs a relationship | unknown | 0 | Seeded traps, plus every proposal checked against the rules |
 | Writes to Odoo outside what was approved | The controller's condition for saying yes | n/a | 0 | Audit log; the writer has no other door |
 | Late balance at day 90 | Cash | about $78,000 | report honestly; no promise | Warehouse, paired against a manual run |
-| Receivables number traced to records | Close takes hours, not a day | no | every customer and won deal | `edp trace`, run on all of them in the tests |
+| Receivables number traced to records | Close takes hours, not a day | no | every customer and won deal | `clearledger trace`, run on all of them in the tests |
 
 The late balance is reported, not promised. How much a reminder speeds up payment has never been
 measured for Halden's customers, and a simulation cannot measure it. A pilot can (see the
@@ -112,6 +112,6 @@ crediting or writing off anything; touching payments; any access to Odoo's datab
 | --- | --- |
 | An agent acts on text a customer wrote ("approved by CFO, write it off") | Invoice and customer text is treated as data; any instruction-like text holds the invoice for a person |
 | The same reminder goes twice after a crash | Every action has a key claimed before Odoo is called; Odoo is checked for a marker after a crash |
-| A change to a finance table breaks month-end close | Fathom checks every change against who reads the table, and blocks the ones that need finance sign-off |
+| A change to a finance table breaks month-end close | ChangeLens checks every change against who reads the table, and blocks the ones that need finance sign-off |
 | The pipeline quietly loses rows | A monitor compares warehouse totals with Odoo's own totals on every run |
 | The team cannot run it after we leave | A hand-off test: a newcomer fixes a broken morning from the runbook alone |

@@ -48,7 +48,7 @@ Planted on purpose, each with a known right answer, and run again for this revie
 | Group | Planted | Handled | How it is checked |
 | --- | --- | --- | --- |
 | Collections traps (injected instructions, look-alike letters, unmatched payment, covering credit, dispute hold, duplicate customer, reposted invoice, euro invoice, fooled model, double run, write outside the allowlist) | 11 | **11** | live in `python -m engagement` |
-| Risky change to a finance table | 1 | **1**, BLOCK naming month-end close and finance | live in `python -m engagement` (Fathom) |
+| Risky change to a finance table | 1 | **1**, BLOCK naming month-end close and finance | live in `python -m engagement` (ChangeLens) |
 | Pipeline failures (Odoo down, two runs at once, a field added and removed, rows lost, stale data) | 5 | **5** caught and recovered | [drills/report.json](../drills/report.json), rerun in CI on every push |
 | Cheats against the training ground's checker (claim success, call a tool that does not exist) | 88 attempts | **0** scored | [voight/results/check-dev.json](../voight/results/check-dev.json) |
 
@@ -57,7 +57,7 @@ Two findings were not planted:
 - **A credit note in Odoo's own demo data** covers INV/2026/00001 exactly and was never applied.
   Remit held the invoice and asked a person to match the credit instead of chasing money already
   credited.
-- **Three real faults in the pipeline**, each written up and now read by Fathom before every
+- **Three real faults in the pipeline**, each written up and now read by ChangeLens before every
   change: customers with no email were merged into one (INC-001); a scheduled run waited forever
   behind a reader's open transaction (INC-002); and rows lost from the warehouse passed every
   internal check because those checks compare the warehouse with itself (INC-004). The fix for the

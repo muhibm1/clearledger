@@ -1,11 +1,11 @@
 {
   "source": {
-    "repo": "muhibm1/lodestar",
+    "repo": "muhibm1/agent-harbor",
     "commit": "7770b72",
     "path": "docs/drills/2026-11-06/drills.json",
     "drill": "cost-cap"
   },
-  "what_it_is": "Agent Harbor (Lodestar) daily cost cap drill. The drill ran the echo agent on its stub model, not the analyst and not a real model; the dollar figures are what the same tokens would cost at a list price.",
+  "what_it_is": "Agent Harbor daily cost cap drill. The drill ran the echo agent on its stub model, not the analyst and not a real model; the dollar figures are what the same tokens would cost at a list price.",
   "agent": "echo",
   "model": "stub",
   "cap_usd": 1.3e-05,

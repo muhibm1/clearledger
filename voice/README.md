@@ -4,7 +4,7 @@
 
 ElevenAgents is ElevenLabs' platform for voice agents. It handles the parts of a conversation that are hard to get right by hand: hearing the person, knowing when they have finished talking, letting them interrupt, and speaking the reply. This folder adds the finance desk on top: a prompt written for the ear, the six warehouse tools, and ten test conversations that ElevenAgents runs itself.
 
-The tools run on the machine that holds the warehouse, not on a public server. ElevenAgents decides when to call one, the call comes back to `talk.py` over the conversation's own connection, and `talk.py` runs it with `edp/ask.py` unchanged. The read-only role, the five-second limit and the source references all still apply. Nothing about the data has to be reachable from the internet.
+The tools run on the machine that holds the warehouse, not on a public server. ElevenAgents decides when to call one, the call comes back to `talk.py` over the conversation's own connection, and `talk.py` runs it with `clearledger/ask.py` unchanged. The read-only role, the five-second limit and the source references all still apply. Nothing about the data has to be reachable from the internet.
 
 ## How a question flows
 
@@ -12,7 +12,7 @@ The tools run on the machine that holds the warehouse, not on a public server. E
 you speak ──▶ ElevenAgents: speech to text, end of turn, the model, the voice
                   │  client tool call: find_customers {"name": "northwind"}
                   ▼
-              talk.py on your machine ──▶ edp/ask.py ──▶ warehouse (read-only role)
+              talk.py on your machine ──▶ clearledger/ask.py ──▶ warehouse (read-only role)
                   │  result as JSON, with source references
                   ▼
               ElevenAgents speaks: "Northwind still owes twenty-six thousand,

@@ -6,14 +6,14 @@
 # trust, the business terms people use, and a few worked examples.
 name: finance
 title: Deal-to-cash finance warehouse (Odoo ERP)
-dsn_env: EDP_DSN
+dsn_env: CLEARLEDGER_DSN
 dsn_default: host=/tmp dbname=warehouse user=odoo
-# Queries go through edp.ask.query: a read-only role over these schemas only,
+# Queries go through clearledger.ask.query: a read-only role over these schemas only,
 # a read-only transaction, a 5 second limit and at most 200 rows.
-executor: edp
+executor: clearledger
 schemas: [marts, intermediate, staging]
 as_of: "2026-10-27"
-citations: edp
+citations: clearledger
 
 tables:
   marts.revenue_by_customer:

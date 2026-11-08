@@ -53,10 +53,10 @@
       ],
       "detected": {
         "status": "fail",
-        "message": "billed: Odoo 1,409,175.41, warehouse 1,385,065.41; open: Odoo 361,011.89, warehouse 336,901.89. Run `edp extract --full`, then rebuild."
+        "message": "billed: Odoo 1,409,175.41, warehouse 1,385,065.41; open: Odoo 361,011.89, warehouse 336,901.89. Run `clearledger extract --full`, then rebuild."
       },
       "repair": {
-        "command": "edp extract --full",
+        "command": "clearledger extract --full",
         "exit": 0,
         "seconds": 0.9
       },

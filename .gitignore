@@ -5,7 +5,7 @@ dbt/target/
 dbt/logs/
 dbt/dbt_packages/
 .env*
-.fathom/
+.changelens/
 .odoo/
 alerts.jsonl
 eval/runs/*-stub-*.json

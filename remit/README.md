@@ -10,12 +10,12 @@ applies, what may be written, and whether it already was. A model is only ever a
 reminder, and code checks that wording before anyone sees it. Without a model, the wording comes
 from the playbook's own templates.
 
-The company and its customers are simulated (`edp/simulate.py`). The process, the rules, the
+The company and its customers are simulated (`clearledger/simulate.py`). The process, the rules, the
 writes into Odoo and the measurements are real.
 
 ## Try it
 
-After `python -m edp.demo` has built the company and the warehouse:
+After `python -m clearledger.demo` has built the company and the warehouse:
 
 ```
 python -m remit run --mode shadow     # what Remit would do; nothing can be applied

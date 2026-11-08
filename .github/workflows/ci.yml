@@ -32,13 +32,13 @@ jobs:
       PGHOST: localhost
       PGUSER: odoo
       PGPASSWORD: odoo-ci
-      EDP_PGHOST: localhost
-      EDP_PGPASSWORD: odoo-ci
-      EDP_DSN: host=localhost dbname=warehouse user=odoo
+      CLEARLEDGER_PGHOST: localhost
+      CLEARLEDGER_PGPASSWORD: odoo-ci
+      CLEARLEDGER_DSN: host=localhost dbname=warehouse user=odoo
       ANALYST_ADS_DSN: host=localhost dbname=adsdemo user=odoo
       REMIT_TEST_ADMIN_DSN: host=localhost dbname=postgres user=odoo
-      EDP_DRILL_ODOO_STOP: scripts/odoo-local.sh stop
-      EDP_DRILL_ODOO_START: scripts/odoo-local.sh start
+      CLEARLEDGER_DRILL_ODOO_STOP: scripts/odoo-local.sh stop
+      CLEARLEDGER_DRILL_ODOO_START: scripts/odoo-local.sh start
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -55,10 +55,10 @@ jobs:
       - name: Simulate a year of business, load it, build every model and check
         run: |
           createdb warehouse
-          .venv/bin/python -m edp.demo
+          .venv/bin/python -m clearledger.demo
       - name: Voight, the training ground, against a frozen copy of this Odoo (no model is called)
         # Straight after the demo, before the drills add a day of new business and Remit
-        # writes notes: the tasks are built from the company exactly as edp.demo leaves it,
+        # writes notes: the tasks are built from the company exactly as clearledger.demo leaves it,
         # so the rebuilt test split must match its pinned hash. Then the oracle must solve
         # one task of every kind, and the guard must fail an agent that changes books
         # outside its task.
@@ -77,9 +77,9 @@ jobs:
           .venv-analyst/bin/python -m analyst.ads.simulate --admin-dsn "host=localhost dbname=postgres user=odoo"
           ANALYST_TESTS=1 ANALYST_TESTS_NEED_DB=1 .venv-analyst/bin/python -m pytest -q analyst
       - name: Monitors
-        run: .venv/bin/python -m edp.cli monitor
+        run: .venv/bin/python -m clearledger.cli monitor
       - name: Failure drills
-        run: .venv/bin/python -m edp.drills
+        run: .venv/bin/python -m clearledger.drills
       - name: Dataset build, with leakage checks
         run: |
           .venv/bin/python eval/build.py > /dev/null

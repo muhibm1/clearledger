@@ -1,0 +1,15 @@
+# ChangeLens: lineage, owners, rules and incident history for this warehouse.
+db: .changelens/graph.duckdb
+constraints: changelens/constraints
+adapters:
+  dbt:
+    project: dbt
+  git:
+    paths: [dbt, changelens]
+    max_commits: 200
+  incidents:
+    dir: changelens/incidents
+retrieval:
+  ranker: bm25
+review:
+  provider: stub

@@ -4,7 +4,7 @@ Each drill does something that happens in production, against the real Odoo
 and warehouse, and records what the pipeline did. Run them on a demo stack,
 never on a client's systems:
 
-  EDP_DRILL_ODOO_STOP="..." EDP_DRILL_ODOO_START="..." python -m edp.drills
+  CLEARLEDGER_DRILL_ODOO_STOP="..." CLEARLEDGER_DRILL_ODOO_START="..." python -m clearledger.drills
 
 1. odoo_outage      Odoo goes down mid-schedule, then comes back with new work waiting.
 2. overlapping_runs Two runs start at once, as when cron fires while a slow run is still going.
@@ -36,7 +36,7 @@ PY = sys.executable
 
 def _run(*args, env=None) -> tuple[int, str, float]:
     t0 = time.time()
-    p = subprocess.run([PY, "-m", "edp.cli", *args], capture_output=True, text=True, cwd=ROOT,
+    p = subprocess.run([PY, "-m", "clearledger.cli", *args], capture_output=True, text=True, cwd=ROOT,
                        env={**os.environ, **(env or {})})
     return p.returncode, p.stdout + p.stderr, round(time.time() - t0, 1)
 
@@ -50,10 +50,10 @@ def _last_run(conn):
 
 
 def odoo_outage(conn) -> dict:
-    _sh(os.environ["EDP_DRILL_ODOO_STOP"])
-    code_down, out_down, secs_down = _run("run", env={"EDP_ODOO_RETRIES": "2"})
+    _sh(os.environ["CLEARLEDGER_DRILL_ODOO_STOP"])
+    code_down, out_down, secs_down = _run("run", env={"CLEARLEDGER_ODOO_RETRIES": "2"})
     failed = _last_run(conn)
-    _sh(os.environ["EDP_DRILL_ODOO_START"])
+    _sh(os.environ["CLEARLEDGER_DRILL_ODOO_START"])
     work = simulate.tick(simulate.Company(odoo(), random.Random(7)))
     code_up, out_up, secs_up = _run("run")
     recovered = _last_run(conn)
@@ -68,7 +68,7 @@ def odoo_outage(conn) -> dict:
 
 
 def overlapping_runs(conn) -> dict:
-    procs = [subprocess.Popen([PY, "-m", "edp.cli", "run"], cwd=ROOT, stdout=subprocess.PIPE,
+    procs = [subprocess.Popen([PY, "-m", "clearledger.cli", "run"], cwd=ROOT, stdout=subprocess.PIPE,
                               stderr=subprocess.STDOUT, text=True) for _ in range(2)]
     codes = sorted(p.wait() for p in procs)
     outs = [p.stdout.read() for p in procs]
@@ -112,7 +112,7 @@ def lost_records(conn) -> dict:
     return {"passed": caught.status == "fail" and after.status == "ok",
             "rows_deleted_for_invoices": sorted(r[0] for r in gone),
             "detected": {"status": caught.status, "message": caught.message},
-            "repair": {"command": "edp extract --full", "exit": code_fix, "seconds": secs},
+            "repair": {"command": "clearledger extract --full", "exit": code_fix, "seconds": secs},
             "after_repair": {"status": after.status, "message": after.message}}
 
 

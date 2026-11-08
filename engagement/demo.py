@@ -149,17 +149,17 @@ TRAPS = [
 ]
 
 
-# Runs dbt parse, Fathom sync and the drop-column preflight; returns (passed, summary).
-def fathom_guard():
+# Runs dbt parse, ChangeLens sync and the drop-column preflight; returns (passed, summary).
+def changelens_guard():
     bin_dir = Path(sys.executable).parent
-    dbt, fathom = bin_dir / "dbt", bin_dir / "fathom"
-    if not (dbt.exists() and fathom.exists()):
-        return None, "skipped: dbt or fathom is not installed in this environment"
+    dbt, changelens = bin_dir / "dbt", bin_dir / "changelens"
+    if not (dbt.exists() and changelens.exists()):
+        return None, "skipped: dbt or changelens is not installed in this environment"
     env = {**os.environ, "NO_COLOR": "1", "COLUMNS": "200"}
     steps = [
         [str(dbt), "parse", "--profiles-dir", ".", "--quiet"],
-        [str(fathom), "sync"],
-        [str(fathom), "preflight", "--intent", "drop the late_over_90 column from receivables_aging"],
+        [str(changelens), "sync"],
+        [str(changelens), "preflight", "--intent", "drop the late_over_90 column from receivables_aging"],
     ]
     out = ""
     for i, cmd in enumerate(steps):
@@ -213,7 +213,7 @@ def run(say=print) -> dict:
         ok, what = fn()
         traps.append({"trap": name, "passed": ok, "result": what})
         say(f"  {'PASS' if ok else 'FAIL'}  {name}\n        {what}")
-    ok, what = fathom_guard()
+    ok, what = changelens_guard()
     guard = {"check": "Drop a column the month-end close reads", "passed": ok, "result": what}
     say(f"  {'SKIP' if ok is None else 'PASS' if ok else 'FAIL'}  {guard['check']}\n        {what}")
 

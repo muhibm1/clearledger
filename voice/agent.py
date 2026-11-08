@@ -3,19 +3,19 @@
 Everything here is plain data, built without the ElevenLabs SDK, so it can be read, tested
 and reviewed with no account. `deploy.py` sends it to ElevenAgents.
 
-The tools are the six ask-the-warehouse tools in `edp/ask.py`, unchanged. Each becomes an
+The tools are the six ask-the-warehouse tools in `clearledger/ask.py`, unchanged. Each becomes an
 ElevenAgents *client tool*: ElevenLabs decides when to call it, and the call runs in
 `talk.py` on the machine that holds the warehouse. The data never has to be reachable from
-the internet, and the read-only rules in `edp/ask.py` still apply to every call.
+the internet, and the read-only rules in `clearledger/ask.py` still apply to every call.
 """
 
 import inspect
 import typing
 
-from edp import ask
+from clearledger import ask
 
 NAME = "ERP finance desk (voice)"
-TAG = "erp-data-platform"
+TAG = "clearledger"
 
 # Short and spoken: a voice reply is heard once, so it carries one fact and an offer of more.
 FIRST_MESSAGE = "Finance desk. Ask me who owes what, who's late, or whether a deal turned into cash."
@@ -98,7 +98,7 @@ _ARG_HELP = {
 
 
 def tool_configs() -> list[dict]:
-    """One ElevenAgents client tool per ask-the-warehouse tool, in the order edp/ask.py lists them."""
+    """One ElevenAgents client tool per ask-the-warehouse tool, in the order clearledger/ask.py lists them."""
     return [{
         "type": "client",
         "name": name,
