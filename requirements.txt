@@ -5,4 +5,4 @@ dbt-postgres==1.8.2      # Apache-2.0
 pytest==8.3.3            # MIT
 mcp==2.3.0               # MIT, serves the agent tools (Fathom needs it too)
 # Fathom (Apache-2.0) for lineage and change checks, pinned to a commit
-fathom @ git+https://github.com/muhibm1/fathom@f6b53043c168c0e8d9627338102753c54f71fa72
+fathom @ git+https://github.com/muhibm1/fathom@f7755ed69d36af294240277e3754950c57c0e1fb

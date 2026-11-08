@@ -1,8 +1,8 @@
-BLOCK  risk 72/100  pf_53fc2efbc419272a  graph as of 2026-10-27T08:33:56.356746+00:00  (reused)
+BLOCK  risk 72/100  pf_e6cdb6121afcabfa  graph as of 2026-11-08 01:24:46.749235+00:00  (reused)
 Drop column on receivables_aging.late_over_90 reaches 2 downstream assets, 2 of them tier 1 
-(collections_queue, month_end_close). Fires CON-101 (block). Earlier incidents on these assets (INC-001) are 
-not from this kind of change. Before merging: run tests for receivables_aging+; get sign-off from 
-team/finance; tell Finance; tell Revenue ops. Severity block.
+(collections_queue, month_end_close). Fires CON-101 (block). Earlier incidents on these assets (INC-003, 
+INC-004, INC-002) are not from this kind of change. Before merging: run tests for receivables_aging+; get 
+sign-off from team/finance; tell Finance; tell Revenue ops. Severity block.
 change
   drop_column        model:receivables_aging.late_over_90   (from intent)
 affected (2)
@@ -12,26 +12,21 @@ constraints
   CON-101 columns_locked (block): drop_column on receivables_aging.late_over_90 reaches a locked asset 
 directly
 history
-╭──────────────────────────────────── Traceback (most recent call last) ─────────────────────────────────────╮
-│ /home/user/fathom/src/fathom/cli.py:225 in preflight                                                       │
-│                                                                                                            │
-│   222 │   elif fmt == "markdown":                                                                          │
-│   223 │   │   typer.echo(to_markdown(v))                                                                   │
-│   224 │   else:                                                                                            │
-│ ❱ 225 │   │   _print_verdict(v)                                                                            │
-│   226 │   for p in problems:                                                                               │
-│   227 │   │   console.print(f"[yellow]constraint file problem:[/] {p}")                                    │
-│   228                                                                                                      │
-│                                                                                                            │
-│ /home/user/fathom/src/fathom/cli.py:260 in _print_verdict                                                  │
-│                                                                                                            │
-│   257 │   if v["history"]:                                                                                 │
-│   258 │   │   console.print("[bold]history[/]")                                                            │
-│   259 │   │   for h in v["history"][:5]:                                                                   │
-│ ❱ 260 │   │   │   console.print(f"  {h['occurred_at']:%Y-%m-%d} {h['kind']:<17} {h['ref'] or '':<9}        │
-│       {h['title'] or ''}  ({h['relevance']})  {escape('[' + h['event'] + ']')}")                           │
-│   261 │   if v["checks"]:                                                                                  │
-│   262 │   │   console.print("[bold]checks[/]")                                                             │
-│   263 │   │   for c in v["checks"]:                                                                        │
-╰────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-ValueError: Invalid format specifier '%Y-%m-%d' for object of type 'str'
+  2026-10-27 postmortem_filed  INC-003   Drill: Odoo unreachable during a scheduled run  (same asset)  
+[ev_91f55a891ea1]
+  2026-10-27 postmortem_filed  INC-004   Drill: rows lost from the warehouse were invisible to the internal 
+checks  (same asset)  [ev_5326bfd1c5ae]
+  2026-10-27 incident_opened   INC-004   Drill: rows lost from the warehouse were invisible to the internal 
+checks  (same asset)  [ev_5cf53ee22d55]
+  2026-10-27 incident_opened   INC-003   Drill: Odoo unreachable during a scheduled run  (same asset)  
+[ev_0246b386f622]
+  2026-10-27 postmortem_filed  INC-002   A scheduled run waited forever behind a reader's open transaction  
+(same asset)  [ev_472976e3d7c9]
+checks
+  run_tests              {'target': 'receivables_aging+'}
+  get_approval           {'from': ['team/finance'], 'for': 'CON-101'}
+  notify_owner           {'owner': 'Finance', 'assets': ['report:month_end_close']}
+  notify_owner           {'owner': 'Revenue ops', 'assets': ['report:collections_queue']}
+  confirm_resolution     {'note': 'ops were resolved from intent; confirm the assets before acting'}
+risk: tier1_consumers=2 (+30); block_constraint=1 (+25); incident_recency=None (+0); destructive_op=1 (+15); 
+blast_radius=2 (+2.4)
