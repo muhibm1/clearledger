@@ -1,9 +1,10 @@
 """The Kaggle kernel: builds the episode environment, trains, scores, and leaves results in /kaggle/working.
 
 Reads the bundle from the attached `voight-bundle` dataset (see bundle.sh). The job
-is the JOB list below: one longer GRPO run from the supervised warm start, mixing
-attacked tasks into training, then the dev subset and the attack range. Outputs
-land in /kaggle/working/out, which Kaggle keeps when the run ends.
+is the JOB list below: a supervised pass on ties and overpayments from the warm start,
+then one longer GRPO run from the warm start, mixing attacked tasks into training, each
+scored on the dev subset and the attack range. Results and adapters are copied to
+/kaggle/working/out after every step, which Kaggle keeps when the run ends.
 """
 
 import glob
@@ -21,9 +22,17 @@ OUT = f"{WORK}/out"
 START = os.environ.get("VOIGHT_START", "runs/sft-1.5b-range")
 MODEL = "Qwen/Qwen2.5-1.5B-Instruct"
 # bfloat16 only where the card has it (A100, L4); a T4 or P100 trains in float32, which fits 16 GB for LoRA.
+ADAPTERS = ["sft-1.5b-esc", "grpo-gpu"]
 BF16 = ["--bf16"] if torch.cuda.is_available() and torch.cuda.is_bf16_supported() else []
 
 JOB = [
+    # A supervised pass on ties and overpayments, which the warm start still misses (0/3 each on the dev subset).
+    ["voight.train.sft", "fit", "--model", MODEL, "--adapter", START, "--traces", "runs/sft-escalate-mix.jsonl",
+     "--out", "runs/sft-1.5b-esc", "--lr", "1e-4", *BF16],
+    ["voight.train.evaluate", "--model", MODEL, "--adapter", "runs/sft-1.5b-esc", "--name", "qwen1.5b-sft-esc",
+     "--split", "dev", "--per-kind", "3", "--slots", "8"],
+    ["voight.train.evaluate", "--model", MODEL, "--adapter", "runs/sft-1.5b-esc", "--name", "qwen1.5b-sft-esc",
+     "--split", "dev", "--range", "--slots", "8"],
     ["voight.train.grpo", "--model", MODEL, "--adapter", START, "--out", "runs/grpo-gpu",
      "--iterations", "60", "--tasks-per-iter", "8", "--group", "8", "--lr", "1e-5",
      "--slots", "8", "--save-every", "10", "--attacks", "plain,authority,policy_update", *BF16],
@@ -60,12 +69,22 @@ def bundle_dir() -> str:
     return stage
 
 
+def save() -> None:
+    """Copies whatever results and adapters exist so far to out/."""
+    if os.path.isdir(f"{REPO}/voight/results"):
+        shutil.copytree(f"{REPO}/voight/results", f"{OUT}/results", dirs_exist_ok=True)
+    for name in ADAPTERS:
+        if os.path.isdir(f"{REPO}/runs/{name}"):
+            shutil.copytree(f"{REPO}/runs/{name}", f"{OUT}/{name}", dirs_exist_ok=True)
+
+
 def sh(args: list[str], log: str, **kw) -> None:
     """Runs one step with its output in a log file under out/, and stops the kernel if it fails."""
     print("$", " ".join(args), flush=True)
     with open(f"{OUT}/{log}", "a") as f:
         code = subprocess.call(args, stdout=f, stderr=subprocess.STDOUT, **kw)
     if code:
+        save()
         sys.exit(f"step failed ({code}); see out/{log}")
 
 
@@ -80,8 +99,7 @@ def main() -> None:
            "LANGSMITH_TRACING": "false", "PYTHONPATH": REPO}
     for i, step in enumerate(JOB):
         sh([sys.executable, "-m", *step], f"step{i}.log", cwd=REPO, env=env)
-    shutil.copytree(f"{REPO}/voight/results", f"{OUT}/results", dirs_exist_ok=True)
-    shutil.copytree(f"{REPO}/runs/grpo-gpu", f"{OUT}/grpo-gpu", dirs_exist_ok=True)
+        save()
     print("done", flush=True)
 
 

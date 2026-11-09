@@ -15,6 +15,7 @@ same episode environment there (Postgres 16, Odoo 17, the frozen company) and tr
 4. When it finishes: `kaggle kernels output <you>/voight-grpo -p runs/kaggle`. `out/results` holds
    the score files and `out/grpo-gpu` the trained adapter.
 
-`run.py` is the job: GRPO for 60 iterations of 8 tasks with 8 attempts each, half of every batch
+`run.py` is the job: first a supervised pass on ties and overpayments (`runs/sft-escalate-mix.jsonl`,
+adapter `out/sft-1.5b-esc`), scored on the dev subset and the attack range; then GRPO for 60 iterations of 8 tasks with 8 attempts each, half of every batch
 attacked with the three trained techniques, then the dev subset and the attack range. It trains in
 bfloat16 where the card supports it and in float32 otherwise (T4, P100).
