@@ -7,6 +7,7 @@ land in /kaggle/working/out, which Kaggle keeps when the run ends.
 """
 
 import glob
+import gzip
 import os
 import shutil
 import subprocess
@@ -41,6 +42,24 @@ def find(name: str) -> str:
     return hits[0]
 
 
+def bundle_dir() -> str:
+    """The folder setup.sh reads, with the dump gzipped as it expects.
+
+    Kaggle unpacks a .gz file on upload, so the dataset can hold vtgolden.sql rather
+    than vtgolden.sql.gz. In that case the dump is gzipped again into a staging folder
+    next to a copy of the filestore archive.
+    """
+    gz = glob.glob("/kaggle/input/**/vtgolden.sql.gz", recursive=True)
+    if gz:
+        return os.path.dirname(gz[0])
+    stage = "/tmp/voight-bundle"
+    os.makedirs(stage, exist_ok=True)
+    with open(find("vtgolden.sql"), "rb") as src, gzip.open(f"{stage}/vtgolden.sql.gz", "wb") as dst:
+        shutil.copyfileobj(src, dst)
+    shutil.copy(find("vtgolden-filestore.tgz"), stage)
+    return stage
+
+
 def sh(args: list[str], log: str, **kw) -> None:
     """Runs one step with its output in a log file under out/, and stops the kernel if it fails."""
     print("$", " ".join(args), flush=True)
@@ -55,7 +74,7 @@ def main() -> None:
     os.makedirs(OUT, exist_ok=True)
     os.makedirs(REPO, exist_ok=True)
     sh(["tar", "xzf", find("repo.tgz"), "-C", REPO], "setup.log")
-    bundle = os.path.dirname(find("vtgolden.sql.gz"))
+    bundle = bundle_dir()
     sh(["bash", "voight/kaggle/setup.sh", bundle], "setup.log", cwd=REPO)
     env = {**os.environ, "PGHOST": "localhost", "PGUSER": "odoo", "PGPASSWORD": "odoo-local",
            "LANGSMITH_TRACING": "false", "PYTHONPATH": REPO}
