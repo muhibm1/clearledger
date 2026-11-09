@@ -69,8 +69,16 @@ JOBS = {
         ["voight.train.evaluate", "--model", MODEL, "--adapter", f"{OUT}/sft-1.5b-full", "--name", "qwen1.5b-sft-full",
          "--split", "dev", "--slots", "8"],
     ],
+    # The one scoring of the held-out test split, for the frozen w4c adapter read from that
+    # run's output: all of test, then the attack range built from test customers.
+    "w4c-test": [
+        ["voight.train.evaluate", "--model", MODEL, "--adapter", "@sft-1.5b-full", "--name", "qwen1.5b-sft-full",
+         "--split", "test", "--slots", "8"],
+        ["voight.train.evaluate", "--model", MODEL, "--adapter", "@sft-1.5b-full", "--name", "qwen1.5b-sft-full",
+         "--split", "test", "--range", "--slots", "8"],
+    ],
 }
-RUN = "w4c"
+RUN = "w4c-test"
 
 
 def find(name: str) -> str:
