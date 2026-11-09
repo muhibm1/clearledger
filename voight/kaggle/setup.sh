@@ -27,7 +27,15 @@ mkdir -p "$HOME_DIR/src" "$HOME_DIR/data/filestore"
 curl -fsSL https://nightly.odoo.com/17.0/nightly/src/odoo_17.0.latest.tar.gz | tar xz -C "$HOME_DIR/src" --strip-components=1
 grep -v -i -E "^python-ldap|^psycopg2" "$HOME_DIR/src/requirements.txt" > "$HOME_DIR/req.txt"
 echo "psycopg2-binary==2.9.9" >> "$HOME_DIR/req.txt"
-python3 -m venv "$HOME_DIR/venv"
+# Odoo 17 supports Python up to 3.12 and Kaggle's own Python has no ensurepip, so Odoo gets
+# Python 3.11 from the deadsnakes PPA, the version the local runs use.
+if ! command -v python3.11 > /dev/null; then
+  apt-get -qq install -y software-properties-common > /dev/null
+  add-apt-repository -y ppa:deadsnakes/ppa > /dev/null
+  apt-get -qq update
+fi
+apt-get -qq install -y python3.11 python3.11-venv python3.11-dev > /dev/null
+python3.11 -m venv "$HOME_DIR/venv"
 "$HOME_DIR/venv/bin/pip" install -q -r "$HOME_DIR/req.txt"
 "$HOME_DIR/venv/bin/pip" install -q --no-deps -e "$HOME_DIR/src"
 cat > "$HOME_DIR/odoo.conf" <<CONF
