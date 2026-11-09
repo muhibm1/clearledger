@@ -120,9 +120,10 @@ def guard_step():
 
 # Step 4: Agent Harbor, the daily cost cap.
 def harbor_step(question):
-    name = "Agent Harbor stops further runs once the daily cap is spent (recorded drill)"
+    name = "Agent Harbor stops further runs once the daily cap is spent"
     url = os.environ.get("AGENT_HARBOR_URL", "").rstrip("/")
     if not url:
+        name += " (recorded drill)"
         rec = json.loads(HARBOR_RECORDING.read_text())
         s = rec["source"]
         return step(4, name, "RECORDED",
