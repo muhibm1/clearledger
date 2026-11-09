@@ -95,8 +95,8 @@ def fit(model_name: str, out: str, epochs: int = 1, lr: float = 2e-4, rank: int 
     for epoch in range(epochs):
         for i, row in enumerate(rows):
             p, t = _example(tok, row)
-            ids = torch.tensor([p + t])
-            labels = torch.tensor([[-100] * len(p) + t])
+            ids = torch.tensor([p + t], device=model.device)
+            labels = torch.tensor([[-100] * len(p) + t], device=model.device)
             loss = model(input_ids=ids, labels=labels).loss
             loss.backward()
             opt.step()

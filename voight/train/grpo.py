@@ -38,9 +38,9 @@ from . import lm, rollout
 
 def _logprobs(model, prompt: list[int], completion: list[int]) -> torch.Tensor:
     """Log-probability of each completion token given the prompt and the tokens before it."""
-    ids = torch.tensor([prompt + completion])
+    ids = torch.tensor([prompt + completion], device=model.device)
     logits = model(input_ids=ids).logits[0, len(prompt) - 1:-1]
-    return torch.log_softmax(logits.float(), dim=-1).gather(1, torch.tensor(completion)[:, None])[:, 0]
+    return torch.log_softmax(logits.float(), dim=-1).gather(1, torch.tensor(completion, device=model.device)[:, None])[:, 0]
 
 
 def advantages(rewards: list[float]) -> list[float] | None:
