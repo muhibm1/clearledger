@@ -15,6 +15,23 @@ same episode environment there (Postgres 16, Odoo 17, the frozen company) and tr
 4. When it finishes: `kaggle kernels output <you>/voight-grpo -p runs/kaggle`. `out/results` holds
    the score files and `out/grpo-gpu` the trained adapter.
 
-`run.py` is the job: GRPO for 60 iterations of 8 tasks with 8 attempts each, half of every batch
-attacked with the three trained techniques, then the dev subset and the attack range. It trains in
-bfloat16 where the card supports it and in float32 otherwise (T4, P100).
+`run.py` is the job. Each run is a named entry in its `JOBS` list and `RUN` picks the one a push
+executes, so the jobs that produced the numbers in the main README stay readable: `w4` (a supervised
+pass on ties and overpayments, then GRPO, which Kaggle's 12 hour cap stopped at iteration 42 of 60),
+`w4b` and `w4c` (supervised passes on wider trace mixes). The repo and Odoo live in `/tmp`; adapters
+are written to `out/` and score files copied there after every step, so a run stopped by the cap
+keeps what it finished.
+
+Trace mixes beyond the bundle's own `runs/*.jsonl` are uploaded as separate dataset files and named
+with a leading `@` in a job (`@sft-full-mix.jsonl`). `sft-full-mix.jsonl` is `sft-escalate-mix.jsonl`
+plus `sft-range-mix.jsonl` plus the oracle's train steps (`oracle-traces-train.jsonl`) for
+`two_credits`, `memo_short`, `partial_span` and `injection` once, `two_credits_esc` and `mixed_ref`
+twice and `wrong_ref` three times, shuffled with seed 7 (1,511 rows). `sft-balance-mix.jsonl` (w4b) is
+`sft-escalate-mix.jsonl` plus the oracle steps for `injection` and `two_credits_esc` twice and
+`mixed_ref` and `wrong_ref` three times (766 rows).
+
+Kaggle notes: the account needs a verified phone number for a kernel to reach the internet (without
+it every download fails to resolve); Kaggle unpacks a `.gz` file on upload, which `run.py` handles;
+Kaggle's own Python has no `ensurepip`, so `setup.sh` gives Odoo Python 3.11.
+
+It trains in bfloat16 when PyTorch reports the card supports it and in float32 otherwise. On the T4 that ran these jobs PyTorch reported support, so all three trained in bfloat16.

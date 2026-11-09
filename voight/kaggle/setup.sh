@@ -13,7 +13,7 @@ HOME_DIR="$REPO/.odoo"
 apt-get -qq update
 apt-get -qq install -y curl ca-certificates gnupg lsb-release > /dev/null
 install -d /usr/share/postgresql-common/pgdg
-curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+curl -fsSL --retry 5 --retry-delay 10 --retry-all-errors -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
 echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
   > /etc/apt/sources.list.d/pgdg.list
 apt-get -qq update
@@ -24,10 +24,18 @@ export PGHOST=localhost PGUSER=odoo PGPASSWORD=odoo-local
 
 # Odoo 17, the same way scripts/odoo-local.sh installs it.
 mkdir -p "$HOME_DIR/src" "$HOME_DIR/data/filestore"
-curl -fsSL https://nightly.odoo.com/17.0/nightly/src/odoo_17.0.latest.tar.gz | tar xz -C "$HOME_DIR/src" --strip-components=1
+curl -fsSL --retry 5 --retry-delay 10 --retry-all-errors https://nightly.odoo.com/17.0/nightly/src/odoo_17.0.latest.tar.gz | tar xz -C "$HOME_DIR/src" --strip-components=1
 grep -v -i -E "^python-ldap|^psycopg2" "$HOME_DIR/src/requirements.txt" > "$HOME_DIR/req.txt"
 echo "psycopg2-binary==2.9.9" >> "$HOME_DIR/req.txt"
-python3 -m venv "$HOME_DIR/venv"
+# Odoo 17 supports Python up to 3.12 and Kaggle's own Python has no ensurepip, so Odoo gets
+# Python 3.11 from the deadsnakes PPA, the version the local runs use.
+if ! command -v python3.11 > /dev/null; then
+  apt-get -qq install -y software-properties-common > /dev/null
+  add-apt-repository -y ppa:deadsnakes/ppa > /dev/null
+  apt-get -qq update
+fi
+apt-get -qq install -y python3.11 python3.11-venv python3.11-dev > /dev/null
+python3.11 -m venv "$HOME_DIR/venv"
 "$HOME_DIR/venv/bin/pip" install -q -r "$HOME_DIR/req.txt"
 "$HOME_DIR/venv/bin/pip" install -q --no-deps -e "$HOME_DIR/src"
 cat > "$HOME_DIR/odoo.conf" <<CONF
