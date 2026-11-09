@@ -1,10 +1,9 @@
 """The Kaggle kernel: builds the episode environment, trains, scores, and leaves results in /kaggle/working.
 
 Reads the bundle from the attached `voight-bundle` dataset (see bundle.sh). The job
-is the JOB list below: a supervised pass on ties and overpayments from the warm start,
-then one longer GRPO run from the warm start, mixing attacked tasks into training, each
-scored on the dev subset and the attack range. Results and adapters are copied to
-/kaggle/working/out after every step, which Kaggle keeps when the run ends.
+is one entry of JOBS below, picked by RUN: training and scoring steps run in order,
+each with its log in out/. Adapters are written to out/ and score files copied there
+after every step, so a run that hits Kaggle's 12 hour cap keeps what it finished.
 """
 
 import glob
@@ -17,30 +16,50 @@ import sys
 import torch
 
 WORK = "/kaggle/working"
-REPO = f"{WORK}/repo"
+# The repo and Odoo live outside /kaggle/working, so the run's output is only out/.
+REPO = "/tmp/voight-repo"
 OUT = f"{WORK}/out"
 START = os.environ.get("VOIGHT_START", "runs/sft-1.5b-range")
 MODEL = "Qwen/Qwen2.5-1.5B-Instruct"
 # bfloat16 only where the card has it (A100, L4); a T4 or P100 trains in float32, which fits 16 GB for LoRA.
-ADAPTERS = ["sft-1.5b-esc", "grpo-gpu"]
 BF16 = ["--bf16"] if torch.cuda.is_available() and torch.cuda.is_bf16_supported() else []
 
-JOB = [
-    # A supervised pass on ties and overpayments, which the warm start still misses (0/3 each on the dev subset).
-    ["voight.train.sft", "fit", "--model", MODEL, "--adapter", START, "--traces", "runs/sft-escalate-mix.jsonl",
-     "--out", "runs/sft-1.5b-esc", "--lr", "1e-4", *BF16],
-    ["voight.train.evaluate", "--model", MODEL, "--adapter", "runs/sft-1.5b-esc", "--name", "qwen1.5b-sft-esc",
-     "--split", "dev", "--per-kind", "3", "--slots", "8"],
-    ["voight.train.evaluate", "--model", MODEL, "--adapter", "runs/sft-1.5b-esc", "--name", "qwen1.5b-sft-esc",
-     "--split", "dev", "--range", "--slots", "8"],
-    ["voight.train.grpo", "--model", MODEL, "--adapter", START, "--out", "runs/grpo-gpu",
-     "--iterations", "60", "--tasks-per-iter", "8", "--group", "8", "--lr", "1e-5",
-     "--slots", "8", "--save-every", "10", "--attacks", "plain,authority,policy_update", *BF16],
-    ["voight.train.evaluate", "--model", MODEL, "--adapter", "runs/grpo-gpu", "--name", "qwen1.5b-grpo-gpu",
-     "--split", "dev", "--per-kind", "3", "--slots", "8"],
-    ["voight.train.evaluate", "--model", MODEL, "--adapter", "runs/grpo-gpu", "--name", "qwen1.5b-grpo-gpu",
-     "--split", "dev", "--range", "--slots", "8"],
-]
+
+def score(adapter: str, name: str) -> list[list[str]]:
+    """The two standard scores for one adapter: the 42-task dev subset and the attack range."""
+    base = ["voight.train.evaluate", "--model", MODEL, "--adapter", adapter, "--name", name, "--split", "dev",
+            "--slots", "8"]
+    return [[*base, "--per-kind", "3"], [*base, "--range"]]
+
+
+# Each run is one named job; RUN picks the one this push executes. Adapters are written
+# straight to out/, so a run stopped by Kaggle's 12 hour cap keeps its last save.
+JOBS = {
+    # 2026-11-09, first GPU run: a supervised pass on ties and overpayments, then 60 GRPO
+    # iterations (the cap stopped it after 42; the save at 40 is in its output).
+    "w4": [
+        ["voight.train.sft", "fit", "--model", MODEL, "--adapter", START, "--traces", "runs/sft-escalate-mix.jsonl",
+         "--out", f"{OUT}/sft-1.5b-esc", "--lr", "1e-4", *BF16],
+        *score(f"{OUT}/sft-1.5b-esc", "qwen1.5b-sft-esc"),
+        ["voight.train.grpo", "--model", MODEL, "--adapter", START, "--out", f"{OUT}/grpo-gpu",
+         "--iterations", "60", "--tasks-per-iter", "8", "--group", "8", "--lr", "1e-5",
+         "--slots", "8", "--save-every", "10", "--attacks", "plain,authority,policy_update", *BF16],
+        *score(f"{OUT}/grpo-gpu", "qwen1.5b-grpo-gpu"),
+    ],
+    # The w4 pass fixed ties and overpayments but lost injection, two_credits_esc and the
+    # reference escalations. The same pass with those kinds' oracle steps added back
+    # (sft-balance-mix.jsonl, a dataset file), scored on the subset, the range and all of dev;
+    # then the w4 GRPO save at iteration 40, read from that run's output.
+    "w4b": [
+        ["voight.train.sft", "fit", "--model", MODEL, "--adapter", START, "--traces", "@sft-balance-mix.jsonl",
+         "--out", f"{OUT}/sft-1.5b-bal", "--lr", "1e-4", *BF16],
+        *score(f"{OUT}/sft-1.5b-bal", "qwen1.5b-sft-bal"),
+        ["voight.train.evaluate", "--model", MODEL, "--adapter", f"{OUT}/sft-1.5b-bal", "--name", "qwen1.5b-sft-bal",
+         "--split", "dev", "--slots", "8"],
+        *score("@grpo-gpu", "qwen1.5b-grpo-gpu-it40"),
+    ],
+}
+RUN = "w4b"
 
 
 def find(name: str) -> str:
@@ -70,12 +89,18 @@ def bundle_dir() -> str:
 
 
 def save() -> None:
-    """Copies whatever results and adapters exist so far to out/."""
+    """Copies the score files so far to out/ (adapters are written there directly)."""
     if os.path.isdir(f"{REPO}/voight/results"):
         shutil.copytree(f"{REPO}/voight/results", f"{OUT}/results", dirs_exist_ok=True)
-    for name in ADAPTERS:
-        if os.path.isdir(f"{REPO}/runs/{name}"):
-            shutil.copytree(f"{REPO}/runs/{name}", f"{OUT}/{name}", dirs_exist_ok=True)
+
+
+def resolve(arg: str) -> str:
+    """An argument as given, or for "@name" the path of that file or adapter in an attached input."""
+    if not arg.startswith("@"):
+        return arg
+    name = arg[1:]
+    hits = glob.glob(f"/kaggle/input/**/{name}/adapter_config.json", recursive=True)
+    return os.path.dirname(hits[0]) if hits else find(name)
 
 
 def sh(args: list[str], log: str, **kw) -> None:
@@ -97,8 +122,8 @@ def main() -> None:
     sh(["bash", "voight/kaggle/setup.sh", bundle], "setup.log", cwd=REPO)
     env = {**os.environ, "PGHOST": "localhost", "PGUSER": "odoo", "PGPASSWORD": "odoo-local",
            "LANGSMITH_TRACING": "false", "PYTHONPATH": REPO}
-    for i, step in enumerate(JOB):
-        sh([sys.executable, "-m", *step], f"step{i}.log", cwd=REPO, env=env)
+    for i, step in enumerate(JOBS[RUN]):
+        sh([sys.executable, "-m", *map(resolve, step)], f"step{i}.log", cwd=REPO, env=env)
         save()
     print("done", flush=True)
 
