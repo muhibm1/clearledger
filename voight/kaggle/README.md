@@ -34,4 +34,4 @@ Kaggle notes: the account needs a verified phone number for a kernel to reach th
 it every download fails to resolve); Kaggle unpacks a `.gz` file on upload, which `run.py` handles;
 Kaggle's own Python has no `ensurepip`, so `setup.sh` gives Odoo Python 3.11.
 
-It trains in bfloat16 where the card supports it and in float32 otherwise (T4, P100).
+It trains in bfloat16 when PyTorch reports the card supports it and in float32 otherwise. On the T4 that ran these jobs PyTorch reported support, so all three trained in bfloat16.
