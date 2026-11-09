@@ -85,3 +85,49 @@ def test_an_ambiguous_customer_name_is_a_failed_step_not_the_end_of_the_run(monk
     monkeypatch.setattr("clearledger.trace.trace", ambiguous)
     s1, customer = walkthrough.trace_step(Conn(), None)
     assert s1["mode"] == "LIVE" and not s1["ok"] and "matches 2 customers" in s1["reason"] and customer is None
+
+
+# Serves one fixed answer to POST /runs on a free local port; returns its URL and a stop function.
+def _fake_harbor(status, body):
+    import http.server
+    import threading
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def do_POST(self):
+            self.rfile.read(int(self.headers.get("content-length", 0)))
+            data = json.dumps(body).encode()
+            self.send_response(status)
+            self.send_header("content-type", "application/json")
+            self.send_header("content-length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+
+        def log_message(self, *args):
+            pass
+
+    server = http.server.HTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    return f"http://127.0.0.1:{server.server_port}", server.shutdown
+
+
+def test_a_live_cap_refusal_is_reported_as_live_and_not_as_recorded(monkeypatch):
+    url, stop = _fake_harbor(429, {"reason": "cost_cap", "detail": "the daily cost cap is spent"})
+    monkeypatch.setenv("AGENT_HARBOR_URL", url)
+    try:
+        s4 = walkthrough.harbor_step("q")
+    finally:
+        stop()
+    assert s4["mode"] == "LIVE" and s4["ok"]
+    assert "recorded" not in s4["name"]
+    assert s4["result"]["refusal"]["reason"] == "cost_cap"
+
+
+def test_a_live_run_the_service_accepts_is_reported_with_its_cost(monkeypatch):
+    url, stop = _fake_harbor(201, {"request": {"usd": 0.002, "simulated": True}, "state": "stopped"})
+    monkeypatch.setenv("AGENT_HARBOR_URL", url)
+    try:
+        s4 = walkthrough.harbor_step("q")
+    finally:
+        stop()
+    assert s4["mode"] == "LIVE" and s4["ok"] and s4["result"]["http_status"] == 201
+    assert "recorded" not in s4["name"]

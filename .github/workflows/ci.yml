@@ -1,6 +1,6 @@
 # The whole platform end to end on every push: a fresh Odoo with a simulated
 # year of business, the load, every dbt model and check, the unit and warehouse
-# tests, the analyst agent's tests, the five failure drills, the dataset build
+# tests, the analyst agent's tests, the four-step walkthrough, the five failure drills, the dataset build
 # with its leakage checks, and Remit applying an approved reminder to Odoo once.
 # No model is called and no secret is read.
 name: ci
@@ -76,6 +76,11 @@ jobs:
           .venv-analyst/bin/pip install -q -r requirements.txt -r analyst/requirements.txt
           .venv-analyst/bin/python -m analyst.ads.simulate --admin-dsn "host=localhost dbname=postgres user=odoo"
           ANALYST_TESTS=1 ANALYST_TESTS_NEED_DB=1 .venv-analyst/bin/python -m pytest -q analyst
+      - name: The four-step walkthrough on this warehouse (no model is called)
+        # Steps 1 to 3 run live or on the scripted model and fail the job if they fail.
+        # Step 4 reads the recorded Agent Harbor drill: the service is not started here.
+        run: |
+          CLEARLEDGER_ANALYST_PYTHON=.venv-analyst/bin/python .venv/bin/python -m engagement walkthrough --json walkthrough.json
       - name: Monitors
         run: .venv/bin/python -m clearledger.cli monitor
       - name: Failure drills
