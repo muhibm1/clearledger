@@ -125,7 +125,7 @@ class Batcher:
         t = time.time()
         prompts = [self.tok.apply_chat_template(c, tokenize=False, add_generation_prompt=True) for c in chats]
         self.tok.padding_side = "left"
-        enc = self.tok(prompts, return_tensors="pt", padding=True)
+        enc = self.tok(prompts, return_tensors="pt", padding=True).to(self.model.device)
         sample = self.temperature > 0
         kwargs = {"do_sample": True, "temperature": self.temperature, "top_p": 1.0, "top_k": 0} if sample \
             else {"do_sample": False}
@@ -154,13 +154,16 @@ class Batcher:
             self.lock.notify_all()
 
 
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+
+
 def load(name: str, adapter: str | None = None, dtype=torch.float32):
-    """A causal LM and its tokenizer, optionally with a LoRA adapter on top."""
+    """A causal LM and its tokenizer, optionally with a LoRA adapter on top, on the GPU when there is one."""
     from transformers import AutoModelForCausalLM, AutoTokenizer
     tok = AutoTokenizer.from_pretrained(name)
     if tok.pad_token is None:
         tok.pad_token = tok.eos_token
-    model = AutoModelForCausalLM.from_pretrained(name, torch_dtype=dtype)
+    model = AutoModelForCausalLM.from_pretrained(name, torch_dtype=dtype).to(DEVICE)
     if adapter:
         from peft import PeftModel
         model = PeftModel.from_pretrained(model, adapter, is_trainable=True)
