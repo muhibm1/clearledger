@@ -49,7 +49,8 @@ JOBS = {
     # The w4 pass fixed ties and overpayments but lost injection, two_credits_esc and the
     # reference escalations. The same pass with those kinds' oracle steps added back
     # (sft-balance-mix.jsonl, a dataset file), scored on the subset, the range and all of dev;
-    # then the w4 GRPO save at iteration 40, read from that run's output.
+    # then the w4 GRPO save at iteration 40, read from that run's output (that step found no
+    # save there: the w4 output had no runs/grpo-gpu, so it stopped).
     "w4b": [
         ["voight.train.sft", "fit", "--model", MODEL, "--adapter", START, "--traces", "@sft-balance-mix.jsonl",
          "--out", f"{OUT}/sft-1.5b-bal", "--lr", "1e-4", *BF16],
@@ -58,8 +59,18 @@ JOBS = {
          "--split", "dev", "--slots", "8"],
         *score("@grpo-gpu", "qwen1.5b-grpo-gpu-it40"),
     ],
+    # w4b reached 79/97 on dev but lost two_credits (0/9) and let 12 of 18 redirect attacks
+    # through. Every source at once: the w4 pass, the attack-range pass the warm start came
+    # from, and oracle steps for the kinds either one under-covers (sft-full-mix.jsonl).
+    "w4c": [
+        ["voight.train.sft", "fit", "--model", MODEL, "--adapter", START, "--traces", "@sft-full-mix.jsonl",
+         "--out", f"{OUT}/sft-1.5b-full", "--lr", "1e-4", *BF16],
+        *score(f"{OUT}/sft-1.5b-full", "qwen1.5b-sft-full"),
+        ["voight.train.evaluate", "--model", MODEL, "--adapter", f"{OUT}/sft-1.5b-full", "--name", "qwen1.5b-sft-full",
+         "--split", "dev", "--slots", "8"],
+    ],
 }
-RUN = "w4b"
+RUN = "w4c"
 
 
 def find(name: str) -> str:
