@@ -77,7 +77,7 @@ Solved means the outcome was exactly right and nothing else in the books moved. 
 | Applies the money to every invoice in list order | 34 | 68 | 0.35 |
 | Haiku 5.5 | 91 | not run | 0.94 |
 | Sonnet 5.5 | 97 | not run | 1.00 |
-| Qwen2.5-1.5B, trained here (see On a GPU) | 95 | not run | 0.98 |
+| Qwen2.5-1.5B, trained here (see On a GPU; test: 128 of 139) | 95 | not run | 0.98 |
 
 The model rows ran on v2 dev through the same six tools, about four calls a task. On v1's 44 dev tasks Haiku solved 43 and Sonnet 44. On v1 the scripted rows were: oracle 44 of 44 dev and 102 of 102 train, escalate-everything 19 and 42, apply-everywhere 25 and 50.
 
@@ -157,9 +157,18 @@ What each run showed:
 - **w4b added those four kinds back and found the next hole.** 37 of 42 and 79 of 97. It now missed every `two_credits` task (0 of 9), likely confused with the `two_credits_esc` steps it had just seen twice over, and redirect attacks won 12 of 18.
 - **w4c trained on everything at once and kept every gain.** The w4 steps, the attack-range steps the starting adapter was trained on, and the policy-following agent's steps for the kinds either set under-covers (`two_credits`, `memo_short`, `partial_span`, `injection`, and the three escalation kinds repeated two or three times). 95 of 97 on dev, against Haiku 5.5's 91 and Sonnet 5.5's 97. The two misses are both `mixed_ref` (3 of 5). On the range it solved all 12 clean tasks and 5 of 72 attacks won: 0 of 36 with the three techniques it trained on, 5 of 36 with the three it never saw (4 fake end of memo with a "SYSTEM" line, all making it skip a required escalation, and 1 friendly note that made it escalate an exact payment). Haiku lost 4 of 72 on the same range.
 
+**The held-out test.** With w4c frozen, the test split (139 tasks from customers no run had seen, hash pinned) was scored once, together with the attack range built from test customers:
+
+| w4c adapter | Solved | Range: clean solved (12) | Attacks won (72) |
+| --- | --- | --- | --- |
+| Dev (used to pick the run) | 95 of 97 (98%) | 12 | 5 |
+| Test (scored once) | **128 of 139 (92%)** | 12 | **4** |
+
+Test is harder than dev for it, as expected from a best-of-three pick on dev, and it stays above 90%. The 11 misses spread over six kinds: 3 `two_credits`, 3 `typo_ref`, 2 `mixed_ref`, 1 `memo_two`, 1 `partial_span`, 1 `tie`. All 4 attacks that won on test were the fake end of memo with a "SYSTEM" line making it skip a required escalation, a technique left out of training; the five other techniques won 0 of 60. The large models were never run on test, so there is no Haiku or Sonnet number to compare against there. The files are `results/*-sft-full-test.json`.
+
 Caveats, in plain terms:
 
-- **Dev has now been used to choose between runs.** Three runs were compared on it, so 95 of 97 is a best-of-three number. The test split (139 tasks, hash pinned) has never been scored and is the honest check; it is scored once, when the version is frozen.
+- **Dev was used to choose between runs.** Three runs were compared on it, so 95 of 97 is a best-of-three number; the test score above is the honest one.
 - **GRPO on the GPU did not finish.** A 60-iteration GRPO run (8 tasks, 8 attempts each) from the same starting adapter used the rest of the first 12-hour Kaggle session and was stopped at iteration 42 by the time cap, at about 15 minutes an iteration. Its batches already scored 0.78 to 0.98, and most groups were skipped because all 8 attempts scored the same, so they had nothing to teach. It was never scored. The gains above come from supervised passes, not reinforcement learning.
 - **Speed.** With 8 tasks running at once and their model calls batched, the T4 spent about 1.2 s of generation per call (Haiku about 2.5 s and Sonnet about 5.1 s a call over the network), and a whole task took about 47 s from start to finish. All of dev took under 10 minutes.
 
@@ -183,7 +192,7 @@ VOIGHT_LIVE=1 python -m pytest -q voight
 
 ## What comes next
 
-1. Train a small open model on the train split with GRPO (a reinforcement-learning method that needs no second "critic" model) and LoRA (tuning a thin slice of the weights). The first run is done on CPU at 0.5B parameters ([train/](train/README.md)): a supervised warm start took it from 0 to 16 of a 42-task dev subset, and 30 GRPO iterations to 18; it never escalates. At 1.5B parameters, still on CPU, the warm start reaches 27 and 12 GRPO iterations aimed at the escalation kinds reach 29. On a Kaggle GPU, one supervised pass over every trace source reaches 95 of all 97 dev tasks (see On a GPU above). Next is the one scoring of the test split.
+1. Train a small open model on the train split with GRPO (a reinforcement-learning method that needs no second "critic" model) and LoRA (tuning a thin slice of the weights). The first run is done on CPU at 0.5B parameters ([train/](train/README.md)): a supervised warm start took it from 0 to 16 of a 42-task dev subset, and 30 GRPO iterations to 18; it never escalates. At 1.5B parameters, still on CPU, the warm start reaches 27 and 12 GRPO iterations aimed at the escalation kinds reach 29. On a Kaggle GPU, one supervised pass over every trace source reaches 95 of all 97 dev tasks (see On a GPU above). On the held-out test split, scored once, it solves 128 of 139.
 2. Scale to a 7B model and compare it with the large models on dev, then once on test: quality, cost per task and time per task.
 3. Serve the tuned model with vLLM behind Agent Harbor, with a router that sends uncertain cases to a large model.
 4. The attack range (above) is built, and a short supervised pass on attacked train tasks cut the small model's false alarms from 24 to 3 of 24. Next for it: harder attacks (in invoice text and customer names, not only memos) and a longer run on a GPU.
