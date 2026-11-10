@@ -27,7 +27,7 @@ no file edits, no hand-written deletes or updates.
 | 2 | read-only SQL on `raw.load_runs` | the failed run, after four good ones |
 | 3 | checked Odoo answers | it did |
 | 4 | `clearledger extract --full` | stored 2 invoice versions, nothing else |
-| 5 | `clearledger run` | dbt 23 pass, 6 warn; all five monitors OK; warehouse matches Odoo |
+| 5 | `clearledger run` | dbt build 29 pass, 6 warn of 35 (23 checks and 12 models); all five monitors OK; warehouse matches Odoo |
 
 Fixed in seven commands, about 40 seconds, without reading code.
 
