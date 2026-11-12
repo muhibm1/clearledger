@@ -7,7 +7,9 @@ test-paths: ["tests"]
 macro-paths: ["macros"]
 vars:
   # Receivables are aged as of this date. The simulation ends here, so the
-  # numbers stay the same whenever the project is rebuilt.
+  # numbers stay the same whenever the project is rebuilt. Balances are the ones Odoo holds at
+  # load time, not rebuilt as of this date: a payment dated after it still shows as settled
+  # (the payment_after_as_of check warns). Override with `dbt build --vars '{as_of: ...}'`.
   as_of: "2026-10-27"
   company_currency: "USD"
 models:

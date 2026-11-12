@@ -4,7 +4,7 @@ clearledger:
     local:
       type: postgres
       host: "{{ env_var('CLEARLEDGER_PGHOST', '/tmp') }}"
-      port: 5432
+      port: "{{ env_var('CLEARLEDGER_PGPORT', '5432') | as_number }}"
       user: "{{ env_var('CLEARLEDGER_PGUSER', 'odoo') }}"
       password: "{{ env_var('CLEARLEDGER_PGPASSWORD', '') }}"
       dbname: "{{ env_var('CLEARLEDGER_PGDATABASE', 'warehouse') }}"

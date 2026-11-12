@@ -14,13 +14,25 @@ credit_notes as (
     where move_type = 'out_refund' and amount_open < 0
     group by customer_key
 ),
-unmatched_payments as (
+-- Cash a customer sent that no invoice has absorbed: payments matched to nothing at all, and the
+-- part of an overpayment left after the invoices it settled. Cash received minus what the customer's
+-- invoices show as settled, kept only above one dollar so currency rounding is not read as credit.
+cash as (
     select c.customer_key, sum(p.amount) as amount
     from {{ ref('stg_payments') }} p
     join {{ ref('int_customers') }} c on c.partner_id = p.partner_id
     where p.state in ('posted', 'paid', 'in_process') and p.payment_type = 'inbound'
-      and cardinality(p.invoice_ids) = 0
     group by c.customer_key
+),
+settled as (
+    select customer_key, sum(amount_paid) as amount
+    from {{ ref('int_invoices') }} where move_type = 'out_invoice'
+    group by customer_key
+),
+unmatched_payments as (
+    select cash.customer_key, cash.amount - coalesce(settled.amount, 0) as amount
+    from cash left join settled using (customer_key)
+    where cash.amount - coalesce(settled.amount, 0) >= 1
 ),
 reposted as (
     select invoice_id from {{ ref('stg_invoice_versions') }}

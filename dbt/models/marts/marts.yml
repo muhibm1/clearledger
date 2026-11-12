@@ -8,6 +8,10 @@ models:
         tests: [unique, not_null]
       - name: invoiced
         tests: [not_null]
+      - name: paid
+        description: Settled on invoices (what Odoo has reconciled against them). Not cash received; see cash_received.
+      - name: cash_received
+        description: Posted inbound payments, in USD. Differs from paid by overpayments, duplicate receipts, write-offs and exchange differences.
       - name: source_invoice_ids
         description: The Odoo invoice ids behind this row. `clearledger trace` expands them.
         tests: [not_null]
