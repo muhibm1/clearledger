@@ -165,6 +165,10 @@ not_loaded:
   - payment journals and methods
   - the amount of a payment in its own currency (only its value in US dollars)
   - collections notes, disputes and what was said to a customer
+  - supplier bills and what is owed to suppliers (only customer invoices, credit notes and payments are loaded)
+  - costs, timesheets and margins
+  - who owns a deal or a customer (salespeople), and customer segments or types
+  - the reason or memo written on a credit note or payment
 
 # Which questions ask for which identifier: when the rows hold it and the answer leaves it out, it is added.
 identifiers:
