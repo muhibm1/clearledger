@@ -22,8 +22,11 @@ tables:
       customer_key: The customer's id after duplicates are merged. Join every other table on this, never on a name or partner_id.
       customer_name: The customer's name.
       invoiced: Total billed in USD, net of credit notes ("billed", "invoiced", "revenue").
-      paid: Total collected in USD ("paid", "collected").
+      paid: Settled on the invoices in USD (what Odoo has reconciled against them). Not the same as cash received.
+      cash_received: Money that actually came in, USD, net of refunds paid back ("cash collected", "cash received", "cash in"). Differs from paid by overpayments, duplicate payments, write-offs and exchange differences.
+      cash_refunded: Refunds paid out to the customer, USD (positive); already taken off cash_received.
       open: Still owed in USD ("owed", "outstanding", "open", "balance").
+      invoiced_after_as_of: Billed on invoices dated after 2026-10-27. Not in invoiced or open, which are as of that date.
       invoice_count: Number of posted invoices and credit notes.
       source_invoice_ids: Odoo invoice ids behind the row.
   marts.receivables_aging:
@@ -35,7 +38,9 @@ tables:
       late_61_90: 61 to 90 days past due.
       late_over_90: More than 90 days past due.
       total_open: Everything this customer owes.
-    notes: Empty buckets are NULL, not 0. Wrap every bucket in coalesce(x, 0) before adding or comparing, or the sum is NULL and rows drop out.
+      open_credit_notes: Credit notes not yet applied or refunded (negative). Not aged, because a credit has no lateness.
+      rounding_residue: Open amounts under 1.00 (rounding, exchange differences). Not late money.
+    notes: Empty buckets are NULL, not 0. Wrap every bucket in coalesce(x, 0) before adding or comparing, or the sum is NULL and rows drop out. Each installment of an invoice is aged by its own due date (a retainage term has a late part and a later part), so one invoice can sit in two buckets. The buckets hold invoices only; total_open also includes open_credit_notes and rounding_residue.
   marts.deal_to_cash:
     about: Every won CRM deal, followed through to its sales order, invoices and payments. Use it for questions about won deals and what they turned into.
     columns:
@@ -46,7 +51,11 @@ tables:
       invoiced: Invoiced on those orders, USD.
       paid: Collected on those invoices, USD.
       open: Invoiced but not yet paid, USD.
-      status: "One of: 'won, no order', 'ordered, not invoiced', 'invoiced, unpaid', 'partly paid', 'paid'."
+      not_yet_invoiced: Ordered value not yet invoiced (ordered minus invoiced, never negative).
+      possible_unlinked_invoice_ids: Posted invoices of the same customer that no order lists and that fit in what is not yet invoiced. Possibly a rebill or a hand-made invoice for this deal. Not counted in invoiced.
+      cancelled_invoice_ids: Invoices on the deal's orders that were cancelled.
+      status: "One of: 'won, no order', 'order cancelled' (every order was cancelled; invoices and refunds still show), 'ordered, not invoiced', 'invoiced, unpaid', 'partly paid', 'paid' (nothing open and the whole order invoiced), 'paid, order not fully invoiced' (nothing open, but less was invoiced than ordered, so part of the job was never billed)."
+    notes: A deal is fully billed and collected only when status is 'paid'. 'paid, order not fully invoiced' still has value to bill.
   intermediate.int_invoices:
     about: Every posted invoice and credit note, newest version only, with its customer, order and deal. Use it for invoice-level questions (which invoice, how many, by month, by currency, days late).
     columns:
@@ -59,8 +68,40 @@ tables:
       amount: Amount in USD. Credit notes are negative.
       amount_open: Still unpaid, USD. 0 when fully paid. Credit notes are negative.
       amount_paid: Paid so far, USD.
-      days_past_due: Days past the due date on 2026-10-27; negative when not yet due.
+      days_past_due: Days past due on 2026-10-27, counted from the oldest installment still open (0 when not yet due). An invoice with several installments (retainage) is late from its first unpaid installment, not from the header's last due date.
+      amount_past_due: Open on the installments already due on 2026-10-27, USD.
+      due_date: The invoice header's due date, which is the LAST installment. Do not use it to say whether money is late; use days_past_due and amount_past_due.
+      changed_after_posting: True when the invoice's amount, customer, due date or invoice date changed after it was first posted.
+      changed_fields: Which of those changed.
+      first_posted_due_date: The due date the invoice first had, when it changed.
+      days_past_first_posted_due: Days past due on 2026-10-27 by that first due date.
+      first_posted_customer: The customer the invoice was first posted to, when it was moved.
       source_ref: The exact Odoo record version this row came from, for citations.
+  marts.overdue_invoices:
+    about: The collections work list. Every customer invoice with an installment still owed that is due within 3 days or already late, one row per invoice, with the customer's unused credit and the flags the collections playbook holds on.
+    columns:
+      due_date: Due date of the oldest open installment due by then.
+      days_past_due: Days past that due date on 2026-10-27.
+      amount_open_usd: Everything still open on the invoice.
+      amount_due_now_usd: Open on the installments due by then. The part to ask for.
+      customer_unmatched_payments_usd: Cash the customer sent that no invoice has absorbed.
+      customer_possible_duplicate_payments_usd: The part of that which looks like a payment sent twice.
+      changed_after_posting: True when the invoice was re-priced, re-pointed or re-dated after posting.
+  intermediate.int_invoice_dues:
+    about: One row per installment of each posted invoice (a retainage term has two), with what is still open on it. Use it for "how much is late by installment".
+    columns:
+      due_date: The installment's due date.
+      amount_open: Still open on the installment, USD (negative on credit notes).
+      basis: 'Either installment (Odoo''s installment lines were used) or invoice header (the lines were missing, so the invoice''s own due date stands in).'
+  intermediate.int_payments:
+    about: Posted customer payments, and refunds paid out (negative), each credited to the customer whose invoices it settled. A parent paying a subsidiary's invoices is cash for the subsidiary.
+    columns:
+      customer_key: The customer the cash belongs to.
+      payer_customer_key: The customer that sent it.
+      payment_type: inbound or outbound (a refund).
+      possible_duplicate_of: Set on an unmatched payment that repeats another one.
+  intermediate.int_customer_names:
+    about: Every name a customer has had, current and former. Use it to find a customer by an old name.
   intermediate.int_customers:
     about: Maps each Odoo partner (a contact record) to the real customer. One customer can be several partners when it was entered twice.
     columns:
@@ -89,8 +130,12 @@ tables:
 terms:
   owed: What a customer still owes. marts.revenue_by_customer.open per customer; intermediate.int_invoices.amount_open per invoice.
   billed: Invoiced amount net of credit notes, in USD. marts.revenue_by_customer.invoiced.
-  collected: Money received. marts.revenue_by_customer.paid, or marts.deal_to_cash.paid for a deal.
-  past due: days_past_due > 0 in intermediate.int_invoices, or the aging buckets in marts.receivables_aging. "More than 30 days past due" means days_past_due > 30, which equals late_31_60 + late_61_90 + late_over_90.
+  collected: Money received. For cash that actually came in, net of refunds, marts.revenue_by_customer.cash_received; for what the invoices show as settled, marts.revenue_by_customer.paid (or marts.deal_to_cash.paid for a deal). The two differ; say which one you give.
+  refund: Money paid back to a customer. marts.revenue_by_customer.cash_refunded; it is already taken off cash_received.
+  installment: Part of an invoice with its own due date (a retainage term, 90% at 60 days and 10% at 240). intermediate.int_invoice_dues has one row each.
+  retainage: A share of each invoice held back until later, so the invoice has an early and a late installment. Late by installment is in the aging buckets and intermediate.int_invoice_dues.
+  tie: Two or more rows with the same top value. A ranking answer returns all of them and says so.
+  past due: days_past_due > 0 in intermediate.int_invoices (the amount is amount_past_due), or the aging buckets in marts.receivables_aging, which age each installment by its own due date. "More than 30 days past due" means days_past_due > 30, which equals late_31_60 + late_61_90 + late_over_90.
   credit note: An invoice reversal (move_type out_refund). Its amounts are negative. "Invoices" on their own means move_type = 'out_invoice'.
   customer: A real company after duplicates are merged. Find one by name with customer_name ILIKE '%name%' in marts.revenue_by_customer, then use its customer_key.
   duplicate customer: A company entered more than once in Odoo. intermediate.int_customers.merged_into_other marks the extra partner.
@@ -105,5 +150,32 @@ examples:
     sql: select customer_name from marts.receivables_aging where coalesce(late_1_30, 0) + coalesce(late_31_60, 0) > 0
   - question: List Silverline Hotels' credit notes.
     sql: select invoice_ref, amount from intermediate.int_invoices i join marts.revenue_by_customer c using (customer_key) where c.customer_name ilike '%silverline%' and i.move_type = 'out_refund'
+  - question: Which customer has the most won deals?
+    sql: with n as (select customer_key, count(*) as won_deals from marts.deal_to_cash group by 1) select c.customer_name, n.won_deals from n join marts.revenue_by_customer c using (customer_key) where n.won_deals = (select max(won_deals) from n)
+  - question: How much does Orchard Valley Farms still owe, and on which invoice?
+    sql: select i.invoice_ref, i.amount_open from intermediate.int_invoices i join marts.revenue_by_customer c using (customer_key) where c.customer_name ilike '%orchard valley%' and i.amount_open > 0
   - question: How many deals are still open in the pipeline?
     sql: select count(*) from staging.stg_deals where not is_won and not is_lost
+
+# What this warehouse does not hold at all, so a question that needs it cannot be answered from it.
+not_loaded:
+  - partner tags and labels, and parent or subsidiary links between companies
+  - the text of an invoice's payment terms and notes (only the due dates of its installments)
+  - quantities, hours and line items on orders and invoices
+  - payment journals and methods
+  - the amount of a payment in its own currency (only its value in US dollars)
+  - collections notes, disputes and what was said to a customer
+
+# Which questions ask for which identifier: when the rows hold it and the answer leaves it out, it is added.
+identifiers:
+  invoice_ref:
+    - '\b(which|what)\b[^?.]*\binvoice\b'
+    - '\b(largest|biggest|smallest|oldest|newest|latest|earliest|highest|lowest)\b[^?.]*\binvoice\b'
+    - '\binvoice (number|id|ref\w*)\b'
+  customer_name:
+    - '\b(who|whom)\b'
+    - '\b(which|what) (customer|company|client)\b'
+  deal_name:
+    - '\b(which|what) deals?\b'
+  payment_ref:
+    - '\b(which|what) payments?\b'

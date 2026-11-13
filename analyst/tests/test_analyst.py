@@ -8,8 +8,8 @@ import os
 import psycopg
 import pytest
 
+from analyst import answers, sql
 from analyst import domain as domains
-from analyst import sql
 from analyst.eval.run import correct, wilson
 from analyst.graph import ask, build, one_shot, value_of
 from analyst.model import FakeModel
@@ -383,3 +383,99 @@ def test_a_query_over_tables_with_no_people_counts_is_left_alone(ads):
     assert out["ok"] and out["rows"] and out.get("suppressed") == 0
     assert sql.reads_people("select * from reporting.keyword_daily", {"installs"}, dom.columns)
     assert sql.reads_people("select * from reporting.mystery", {"installs"}, dom.columns)
+
+
+# --- the shape of an answer: ties, half-answers, zero that means "cannot tell", what is not loaded ---
+
+INVOICE_ASK = [r"\b(which|what)\b[^?.]*\binvoice\b", r"\b(largest|biggest)\b[^?.]*\binvoice\b"]
+WHO_ASK = [r"\b(who|whom)\b"]
+
+
+@pytest.mark.parametrize("question,query,advised", [
+    ("Which customer has the most posted invoices?", "select c from t order by n desc limit 1", True),
+    ("What are our three biggest won deals?", "select d from t order by r desc limit 3", True),
+    ("Which customer has the most posted invoices?", "select c from t where n = (select max(n) from t)", False),
+    ("Which customer has the most posted invoices?",
+     "select c from (select c, rank() over (order by n desc) r from t) x where r = 1", False),
+    ("Show ten invoices", "select * from t limit 10", False),
+    ("How many customers are there?", "select count(*) from t limit 1", False),
+])
+def test_a_ranking_cut_off_at_limit_is_bounced_for_ties(question, query, advised):
+    assert bool(answers.ranking_advice(question, query)) is advised
+
+
+def test_an_identifier_the_question_asks_for_is_added_when_the_answer_leaves_it_out():
+    rows = [{"invoice_ref": "INV/76", "customer_name": "Northbay", "amount_open": 855.58}]
+    ids = {"invoice_ref": INVOICE_ASK, "customer_name": WHO_ASK}
+    missing = answers.missing_identifiers(ids, "How much does Northbay still owe, and on which invoice?", rows, 855.58)
+    assert missing == {"invoice_ref": ["INV/76"]}
+    assert answers.with_identifiers(855.58, missing) == ["855.58", "INV/76"]
+    both = answers.missing_identifiers(ids, "What is our largest invoice, and who was it to?", rows, 855.58)
+    assert both == {"invoice_ref": ["INV/76"], "customer_name": ["Northbay"]}
+
+
+@pytest.mark.parametrize("question,rows,answer", [
+    ("How much does Northbay still owe, and on which invoice?",
+     [{"invoice_ref": "INV/76", "amount_open": 855.58}], "855.58 on INV/76"),
+    ("How much does Northbay still owe?", [{"invoice_ref": "INV/76", "amount_open": 855.58}], 855.58),
+    ("Which invoices are late?", [{"invoice_ref": f"INV/{n}"} for n in range(30)], ["INV/1"]),
+    ("On which invoice?", [], 1),
+])
+def test_nothing_is_added_when_it_is_already_there_not_asked_for_or_a_long_list(question, rows, answer):
+    assert answers.missing_identifiers({"invoice_ref": INVOICE_ASK}, question, rows, answer) == {}
+
+
+def test_a_ranking_with_limit_is_sent_back_once_then_run_tie_safe(finance):
+    cut = {"decision": "query", "reason": "x", "sql":
+           "select customer_name, invoice_count from marts.revenue_by_customer order by invoice_count desc limit 1"}
+    safe = {"decision": "query", "reason": "ties", "sql":
+            "select customer_name, invoice_count from marts.revenue_by_customer "
+            "where invoice_count = (select max(invoice_count) from marts.revenue_by_customer)"}
+    model = FakeModel([cut, safe, {"status": "answer", "answer": ["A"], "explanation": "x"}])
+    out = ask(build(finance, model, context=False), "Which customer has the most posted invoices?", "t-ties")
+    assert "NOT RUN" in model.prompts[1] and "ties" in model.prompts[1]
+    assert out["attempts"][0].get("advice") and out["attempts"][1]["error"] is None
+    # An answer must not be lost to the bounce: it did not count as a failed try.
+    assert out["status"] == "answer"
+
+
+def test_a_model_that_insists_on_limit_after_being_told_is_taken_at_its_word(finance):
+    cut = {"decision": "query", "reason": "x", "sql":
+           "select customer_name, invoice_count from marts.revenue_by_customer order by invoice_count desc limit 1"}
+    model = FakeModel([cut, cut, {"status": "answer", "answer": ["A"], "explanation": "x"}])
+    out = ask(build(finance, model, context=False), "Which customer has the most posted invoices?", "t-ties2")
+    assert out["status"] == "answer" and len(out["attempts"]) == 2
+
+
+def test_the_answer_step_adds_the_invoice_the_question_asked_for(finance):
+    with finance.connect() as conn:
+        ref, amount = conn.execute("select invoice_ref, amount_open from intermediate.int_invoices "
+                                   "where amount_open > 0 order by invoice_id limit 1").fetchone()
+    q = {"decision": "query", "reason": "x", "sql": "select invoice_ref, amount_open from intermediate.int_invoices "
+                                                    "where amount_open > 0 order by invoice_id limit 1"}
+    model = FakeModel([q, {"status": "answer", "answer": float(amount), "explanation": "still open"}])
+    out = ask(build(finance, model, context=False), "How much is open on the first open invoice, and on which invoice?",
+              "t-half")
+    assert out["answer"] == [str(float(amount)), ref]
+
+
+def test_an_empty_result_is_not_a_zero_unless_the_name_was_seen(finance):
+    q = {"decision": "query", "reason": "x", "sql":
+         "select sum(open) as owed from marts.revenue_by_customer where customer_name = 'No Such Customer'"}
+    decline = {"status": "not_answerable", "answer": None, "explanation": "No customer by that name."}
+    model = FakeModel([q, decline, q, decline])
+    out = ask(build(finance, model, context=False), "How much does No Such Customer owe?", "t-zero")
+    assert "cannot tell" in model.prompts[1] and "could not be found" in model.prompts[1]
+    assert out["status"] == "not_answerable" and out["redrafts"] == 1
+
+
+def test_what_the_warehouse_does_not_hold_is_told_to_the_model(finance):
+    model = FakeModel([{"decision": "not_answerable", "sql": "", "reason": "Payment terms text is not loaded."}])
+    ask(build(finance, model, context=False), "What payment terms is Acme on?", "t-notloaded")
+    assert finance.not_loaded and "does not hold" in _first_system(finance)
+
+
+def _first_system(dom):
+    from analyst.graph import _system
+    text = _system(dom)
+    return text if all(item in text for item in dom.not_loaded) else ""

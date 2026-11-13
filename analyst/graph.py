@@ -35,6 +35,7 @@ from typing import Annotated, Any, TypedDict
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, StateGraph
 
+from . import answers
 from . import sql as sqltool
 from .domain import Domain, bare_schema
 from .retrieve import Retriever
@@ -109,6 +110,11 @@ def _system(dom: Domain) -> str:
         + "If the warehouse has no data that could answer the question, say it is not answerable "
           "rather than guessing. Ask to clarify only when two readings would give different numbers "
           "and nothing in the question or the notes settles it."
+        + (" The warehouse does not hold: " + "; ".join(dom.not_loaded) + ". A question that needs any of "
+           "these is not answerable: say what is missing, and give the nearest figure the warehouse does "
+           "hold with its limit. Never answer 0 or 'none' because the data is silent." if dom.not_loaded else "")
+        + " For a question that ranks things (the most, the largest, the top N), return every row tied at "
+          "the cut-off with the measure, never LIMIT alone, and say in the answer when there is a tie."
     )
 
 
@@ -161,6 +167,12 @@ def build(dom: Domain, model, *, context: bool = True, retriever: Retriever | No
         return {"sql": out.get("sql", ""), "status": "running"}
 
     def execute(state: State) -> dict:
+        advice = None if state["status"] == "lookup" else answers.ranking_advice(state["question"], state["sql"])
+        if advice and not any(a.get("advice") for a in state.get("attempts", [])):
+            # Said once per question: a model that insists on LIMIT after being told is taken at its word.
+            return {"attempts": state.get("attempts", []) + [{"sql": state["sql"], "error": "NOT RUN. " + advice,
+                                                              "advice": True}],
+                    "rows": [], "status": "repair"}
         with dom.connect() as conn:
             sqltool.prepare(dom, conn)
             result = sqltool.run(dom, conn, state["sql"])
@@ -171,7 +183,7 @@ def build(dom: Domain, model, *, context: bool = True, retriever: Retriever | No
                     "status": "looked"}
         if not result["ok"]:
             attempts = state.get("attempts", []) + [{"sql": state["sql"], "error": result["error"]}]
-            failed = len(attempts) >= max_tries
+            failed = len([a for a in attempts if not a.get("advice")]) >= max_tries
             return {"attempts": attempts, "rows": [], "status": "failed" if failed else "repair",
                     "explanation": result["error"] if failed else ""}
         return {"rows": result["rows"], "status": "ran",
@@ -181,23 +193,37 @@ def build(dom: Domain, model, *, context: bool = True, retriever: Retriever | No
         rows = state["rows"]
         shown = json.dumps(rows[:ROWS_SHOWN], default=str)
         more = f"\n({len(rows) - ROWS_SHOWN} more rows not shown)" if len(rows) > ROWS_SHOWN else ""
+        nothing = not rows or (len(rows) == 1 and all(v is None for v in rows[0].values()))
         prompt = (f"QUESTION\n{state['question']}\n\nQUERY YOU RAN\n{state['sql']}\n\n"
                   f"RESULT ({len(rows)} rows)\n{shown}{more}\n\n"
                   "Give the answer. A single amount or count is a number (dollars as a plain number, "
-                  "no symbols); a list is a list of strings. If the query is the right one for the question, "
-                  "no rows or a NULL total means nothing matched: the answer is 0 for an amount or count and "
-                  "[] for a list. Decline only when the question asks for something this data does not "
-                  "hold, or the query was the wrong one.")
+                  "no symbols); a list is a list of strings. If the question asks for more than one thing "
+                  "(an amount and which invoice, a customer and a figure), state every part, naming the "
+                  "invoice, customer or deal from the rows. If several rows share the top value, say they "
+                  "are tied and name them all. Decline only when the question asks for something this data "
+                  "does not hold, or the query was the wrong one; when you decline, say in one sentence what "
+                  "is missing and give the nearest figure the warehouse does hold with its limit.")
+        if nothing:
+            prompt += (" The query found nothing (no rows, or only NULL). That is a true 0 (or []) only when "
+                       "what the question names exists and simply has nothing of this kind. If it names a "
+                       "customer, deal or invoice that the notes or a lookup have not shown to exist, you "
+                       "cannot tell: decline, and say the name could not be found.")
         out = model(system, prompt, ANSWER_SCHEMA)
         status = out.get("status") if out.get("status") in ("answer", "not_answerable") else "answer"
-        if status == "not_answerable" and rows and state.get("redrafts", 0) < max_redrafts:
-            # The query ran and returned rows, yet the reader declined: usually the query was the
-            # wrong one. Send the reason back to draft instead of stopping.
+        if status == "not_answerable" and state.get("redrafts", 0) < max_redrafts:
+            # The query ran, yet the reader declined: usually the query was the wrong one, or a name
+            # it filtered on was spelled differently. Send the reason back to draft instead of stopping.
             attempts = state.get("attempts", [])[:-1] + [
                 {"sql": state["sql"], "error": "You ran this and judged it does not answer the question: "
                                                + out.get("explanation", "")}]
             return {"status": "redraft", "attempts": attempts, "redrafts": state.get("redrafts", 0) + 1}
-        return {"status": status, "answer": out.get("answer"), "explanation": out.get("explanation", "")}
+        got = out.get("answer")
+        if status == "answer":
+            # The question asked for an identifier the rows have and the answer left out: add it.
+            missing = answers.missing_identifiers(dom.identifiers, state["question"], rows, got)
+            if missing:
+                got = answers.with_identifiers(got, missing)
+        return {"status": status, "answer": got, "explanation": out.get("explanation", "")}
 
     def cite(state: State) -> dict:
         refs = sorted({str(r[c]) for r in state.get("rows", []) for c in r
