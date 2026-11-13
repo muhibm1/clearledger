@@ -141,21 +141,30 @@ def grant_set_role_sql(role: str, server_version_num: int) -> str | None:
     return f"grant {role} to current_user with set true"
 
 
+READER_LOCK_ID = 7342019  # advisory lock key: one writer of the reader role at a time
+
+
 def ensure_reader(conn) -> None:
     """A role that can only SELECT from the modeled schemas. `query` runs as this role, so a
     query cannot read raw tables, files on the server, or anything outside those schemas,
     whatever the agent writes. Default privileges keep it working after dbt rebuilds a table."""
+    # Several queries can start at once (the analyst runs questions in parallel): without a lock they
+    # race to create the role and to alter its privileges, and one fails with a unique violation.
     with conn.cursor() as cur:
-        cur.execute("select 1 from pg_roles where rolname = %s", (READER,))
-        if not cur.fetchone():
-            cur.execute(f"create role {READER} nologin")
-        grant = grant_set_role_sql(READER, conn.info.server_version)
-        if grant:
-            cur.execute(grant)
-        for schema in QUERY_SCHEMAS:
-            cur.execute(f"grant usage on schema {schema} to {READER}")
-            cur.execute(f"grant select on all tables in schema {schema} to {READER}")
-            cur.execute(f"alter default privileges in schema {schema} grant select on tables to {READER}")
+        cur.execute("select pg_advisory_lock(%s)", (READER_LOCK_ID,))
+        try:
+            cur.execute("select 1 from pg_roles where rolname = %s", (READER,))
+            if not cur.fetchone():
+                cur.execute(f"create role {READER} nologin")
+            grant = grant_set_role_sql(READER, conn.info.server_version)
+            if grant:
+                cur.execute(grant)
+            for schema in QUERY_SCHEMAS:
+                cur.execute(f"grant usage on schema {schema} to {READER}")
+                cur.execute(f"grant select on all tables in schema {schema} to {READER}")
+                cur.execute(f"alter default privileges in schema {schema} grant select on tables to {READER}")
+        finally:
+            cur.execute("select pg_advisory_unlock(%s)", (READER_LOCK_ID,))
 
 
 def unsafe_function(sql: str) -> str | None:

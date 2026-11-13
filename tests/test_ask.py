@@ -76,3 +76,19 @@ def test_citations_catch_invented_and_stale_references(conn):
     assert [r["status"] for r in out["results"]] == ["ok", "superseded by a newer version", "unknown record",
                                                       "unknown version"]
     assert not out["all_ok"]
+
+
+def test_many_queries_can_set_up_the_reader_role_at_once(conn):
+    """Parallel callers (the analyst runs questions side by side) must not race to create the role."""
+    import concurrent.futures as cf
+
+    conn.execute(f"drop owned by {ask.READER}")
+    conn.execute(f"drop role {ask.READER}")
+
+    def start(_):
+        with psycopg.connect(DSN, autocommit=True) as c:
+            ask.ensure_reader(c)
+        return True
+
+    with cf.ThreadPoolExecutor(8) as pool:
+        assert all(pool.map(start, range(16)))
