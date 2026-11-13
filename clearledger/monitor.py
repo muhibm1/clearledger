@@ -154,7 +154,11 @@ def run_checks(conn: psycopg.Connection, now=None, odoo=None) -> list[Result]:
                 results += check_source_totals(cur, odoo)
             except Exception as exc:
                 results.append(Result("source_totals", "fail", f"could not compare with Odoo: {exc}"))
+        # A result about the warehouse as a whole belongs to the newest load, so no row has a NULL run.
+        latest = _runs(cur, limit=1)
         for r in results:
+            if r.run_id is None and latest:
+                r.run_id = latest[0][0]
             cur.execute("insert into raw.monitor_results (run_id, check_name, model, status, detail) "
                         "values (%s, %s, %s, %s, %s)",
                         (r.run_id, r.check_name, r.model, r.status, json.dumps({"message": r.message})))

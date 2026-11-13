@@ -17,6 +17,7 @@ import psycopg
 from . import simulate
 from .load import extract
 from .odoo import Odoo
+from .pipeline import dbt_env
 
 
 def main():
@@ -32,7 +33,7 @@ def main():
         simulate.delete_draft(odoo, mess["draft_to_delete"])
         print("load 3:", json.dumps(extract(odoo, conn)))
     dbt = os.path.join(os.path.dirname(sys.executable), "dbt")
-    sys.exit(subprocess.call([dbt, "build", "--project-dir", "dbt", "--profiles-dir", "dbt"]))
+    sys.exit(subprocess.call([dbt, "build", "--project-dir", "dbt", "--profiles-dir", "dbt"], env=dbt_env()))
 
 
 if __name__ == "__main__":

@@ -274,3 +274,20 @@ def test_the_staged_partner_keeps_its_active_flag(db):
     flags = dict(db.execute("select partner_name, is_active from staging.stg_partners "
                             "where partner_name in ('Rho Archive', 'Pi Table')").fetchall())
     assert flags == {"Rho Archive": False, "Pi Table": True}
+
+
+def test_every_monitor_result_is_recorded_against_a_load_run(db, monkeypatch, tmp_path):
+    from clearledger.monitor import run_checks
+    monkeypatch.setenv("CLEARLEDGER_ALERT_FILE", str(tmp_path / "alerts.jsonl"))
+    db.execute("insert into raw.load_runs (run_id, started_at, finished_at, status) "
+               "values ('run-1', now(), now(), 'ok')")
+
+    class Odoo:
+        def execute(self, *args, **kwargs):
+            return [{"amount_total_signed": 0, "amount_residual_signed": 0}]
+
+    results = run_checks(db, odoo=Odoo())
+    assert any(r.check_name == "source_totals" for r in results)
+    rows = db.execute("select check_name, run_id from raw.monitor_results").fetchall()
+    assert rows and all(run_id == "run-1" for _, run_id in rows if run_id is not None) and all(
+        run_id is not None for _, run_id in rows)

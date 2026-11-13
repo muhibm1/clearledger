@@ -18,6 +18,7 @@ import json
 import os
 import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 
@@ -36,10 +37,18 @@ create table if not exists raw.pipeline_runs (
 """
 
 
+def dbt_env() -> dict:
+    """The environment dbt runs in: its compiled output and logs go to a temp directory (or
+    CLEARLEDGER_DBT_OUT), not into the checkout, unless the caller already set dbt's own variables."""
+    out = Path(os.environ.get("CLEARLEDGER_DBT_OUT") or Path(tempfile.gettempdir()) / "clearledger-dbt")
+    return {**os.environ, "DBT_TARGET_PATH": os.environ.get("DBT_TARGET_PATH", str(out / "target")),
+            "DBT_LOG_PATH": os.environ.get("DBT_LOG_PATH", str(out / "logs"))}
+
+
 def dbt_build() -> tuple[bool, str]:
     dbt = os.path.join(os.path.dirname(sys.executable), "dbt")
     out = subprocess.run([dbt, "build", "--project-dir", str(ROOT / "dbt"), "--profiles-dir", str(ROOT / "dbt")],
-                         capture_output=True, text=True)
+                         capture_output=True, text=True, env=dbt_env())
     summary = next((line.split("Done. ")[-1] for line in reversed(out.stdout.splitlines()) if "Done." in line),
                    out.stdout[-300:])
     return out.returncode == 0, summary.strip()

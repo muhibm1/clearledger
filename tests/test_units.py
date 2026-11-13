@@ -104,3 +104,17 @@ def test_the_totals_monitor_asks_odoo_only_for_invoices_dated_by_the_as_of_date(
     out = check_source_totals(FakeCursor(), FakeOdoo())
     assert ("invoice_date", "<=", AS_OF) in asked[0]
     assert out[0].status == "ok"
+
+
+def test_dbt_writes_its_output_outside_the_checkout(monkeypatch, tmp_path):
+    from pathlib import Path
+
+    from clearledger.pipeline import ROOT, dbt_env
+    for var in ("DBT_TARGET_PATH", "DBT_LOG_PATH", "CLEARLEDGER_DBT_OUT"):
+        monkeypatch.delenv(var, raising=False)
+    env = dbt_env()
+    assert not Path(env["DBT_TARGET_PATH"]).is_relative_to(ROOT) and not Path(env["DBT_LOG_PATH"]).is_relative_to(ROOT)
+    monkeypatch.setenv("CLEARLEDGER_DBT_OUT", str(tmp_path))
+    assert dbt_env()["DBT_TARGET_PATH"] == str(tmp_path / "target")
+    monkeypatch.setenv("DBT_TARGET_PATH", "/somewhere/else")
+    assert dbt_env()["DBT_TARGET_PATH"] == "/somewhere/else"
