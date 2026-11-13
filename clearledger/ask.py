@@ -64,18 +64,20 @@ def _rows(conn, sql, args=()):
 
 
 def find_customers(conn, name: str) -> dict:
-    """Customers whose name contains the text, with every Odoo partner merged into each."""
+    """Customers whose name, or a name they used before, contains the text, with every Odoo partner merged into each."""
     found = _rows(conn, """
         select c.customer_key, max(c.customer_name) as customer_name,
-               array_agg(c.partner_id || ': ' || p.partner_name order by c.partner_id) as odoo_partners
+               array_agg(c.partner_id || ': ' || p.partner_name order by c.partner_id) as odoo_partners,
+               (select coalesce(array_agg(distinct n.name order by n.name) filter (where not n.is_customer_name), '{}')
+                from intermediate.int_customer_names n where n.customer_key = c.customer_key) as other_names
         from intermediate.int_customers c
         join staging.stg_partners p using (partner_id)
-        where c.customer_key in (select c2.customer_key from intermediate.int_customers c2
-                                 join staging.stg_partners p2 using (partner_id)
-                                 where c2.customer_name ilike %s or p2.partner_name ilike %s)
-        group by c.customer_key order by c.customer_key""", (f"%{name}%", f"%{name}%"))
+        where c.customer_key in (select n2.customer_key from intermediate.int_customer_names n2
+                                 where n2.name ilike %s)
+        group by c.customer_key order by c.customer_key""", (f"%{name}%",))
     return {"customers": found,
-            "note": "A customer can be several Odoo partners merged into one; always use customer_key."}
+            "note": "A customer can be several Odoo partners merged into one, and may have been renamed "
+                    "(other_names holds every other name it has had); always use customer_key."}
 
 
 def customer_summary(conn, customer_key: int) -> dict:

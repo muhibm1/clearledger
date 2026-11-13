@@ -87,6 +87,16 @@ def build() -> World:
     w.deal(4, 14)
     w.order(804, 4, 14, 300)
     w.invoice(8041, "INV/8041", 14, "2026-05-01", "2026-05-31", 300, 0, origin="S00804")
+    # A customer renamed after its first invoice, and two customers whose names start alike.
+    w.partner(15, "Omicron Fresh", write_date="2026-03-01 10:00:00")
+    w.partner(15, "Omicron Foods", write_date="2026-09-01 10:00:00")
+    w.invoice(901, "INV/901", 15, "2026-04-01", "2026-05-01", 250, 0)
+    w.payment(9001, 15, 250, "2026-05-02", [901])
+    w.partner(18, "Rho Archive", active=False)
+    w.partner(16, "Pi Table")
+    w.partner(17, "Pi Table Garden")
+    w.invoice(902, "INV/902", 16, "2026-04-01", "2026-05-01", 60, 0)
+    w.invoice(903, "INV/903", 17, "2026-04-01", "2026-05-01", 70, 0)
     return w
 
 
@@ -219,3 +229,48 @@ def test_a_job_paid_in_full_on_less_than_it_ordered_is_not_paid(db):
 def test_an_invoice_that_names_its_order_in_its_origin_is_linked_to_it(db):
     status, ordered, invoiced, *_ = deal(db, 4)
     assert (status, ordered, invoiced) == ("paid", d(300), d(300))
+
+
+def traced(db, table, name):
+    from clearledger.trace import trace
+    return trace(db, table, name)
+
+
+def test_a_trace_does_not_cry_wolf_on_books_that_are_right(db):
+    # Parent paying a subsidiary, a refunded deposit, a duplicate payment and an overpayment all leave
+    # cash different from what the invoices show as settled. That is explained, not flagged.
+    for name in ["Epsilon Holdings", "Zeta Residential", "Eta Homes", "Theta Foods", "Iota Dairy"]:
+        out = traced(db, "revenue_by_customer", name)
+        assert "DOES NOT ADD UP" not in out, out
+    assert "cash received is" in traced(db, "revenue_by_customer", "Iota Dairy")
+    assert "sent by Epsilon Holdings" in traced(db, "revenue_by_customer", "Zeta Residential")
+
+
+def test_a_trace_still_flags_a_figure_that_really_does_not_add_up(db):
+    from clearledger.trace import _check
+    assert "DOES NOT ADD UP" in _check("paid", d(100), [d(40), d(50)])
+
+
+def test_a_renamed_customer_is_found_under_its_old_name(db):
+    out = traced(db, "revenue_by_customer", "Omicron Fresh")
+    assert out.startswith("Omicron Foods:") and "found under its former name 'Omicron Fresh'" in out
+
+
+def test_an_exact_name_wins_over_a_longer_name_that_contains_it(db):
+    assert traced(db, "revenue_by_customer", "Pi Table").startswith("Pi Table:")
+    with pytest.raises(SystemExit, match="matches 2 customers"):
+        traced(db, "revenue_by_customer", "Pi")
+
+
+def test_find_customers_finds_a_renamed_customer_by_its_old_name(db):
+    from clearledger import ask
+    ask.ensure_reader(db)
+    found = ask.find_customers(db, "omicron fresh")["customers"]
+    assert [c["customer_name"] for c in found] == ["Omicron Foods"]
+    assert "Omicron Fresh" in found[0]["other_names"]
+
+
+def test_the_staged_partner_keeps_its_active_flag(db):
+    flags = dict(db.execute("select partner_name, is_active from staging.stg_partners "
+                            "where partner_name in ('Rho Archive', 'Pi Table')").fetchall())
+    assert flags == {"Rho Archive": False, "Pi Table": True}

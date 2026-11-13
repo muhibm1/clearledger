@@ -34,9 +34,10 @@ class World:
     def add(self, table, odoo_id, payload, write_date=WHEN):
         self.rows.setdefault(table, []).append((odoo_id, write_date, payload))
 
-    def partner(self, pid, name, email=False, commercial=None, active=True):
+    def partner(self, pid, name, email=False, commercial=None, active=True, write_date=WHEN):
         self.add("res_partner", pid, {"name": name, "email": email, "is_company": True, "active": active,
-                                      "commercial_partner_id": m2o(commercial or pid), "country_id": False})
+                                      "commercial_partner_id": m2o(commercial or pid), "country_id": False},
+                 write_date)
 
     def invoice(self, iid, name, partner, date, due, amount, open_=0.0, state="posted", kind="out_invoice",
                 origin=False, write_date=WHEN, partner_name=""):

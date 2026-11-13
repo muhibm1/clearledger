@@ -12,3 +12,6 @@ models:
   - name: int_invoice_changes
     description: Posted invoices whose amount, customer, due date or invoice date changed after first posting, with the terms they first had.
     meta: { owner: team/data-platform, tier: 1 }
+  - name: int_customer_names
+    description: Every name each customer (and each Odoo partner merged into it) has had, current and former, so a renamed customer is found under its old name.
+    meta: { owner: team/data-platform, tier: 2 }
