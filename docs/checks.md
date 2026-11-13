@@ -23,6 +23,7 @@ models already handle each case the safe way.
 | `deleted_in_source` | A record was deleted in Odoo after it was loaded. | Leave it out of every model; raw keeps its last version. | 1 draft invoice |
 | `invoiced_more_than_ordered` | An order was billed for more than it was sold for. Here, the edited invoice. | Show both amounts in `deal_to_cash`. | 1 deal |
 | `installments_not_usable` | An invoice with money open whose installment lines (retainage and similar terms) are not loaded or do not add up. | Age it on the header due date, which is the last installment, and say so here. | none |
+| `possible_duplicate_payments` | A payment matched to no invoice repeats another payment of the same amount from the same customer within two weeks. | Count it in the customer's unmatched cash, and show the part that looks like a duplicate separately on the overdue list. | 1 payment |
 | `payments_match_invoices` | Payments recorded but not matched to an invoice, or exchange differences. | Nothing hidden: the check lists the gap per customer. | none |
 
 ## Monitors (after every run, outside dbt)

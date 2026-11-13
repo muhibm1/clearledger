@@ -11,7 +11,9 @@ models:
       - name: paid
         description: Settled on invoices (what Odoo has reconciled against them). Not cash received; see cash_received.
       - name: cash_received
-        description: Posted inbound payments, in USD. Differs from paid by overpayments, duplicate receipts, write-offs and exchange differences.
+        description: Money received, in USD, net of refunds paid back, credited to the customer whose invoices each payment settled (a parent paying a subsidiary's invoices counts for the subsidiary). Differs from paid by overpayments, duplicate receipts, write-offs and exchange differences.
+      - name: cash_refunded
+        description: Refunds paid out to the customer, in USD (positive). Already taken off cash_received.
       - name: source_invoice_ids
         description: The Odoo invoice ids behind this row. `clearledger trace` expands them.
         tests: [not_null]
@@ -50,6 +52,10 @@ models:
         description: Open on the installments due by the as_of date plus 3 days. The part to ask for.
       - name: due_date
         description: Due date of the oldest installment still open and due by then (the invoice header holds only the last one).
+      - name: customer_unmatched_payments_usd
+        description: Cash the customer sent that no invoice has absorbed (overpayments, payments matched to nothing). Net of refunds; credited by whose invoices each payment settled.
+      - name: customer_possible_duplicate_payments_usd
+        description: The part of that credit that repeats another payment of the same amount from the same customer within two weeks, matched to nothing. Probably sent twice.
       - name: changed_after_posting
         description: True when the invoice's amount, customer, due date or invoice date changed after it was first posted. changed_fields says which; first_posted_* hold what it first said.
       - name: source_ref

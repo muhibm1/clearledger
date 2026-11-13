@@ -41,6 +41,29 @@ def build() -> World:
     w.invoice(203, "INV/203", 3, "2026-09-01", "2026-09-18", 900, 900, write_date="2026-09-01 10:00:00")
     w.invoice(203, "INV/203", 3, "2026-09-01", "2026-09-18", 900, 900, state="draft", write_date="2026-09-02 10:00:00")
     w.invoice(203, "INV/203", 3, "2026-09-01", "2026-09-18", 900, 900, write_date="2026-09-03 10:00:00")
+    # A parent company pays its subsidiary's invoice.
+    w.partner(5, "Epsilon Holdings")
+    w.partner(6, "Zeta Residential")
+    w.invoice(301, "INV/301", 6, "2026-08-01", "2026-09-01", 1000, 0)
+    w.payment(3001, 5, 1000, "2026-09-02", [301])
+    w.invoice(302, "INV/302", 5, "2026-08-01", "2026-09-01", 500, 500)
+    # A deposit refunded: money in, credit note, money out.
+    w.partner(7, "Eta Homes")
+    w.invoice(401, "INV/401", 7, "2026-06-01", "2026-06-30", 1000, 0)
+    w.payment(4001, 7, 1000, "2026-06-05", [401])
+    w.invoice(402, "RINV/402", 7, "2026-08-01", "2026-08-01", 1000, 0, kind="out_refund")
+    w.payment(4002, 7, 1000, "2026-08-05", [402], kind="outbound")
+    w.invoice(403, "INV/403", 7, "2026-08-10", "2026-09-01", 100, 100)
+    # The same amount sent twice, one copy matched to nothing; and a real overpayment.
+    w.partner(8, "Theta Foods")
+    w.invoice(501, "INV/501", 8, "2026-08-01", "2026-09-01", 300, 0)
+    w.payment(5001, 8, 300, "2026-09-01", [501])
+    w.payment(5002, 8, 300, "2026-09-02", [])
+    w.invoice(502, "INV/502", 8, "2026-08-10", "2026-09-01", 200, 200)
+    w.partner(9, "Iota Dairy")
+    w.invoice(601, "INV/601", 9, "2026-08-01", "2026-09-01", 100, 0)
+    w.payment(6001, 9, 160, "2026-09-01", [601])
+    w.invoice(602, "INV/602", 9, "2026-08-10", "2026-09-01", 50, 50)
     return w
 
 
@@ -105,3 +128,32 @@ def test_an_invoice_moved_to_another_customer_is_flagged_with_the_first_customer
 def test_posting_again_with_the_same_terms_is_not_a_change(db):
     assert one(db, "select changed_after_posting from marts.overdue_invoices where invoice_ref = 'INV/203'")[0] is False
     assert one(db, "select count(*) from intermediate.int_invoice_changes where invoice_id = 203")[0] == 0
+
+
+def test_a_parent_paying_a_subsidiarys_invoice_is_cash_for_the_subsidiary_not_credit_on_the_parent(db):
+    assert one(db, "select customer_unmatched_payments_usd from marts.overdue_invoices where invoice_ref = 'INV/302'")[0] == 0
+    cash = dict(db.execute("select customer_name, cash_received from marts.revenue_by_customer "
+                           "where customer_name in ('Epsilon Holdings', 'Zeta Residential')").fetchall())
+    assert cash == {"Epsilon Holdings": 0, "Zeta Residential": d(1000)}
+    assert one(db, "select settles_another_customers_invoices from intermediate.int_payments where payment_id = 3001")[0]
+
+
+def test_a_refund_paid_out_is_taken_off_cash_received(db):
+    row = one(db, "select cash_received, cash_refunded, invoiced, paid from marts.revenue_by_customer "
+                  "where customer_name = 'Eta Homes'")
+    assert row == (d(0), d(1000), d(100), d(0))
+    # Money in and money out cancel against the invoice and the credit note: no credit is left over.
+    assert one(db, "select customer_unmatched_payments_usd from marts.overdue_invoices where invoice_ref = 'INV/403'")[0] == 0
+
+
+def test_a_payment_matched_to_nothing_that_repeats_another_is_a_possible_duplicate(db):
+    row = one(db, "select customer_unmatched_payments_usd, customer_possible_duplicate_payments_usd "
+                  "from marts.overdue_invoices where invoice_ref = 'INV/502'")
+    assert row == (d(300), d(300))
+    assert one(db, "select possible_duplicate_of from intermediate.int_payments where payment_id = 5002")[0] == 5001
+
+
+def test_an_overpayment_is_credit_not_a_duplicate(db):
+    row = one(db, "select customer_unmatched_payments_usd, customer_possible_duplicate_payments_usd "
+                  "from marts.overdue_invoices where invoice_ref = 'INV/602'")
+    assert row == (d(60), d(0))

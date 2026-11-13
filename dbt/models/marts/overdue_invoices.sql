@@ -25,24 +25,26 @@ credit_notes as (
     group by customer_key
 ),
 -- Cash a customer sent that no invoice has absorbed: payments matched to nothing at all, and the
--- part of an overpayment left after the invoices it settled. Cash received minus what the customer's
--- invoices show as settled, kept only above one dollar so currency rounding is not read as credit.
+-- part of an overpayment left after the invoices it settled. Net cash (money in minus refunds paid
+-- out, each credited to the customer whose invoices it settled) minus what the customer's documents
+-- show as settled (credit notes count, so a refunded deposit nets to nothing), kept only above one
+-- dollar so currency rounding is not read as credit.
 cash as (
-    select c.customer_key, sum(p.amount) as amount
-    from {{ ref('stg_payments') }} p
-    join {{ ref('int_customers') }} c on c.partner_id = p.partner_id
-    where p.state in ('posted', 'paid', 'in_process') and p.payment_type = 'inbound'
-    group by c.customer_key
+    select customer_key, sum(amount) as amount from {{ ref('int_payments') }} group by customer_key
 ),
 settled as (
-    select customer_key, sum(amount_paid) as amount
-    from {{ ref('int_invoices') }} where move_type = 'out_invoice'
-    group by customer_key
+    select customer_key, sum(amount_paid) as amount from {{ ref('int_invoices') }} group by customer_key
 ),
 unmatched_payments as (
     select cash.customer_key, cash.amount - coalesce(settled.amount, 0) as amount
     from cash left join settled using (customer_key)
     where cash.amount - coalesce(settled.amount, 0) >= 1
+),
+-- The part of that credit which is more likely a payment sent twice: matched to no invoice and
+-- repeating another payment of the same amount from the same customer.
+possible_duplicates as (
+    select customer_key, sum(amount) as amount from {{ ref('int_payments') }}
+    where possible_duplicate_of is not null group by customer_key
 ),
 partners_per_customer as (
     select customer_key, count(*) as n from {{ ref('int_customers') }}
@@ -60,6 +62,7 @@ select
     i.amount_due_now as amount_due_now_usd,
     coalesce(cn.amount, 0) as customer_open_credit_notes_usd,
     coalesce(up.amount, 0) as customer_unmatched_payments_usd,
+    least(coalesce(up.amount, 0), coalesce(pd.amount, 0)) as customer_possible_duplicate_payments_usd,
     i.changed_after_posting,
     i.changed_fields,
     i.first_posted_due_date,
@@ -70,4 +73,5 @@ select
 from inv i
 left join credit_notes cn using (customer_key)
 left join unmatched_payments up using (customer_key)
+left join possible_duplicates pd using (customer_key)
 left join partners_per_customer ppc using (customer_key)
