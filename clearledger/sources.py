@@ -24,6 +24,11 @@ SOURCES = {
                      "invoice_date_due", "amount_total", "amount_total_signed",
                      "amount_residual", "amount_residual_signed", "currency_id",
                      "payment_state", "invoice_origin"],
+    # One receivable line per installment of an invoice's payment terms. The invoice header holds
+    # only the last due date, so "what is late" needs these: each line has its own due date and
+    # its own open amount.
+    "account.move.line": ["move_id", "date_maturity", "amount_residual", "balance", "parent_state",
+                          "display_type", "partner_id"],
     "account.payment": ["name", "partner_id", "amount", "amount_company_currency_signed",
                         "currency_id", "date", "state", "payment_type", "partner_type",
                         "reconciled_invoice_ids"],
@@ -33,6 +38,8 @@ SOURCES = {
 # Only customer documents matter for deal to cash.
 DOMAINS = {
     "account.move": [("move_type", "in", ["out_invoice", "out_refund"])],
+    "account.move.line": [("display_type", "=", "payment_term"),
+                          ("move_id.move_type", "in", ["out_invoice", "out_refund"])],
     "account.payment": [("partner_type", "=", "customer")],
     "crm.lead": [("active", "in", [True, False])],
     "res.partner": [("active", "in", [True, False])],

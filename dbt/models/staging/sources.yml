@@ -9,6 +9,8 @@ sources:
       - name: crm_lead
       - name: sale_order
       - name: account_move
+      - name: account_move_line
+        description: The receivable line of each invoice installment, with its own due date and open amount.
       - name: account_payment
       - name: res_currency
       - name: deleted

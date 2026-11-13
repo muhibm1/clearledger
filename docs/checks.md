@@ -9,7 +9,7 @@ models already handle each case the safe way.
 | Check | What it proves |
 | --- | --- |
 | `marts_match_odoo_totals` | The finance tables bill the same total as the posted invoices in Odoo. |
-| `aging_adds_up` | Every dollar owed sits in exactly one aging bucket, and the buckets add up to what is owed. |
+| `aging_adds_up` | Every dollar owed sits in exactly one aging column (a bucket, open credit notes, or the rounding residue), and the columns add up to what is owed. Each installment of an invoice is aged by its own due date. |
 | `unique`, `not_null`, `accepted_values` | One row per customer and per deal; every status is a known one. |
 
 ## Source-quality checks (warn, with the records)
@@ -22,6 +22,7 @@ models already handle each case the safe way.
 | `won_deal_without_order` | A deal is won in the CRM with no order behind it. | Show it as "won, no order" in `deal_to_cash`. | 4 deals (3 from Odoo's own demo data) |
 | `deleted_in_source` | A record was deleted in Odoo after it was loaded. | Leave it out of every model; raw keeps its last version. | 1 draft invoice |
 | `invoiced_more_than_ordered` | An order was billed for more than it was sold for. Here, the edited invoice. | Show both amounts in `deal_to_cash`. | 1 deal |
+| `installments_not_usable` | An invoice with money open whose installment lines (retainage and similar terms) are not loaded or do not add up. | Age it on the header due date, which is the last installment, and say so here. | none |
 | `payments_match_invoices` | Payments recorded but not matched to an invoice, or exchange differences. | Nothing hidden: the check lists the gap per customer. | none |
 
 ## Monitors (after every run, outside dbt)

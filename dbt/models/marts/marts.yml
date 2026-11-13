@@ -17,10 +17,14 @@ models:
         tests: [not_null]
   - name: receivables_aging
     meta: { owner: team/finance, tier: 1, contract: true }
-    description: Money still owed per customer, by days past due on the as_of date.
+    description: Money still owed per customer, by days past due on the as_of date. Each installment of an invoice is aged by its own due date. Open credit notes and residues under the materiality floor are in their own columns, not in the buckets.
     columns:
       - name: customer_key
         tests: [unique, not_null]
+      - name: open_credit_notes
+        description: Credit notes not yet applied or refunded (negative). Not aged.
+      - name: rounding_residue
+        description: Open amounts on invoices below the materiality floor (1.00). Not late money.
   - name: deal_to_cash
     meta: { owner: team/revenue-ops, tier: 1 }
     description: Every won deal, followed through order, invoice and payment.
@@ -40,7 +44,12 @@ models:
       - name: customer_key
         tests: [not_null]
       - name: amount_open_usd
+        description: Everything still open on the invoice.
         tests: [not_null]
+      - name: amount_due_now_usd
+        description: Open on the installments due by the as_of date plus 3 days. The part to ask for.
+      - name: due_date
+        description: Due date of the oldest installment still open and due by then (the invoice header holds only the last one).
       - name: source_ref
         description: The exact Odoo version the row was built from. Every Remit action cites it.
         tests: [not_null]

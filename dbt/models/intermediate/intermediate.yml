@@ -6,3 +6,6 @@ models:
   - name: int_invoices
     description: Posted customer invoices and credit notes with customer, order, deal and exact source version.
     meta: { owner: team/data-platform, tier: 1 }
+  - name: int_invoice_dues
+    description: One row per installment of each posted invoice, with what is still open on it. Falls back to one row on the header due date when the installment lines are missing or disagree.
+    meta: { owner: team/data-platform, tier: 1 }

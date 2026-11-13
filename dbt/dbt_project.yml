@@ -12,6 +12,9 @@ vars:
   # (the payment_after_as_of check warns). Override with `dbt build --vars '{as_of: ...}'`.
   as_of: "2026-10-27"
   company_currency: "USD"
+  # An open amount below this (in the company currency) is a residue, not money anyone chases: it is
+  # kept out of the aging buckets and the overdue list, and shown on its own.
+  materiality: 1.00
 models:
   clearledger:
     staging: {+materialized: view, +schema: staging}
