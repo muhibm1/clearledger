@@ -2,8 +2,20 @@
 -- the deal behind each one, and a source reference down to the exact version.
 -- days_past_due counts from the oldest installment still open, not from the header's last due date;
 -- amount_past_due is what is open on installments already due.
-with orders as (
+-- An invoice belongs to the order that lists it; failing that, to the order its origin field names.
+with linked as (
     select o.order_id, o.deal_id, unnest(o.invoice_ids) as invoice_id from {{ ref('stg_orders') }} o
+),
+by_origin as (
+    select o.order_id, o.deal_id, i.invoice_id
+    from {{ ref('stg_invoices') }} i
+    join {{ ref('stg_orders') }} o on o.order_ref = i.invoice_origin
+    where i.invoice_id not in (select invoice_id from linked)
+),
+orders as (
+    select distinct on (invoice_id) order_id, deal_id, invoice_id
+    from (select * from linked union all select * from by_origin) u
+    order by invoice_id, order_id
 ),
 dues as (
     select invoice_id,

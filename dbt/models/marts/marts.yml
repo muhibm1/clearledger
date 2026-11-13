@@ -33,10 +33,16 @@ models:
     columns:
       - name: deal_id
         tests: [unique, not_null]
+      - name: not_yet_invoiced
+        description: Ordered value not yet invoiced (never negative).
+      - name: possible_unlinked_invoice_ids
+        description: Posted invoices of the same customer that no order lists and that fit in what is not yet invoiced. A rebill or a hand-made invoice for this order, to be linked in Odoo by a person; not counted in invoiced.
+      - name: cancelled_invoice_ids
+        description: Invoices listed on the deal's orders that were cancelled.
       - name: status
         tests:
           - accepted_values:
-              values: ['won, no order', 'ordered, not invoiced', 'invoiced, unpaid', 'partly paid', 'paid']
+              values: ['won, no order', 'order cancelled', 'ordered, not invoiced', 'invoiced, unpaid', 'partly paid', 'paid', 'paid, order not fully invoiced']
   - name: overdue_invoices
     meta: { owner: team/finance, tier: 1 }
     description: Remit's work list. Every customer invoice still owed and due within 3 days or late, with the customer's unused credit and the flags the collections playbook holds on.
