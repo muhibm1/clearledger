@@ -30,6 +30,17 @@ def build() -> World:
     # A residue under the materiality floor is not late money.
     w.invoice(104, "INV/4", 2, "2026-07-01", "2026-09-01", 300, 0.40)
     w.line(1004, 104, "2026-09-01", 300, 0.40)
+    # Posted invoices that changed afterwards.
+    w.partner(3, "Gamma Works")
+    w.partner(4, "Delta Industrial")
+    w.invoice(201, "INV/201", 3, "2026-06-01", "2026-08-02", 700, 700, write_date="2026-09-01 10:00:00")
+    w.invoice(201, "INV/201", 3, "2026-06-01", "2026-10-02", 700, 700, write_date="2026-10-05 10:00:00")
+    w.invoice(202, "INV/202", 4, "2026-09-01", "2026-09-18", 800, 800, write_date="2026-09-01 10:00:00")
+    w.invoice(202, "INV/202", 3, "2026-09-01", "2026-09-18", 800, 800, write_date="2026-10-05 10:00:00")
+    # Reset to draft and posted again with the same terms: not a change.
+    w.invoice(203, "INV/203", 3, "2026-09-01", "2026-09-18", 900, 900, write_date="2026-09-01 10:00:00")
+    w.invoice(203, "INV/203", 3, "2026-09-01", "2026-09-18", 900, 900, state="draft", write_date="2026-09-02 10:00:00")
+    w.invoice(203, "INV/203", 3, "2026-09-01", "2026-09-18", 900, 900, write_date="2026-09-03 10:00:00")
     return w
 
 
@@ -77,3 +88,20 @@ def test_a_residue_under_the_materiality_floor_is_not_late_and_is_not_chased(db)
                   "where customer_name = 'Beta Supply'")
     assert row == (None, d("0.40"), d("0.40"))
     assert one(db, "select count(*) from marts.overdue_invoices where invoice_ref = 'INV/4'")[0] == 0
+
+
+def test_a_changed_due_date_is_flagged_and_keeps_the_first_posted_one(db):
+    row = one(db, "select changed_after_posting, changed_fields, due_date, days_past_due, first_posted_due_date, "
+                  "days_past_first_posted_due from marts.overdue_invoices where invoice_ref = 'INV/201'")
+    assert row == (True, "due date", dt.date(2026, 10, 2), 25, dt.date(2026, 8, 2), 86)
+
+
+def test_an_invoice_moved_to_another_customer_is_flagged_with_the_first_customer(db):
+    row = one(db, "select changed_fields, customer_name, first_posted_customer from marts.overdue_invoices "
+                  "where invoice_ref = 'INV/202'")
+    assert row == ("customer", "Gamma Works", "Delta Industrial")
+
+
+def test_posting_again_with_the_same_terms_is_not_a_change(db):
+    assert one(db, "select changed_after_posting from marts.overdue_invoices where invoice_ref = 'INV/203'")[0] is False
+    assert one(db, "select count(*) from intermediate.int_invoice_changes where invoice_id = 203")[0] == 0

@@ -9,3 +9,6 @@ models:
   - name: int_invoice_dues
     description: One row per installment of each posted invoice, with what is still open on it. Falls back to one row on the header due date when the installment lines are missing or disagree.
     meta: { owner: team/data-platform, tier: 1 }
+  - name: int_invoice_changes
+    description: Posted invoices whose amount, customer, due date or invoice date changed after first posting, with the terms they first had.
+    meta: { owner: team/data-platform, tier: 1 }

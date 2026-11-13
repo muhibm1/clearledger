@@ -50,6 +50,8 @@ models:
         description: Open on the installments due by the as_of date plus 3 days. The part to ask for.
       - name: due_date
         description: Due date of the oldest installment still open and due by then (the invoice header holds only the last one).
+      - name: changed_after_posting
+        description: True when the invoice's amount, customer, due date or invoice date changed after it was first posted. changed_fields says which; first_posted_* hold what it first said.
       - name: source_ref
         description: The exact Odoo version the row was built from. Every Remit action cites it.
         tests: [not_null]

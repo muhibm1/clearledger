@@ -17,7 +17,7 @@ models already handle each case the safe way.
 | Check | The problem in Odoo | What the models do | On the demo data |
 | --- | --- | --- | --- |
 | `duplicate_customers` | The same company was entered twice ("Northwind Logistics" and "Northwind Logistics Inc."). | Merge them by normalized name or email (`int_customers`); a missing email never matches. | 1 merge |
-| `invoice_changed_after_posting` | A posted invoice was reopened and changed. | Use the newest version; raw keeps every version. | 1 invoice |
+| `invoice_changed_after_posting` | A posted invoice was reopened and its amount, customer, due date or invoice date changed. | Use the newest version, keep what it first said (`int_invoice_changes`), and flag it on the overdue list so the playbook holds it. | 1 invoice |
 | `foreign_currency_invoices` | Invoices in euros. | Use Odoo's US dollar amount at the invoice date's rate. | 3 invoices |
 | `won_deal_without_order` | A deal is won in the CRM with no order behind it. | Show it as "won, no order" in `deal_to_cash`. | 4 deals (3 from Odoo's own demo data) |
 | `deleted_in_source` | A record was deleted in Odoo after it was loaded. | Leave it out of every model; raw keeps its last version. | 1 draft invoice |

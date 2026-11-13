@@ -4,7 +4,8 @@
 -- then (the header's due date is only the last installment), and amount_due_now_usd is what is open on
 -- the installments due by then; amount_open_usd is everything still open on the invoice. Credit a customer could use against it (open credit notes
 -- and payments not matched to any invoice) is shown per customer, because Odoo
--- has not yet said which invoice it pays.
+-- has not yet said which invoice it pays. An invoice whose amount, customer or due date changed after
+-- posting is flagged, with what it first said (first_posted_*), so the playbook can hold it.
 with due_now as (
     select invoice_id, min(due_date) as first_due_date, sum(amount_open) as amount_due_now
     from {{ ref('int_invoice_dues') }}
@@ -43,10 +44,6 @@ unmatched_payments as (
     from cash left join settled using (customer_key)
     where cash.amount - coalesce(settled.amount, 0) >= 1
 ),
-reposted as (
-    select invoice_id from {{ ref('stg_invoice_versions') }}
-    where state = 'posted' group by invoice_id having count(distinct amount) > 1
-),
 partners_per_customer as (
     select customer_key, count(*) as n from {{ ref('int_customers') }}
     where partner_id in (select partner_id from {{ ref('stg_partners') }}
@@ -63,11 +60,14 @@ select
     i.amount_due_now as amount_due_now_usd,
     coalesce(cn.amount, 0) as customer_open_credit_notes_usd,
     coalesce(up.amount, 0) as customer_unmatched_payments_usd,
-    (r.invoice_id is not null) as changed_after_posting,
+    i.changed_after_posting,
+    i.changed_fields,
+    i.first_posted_due_date,
+    i.days_past_first_posted_due,
+    i.first_posted_customer,
     coalesce(ppc.n, 1) > 1 as customer_has_duplicate_records,
     i.source_ref
 from inv i
 left join credit_notes cn using (customer_key)
 left join unmatched_payments up using (customer_key)
-left join reposted r using (invoice_id)
 left join partners_per_customer ppc using (customer_key)

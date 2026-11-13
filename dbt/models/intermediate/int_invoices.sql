@@ -19,10 +19,17 @@ select
     greatest(0, '{{ var("as_of") }}'::date - coalesce(d.first_open_due_date, i.due_date)) as days_past_due,
     coalesce(d.amount_past_due, 0) as amount_past_due,
     d.first_open_due_date,
+    ch.invoice_id is not null as changed_after_posting,
+    array_to_string(ch.changed_fields, ', ') as changed_fields,
+    ch.first_posted_due_date,
+    ch.first_posted_customer,
+    case when ch.first_posted_due_date is not null
+         then greatest(0, '{{ var("as_of") }}'::date - ch.first_posted_due_date) end as days_past_first_posted_due,
     o.order_id, o.deal_id,
     'account.move/' || i.invoice_id || '@' || to_char(i.source_version, 'YYYY-MM-DD"T"HH24:MI:SS') as source_ref
 from {{ ref('stg_invoices') }} i
 join {{ ref('int_customers') }} c on c.partner_id = i.partner_id
 left join orders o on o.invoice_id = i.invoice_id
 left join dues d on d.invoice_id = i.invoice_id
+left join {{ ref('int_invoice_changes') }} ch on ch.invoice_id = i.invoice_id
 where i.state = 'posted' and i.move_type in ('out_invoice', 'out_refund')
