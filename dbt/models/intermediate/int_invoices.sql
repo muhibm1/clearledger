@@ -1,4 +1,4 @@
--- Posted customer invoices and credit notes, with the customer, the order and
+-- Posted customer invoices and credit notes dated on or before the as_of date, with the customer, the order and
 -- the deal behind each one, and a source reference down to the exact version.
 -- days_past_due counts from the oldest installment still open, not from the header's last due date;
 -- amount_past_due is what is open on installments already due.
@@ -33,3 +33,5 @@ left join orders o on o.invoice_id = i.invoice_id
 left join dues d on d.invoice_id = i.invoice_id
 left join {{ ref('int_invoice_changes') }} ch on ch.invoice_id = i.invoice_id
 where i.state = 'posted' and i.move_type in ('out_invoice', 'out_refund')
+  -- An invoice dated after the as_of date is not in the books as of it (invoice_dated_after_as_of lists them).
+  and (i.invoice_date is null or i.invoice_date <= '{{ var("as_of") }}'::date)

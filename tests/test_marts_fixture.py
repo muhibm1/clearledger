@@ -64,6 +64,10 @@ def build() -> World:
     w.invoice(601, "INV/601", 9, "2026-08-01", "2026-09-01", 100, 0)
     w.payment(6001, 9, 160, "2026-09-01", [601])
     w.invoice(602, "INV/602", 9, "2026-08-10", "2026-09-01", 50, 50)
+    # An invoice dated after the as_of date.
+    w.partner(10, "Kappa Retail")
+    w.invoice(701, "INV/701", 10, "2026-09-01", "2026-09-01", 400, 400)
+    w.invoice(702, "INV/702", 10, "2026-11-02", "2026-12-02", 16000, 16000)
     return w
 
 
@@ -157,3 +161,11 @@ def test_an_overpayment_is_credit_not_a_duplicate(db):
     row = one(db, "select customer_unmatched_payments_usd, customer_possible_duplicate_payments_usd "
                   "from marts.overdue_invoices where invoice_ref = 'INV/602'")
     assert row == (d(60), d(0))
+
+
+def test_an_invoice_dated_after_the_as_of_date_is_left_out_of_the_books_as_of_it(db):
+    row = one(db, "select invoiced, open, invoiced_after_as_of from marts.revenue_by_customer "
+                  "where customer_name = 'Kappa Retail'")
+    assert row == (d(400), d(400), d(16000))
+    assert one(db, "select count(*) from intermediate.int_invoices where invoice_ref = 'INV/702'")[0] == 0
+    assert one(db, "select total_open from marts.receivables_aging where customer_name = 'Kappa Retail'")[0] == d(400)
