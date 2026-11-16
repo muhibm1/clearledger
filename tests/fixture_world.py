@@ -103,8 +103,10 @@ def build_world(world: World, tmp: Path, select: str | None = None):
                          "on conflict do nothing", (odoo_id, write_date, json.dumps(payload)))
     env = {**os.environ, "CLEARLEDGER_PGDATABASE": name,
            "CLEARLEDGER_PGHOST": base.get("host", "/tmp"), "CLEARLEDGER_PGPORT": str(base.get("port", 5432)),
-           "CLEARLEDGER_PGUSER": base.get("user", "odoo"), "CLEARLEDGER_PGPASSWORD": base.get("password", ""),
+           "CLEARLEDGER_PGUSER": base.get("user", os.environ.get("PGUSER", "odoo")),
            "DBT_TARGET_PATH": str(tmp / "target"), "DBT_LOG_PATH": str(tmp / "logs")}
+    if "password" in base:   # otherwise the caller's own CLEARLEDGER_PGPASSWORD / PGPASSWORD stands
+        env["CLEARLEDGER_PGPASSWORD"] = base["password"]
     cmd = [dbt, "run", "--project-dir", str(ROOT / "dbt"), "--profiles-dir", str(ROOT / "dbt")]
     out = subprocess.run(cmd + (["--select", select] if select else []), capture_output=True, text=True, env=env, check=False)
     if out.returncode != 0:
