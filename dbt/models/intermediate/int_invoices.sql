@@ -1,17 +1,49 @@
--- Posted customer invoices and credit notes, with the customer, the order and
+-- Posted customer invoices and credit notes dated on or before the as_of date, with the customer, the order and
 -- the deal behind each one, and a source reference down to the exact version.
-with orders as (
+-- days_past_due counts from the oldest installment still open, not from the header's last due date;
+-- amount_past_due is what is open on installments already due.
+-- An invoice belongs to the order that lists it; failing that, to the order its origin field names.
+with linked as (
     select o.order_id, o.deal_id, unnest(o.invoice_ids) as invoice_id from {{ ref('stg_orders') }} o
+),
+by_origin as (
+    select o.order_id, o.deal_id, i.invoice_id
+    from {{ ref('stg_invoices') }} i
+    join {{ ref('stg_orders') }} o on o.order_ref = i.invoice_origin
+    where i.invoice_id not in (select invoice_id from linked)
+),
+orders as (
+    select distinct on (invoice_id) order_id, deal_id, invoice_id
+    from (select * from linked union all select * from by_origin) u
+    order by invoice_id, order_id
+),
+dues as (
+    select invoice_id,
+        min(due_date) filter (where amount_open <> 0) as first_open_due_date,
+        coalesce(sum(amount_open) filter (where due_date < '{{ var("as_of") }}'::date), 0) as amount_past_due
+    from {{ ref('int_invoice_dues') }} group by invoice_id
 )
 select
     i.invoice_id, i.invoice_ref, i.move_type, i.invoice_date, i.due_date,
     c.customer_key, c.customer_name, i.partner_id,
     i.currency, i.amount_in_invoice_currency, i.amount, i.amount_open, i.amount_open_in_invoice_currency,
     i.amount - i.amount_open as amount_paid,
-    greatest(0, '{{ var("as_of") }}'::date - i.due_date) as days_past_due,
+    greatest(0, '{{ var("as_of") }}'::date - coalesce(d.first_open_due_date, i.due_date)) as days_past_due,
+    coalesce(d.amount_past_due, 0) as amount_past_due,
+    d.first_open_due_date,
+    ch.invoice_id is not null as changed_after_posting,
+    array_to_string(ch.changed_fields, ', ') as changed_fields,
+    ch.first_posted_due_date,
+    ch.first_posted_customer,
+    case when ch.first_posted_due_date is not null
+         then greatest(0, '{{ var("as_of") }}'::date - ch.first_posted_due_date) end as days_past_first_posted_due,
     o.order_id, o.deal_id,
     'account.move/' || i.invoice_id || '@' || to_char(i.source_version, 'YYYY-MM-DD"T"HH24:MI:SS') as source_ref
 from {{ ref('stg_invoices') }} i
 join {{ ref('int_customers') }} c on c.partner_id = i.partner_id
 left join orders o on o.invoice_id = i.invoice_id
+left join dues d on d.invoice_id = i.invoice_id
+left join {{ ref('int_invoice_changes') }} ch on ch.invoice_id = i.invoice_id
 where i.state = 'posted' and i.move_type in ('out_invoice', 'out_refund')
+  -- An invoice dated after the as_of date is not in the books as of it (invoice_dated_after_as_of lists them).
+  and (i.invoice_date is null or i.invoice_date <= '{{ var("as_of") }}'::date)

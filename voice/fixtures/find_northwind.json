@@ -11,9 +11,12 @@
         "odoo_partners": [
           "41: Northwind Logistics",
           "71: Northwind Logistics Inc."
+        ],
+        "other_names": [
+          "Northwind Logistics Inc."
         ]
       }
     ],
-    "note": "A customer can be several Odoo partners merged into one; always use customer_key."
+    "note": "A customer can be several Odoo partners merged into one, and may have been renamed (other_names holds every other name it has had); always use customer_key."
   }
 }

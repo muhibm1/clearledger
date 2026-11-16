@@ -16,11 +16,16 @@ companies as (
 keyed as (
     select c.*,
         least(
-            min(company_id) over (partition by name_norm),
+            -- Same name is the same company only when the emails do not disagree: two
+            -- restaurants called "Rustic Table" and "Rustic Table LLC" with different
+            -- addresses stay two customers (and duplicate_customers lists them for a person).
+            min(company_id) over (partition by name_norm, coalesce(email, '')),
             -- A missing email is not a match: Postgres would put every partner
-            -- without one in the same window and merge them.
+            -- without one in the same window and merge them. A shared email alone is not
+            -- a match either (a bookkeeper's mailbox serves several clients): the names must
+            -- also start the same way.
             case when email is null then company_id
-                 else min(company_id) over (partition by email) end
+                 else min(company_id) over (partition by email, split_part(name_norm, ' ', 1)) end
         ) as customer_key
     from companies c
 )

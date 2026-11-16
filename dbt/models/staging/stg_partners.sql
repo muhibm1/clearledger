@@ -4,6 +4,7 @@ select
     payload->>'name' as partner_name,
     lower({{ txt('email') }}) as email,
     (payload->>'is_company')::boolean as is_company,
+    coalesce((payload->>'active')::boolean, true) as is_active,
     {{ m2o_id('commercial_partner_id') }} as commercial_partner_id,
     {{ m2o_name('country_id') }} as country,
     write_date as source_version
