@@ -64,18 +64,20 @@ def _rows(conn, sql, args=()):
 
 
 def find_customers(conn, name: str) -> dict:
-    """Customers whose name contains the text, with every Odoo partner merged into each."""
+    """Customers whose name, or a name they used before, contains the text, with every Odoo partner merged into each."""
     found = _rows(conn, """
         select c.customer_key, max(c.customer_name) as customer_name,
-               array_agg(c.partner_id || ': ' || p.partner_name order by c.partner_id) as odoo_partners
+               array_agg(c.partner_id || ': ' || p.partner_name order by c.partner_id) as odoo_partners,
+               (select coalesce(array_agg(distinct n.name order by n.name) filter (where not n.is_customer_name), '{}')
+                from intermediate.int_customer_names n where n.customer_key = c.customer_key) as other_names
         from intermediate.int_customers c
         join staging.stg_partners p using (partner_id)
-        where c.customer_key in (select c2.customer_key from intermediate.int_customers c2
-                                 join staging.stg_partners p2 using (partner_id)
-                                 where c2.customer_name ilike %s or p2.partner_name ilike %s)
-        group by c.customer_key order by c.customer_key""", (f"%{name}%", f"%{name}%"))
+        where c.customer_key in (select n2.customer_key from intermediate.int_customer_names n2
+                                 where n2.name ilike %s)
+        group by c.customer_key order by c.customer_key""", (f"%{name}%",))
     return {"customers": found,
-            "note": "A customer can be several Odoo partners merged into one; always use customer_key."}
+            "note": "A customer can be several Odoo partners merged into one, and may have been renamed "
+                    "(other_names holds every other name it has had); always use customer_key."}
 
 
 def customer_summary(conn, customer_key: int) -> dict:
@@ -141,21 +143,30 @@ def grant_set_role_sql(role: str, server_version_num: int) -> str | None:
     return f"grant {role} to current_user with set true"
 
 
+READER_LOCK_ID = 7342019  # advisory lock key: one writer of the reader role at a time
+
+
 def ensure_reader(conn) -> None:
     """A role that can only SELECT from the modeled schemas. `query` runs as this role, so a
     query cannot read raw tables, files on the server, or anything outside those schemas,
     whatever the agent writes. Default privileges keep it working after dbt rebuilds a table."""
+    # Several queries can start at once (the analyst runs questions in parallel): without a lock they
+    # race to create the role and to alter its privileges, and one fails with a unique violation.
     with conn.cursor() as cur:
-        cur.execute("select 1 from pg_roles where rolname = %s", (READER,))
-        if not cur.fetchone():
-            cur.execute(f"create role {READER} nologin")
-        grant = grant_set_role_sql(READER, conn.info.server_version)
-        if grant:
-            cur.execute(grant)
-        for schema in QUERY_SCHEMAS:
-            cur.execute(f"grant usage on schema {schema} to {READER}")
-            cur.execute(f"grant select on all tables in schema {schema} to {READER}")
-            cur.execute(f"alter default privileges in schema {schema} grant select on tables to {READER}")
+        cur.execute("select pg_advisory_lock(%s)", (READER_LOCK_ID,))
+        try:
+            cur.execute("select 1 from pg_roles where rolname = %s", (READER,))
+            if not cur.fetchone():
+                cur.execute(f"create role {READER} nologin")
+            grant = grant_set_role_sql(READER, conn.info.server_version)
+            if grant:
+                cur.execute(grant)
+            for schema in QUERY_SCHEMAS:
+                cur.execute(f"grant usage on schema {schema} to {READER}")
+                cur.execute(f"grant select on all tables in schema {schema} to {READER}")
+                cur.execute(f"alter default privileges in schema {schema} grant select on tables to {READER}")
+        finally:
+            cur.execute("select pg_advisory_unlock(%s)", (READER_LOCK_ID,))
 
 
 def unsafe_function(sql: str) -> str | None:

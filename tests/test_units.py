@@ -81,3 +81,40 @@ def test_query_refuses_unsafe_server_functions_however_written():
 def test_reader_grant_is_only_for_postgres_16_and_later():
     assert grant_set_role_sql("clearledger_reader", 150009) is None
     assert grant_set_role_sql("clearledger_reader", 160000) == "grant clearledger_reader to current_user with set true"
+
+
+def test_the_totals_monitor_asks_odoo_only_for_invoices_dated_by_the_as_of_date():
+    from clearledger.ask import AS_OF
+    from clearledger.monitor import check_source_totals
+
+    asked = []
+
+    class FakeOdoo:
+        def execute(self, model, method, domain, *rest, **kwargs):
+            asked.append(domain)
+            return [{"amount_total_signed": 100.0, "amount_residual_signed": 40.0}]
+
+    class FakeCursor:
+        def execute(self, sql):
+            pass
+
+        def fetchone(self):
+            return (100, 40)
+
+    out = check_source_totals(FakeCursor(), FakeOdoo())
+    assert ("invoice_date", "<=", AS_OF) in asked[0]
+    assert out[0].status == "ok"
+
+
+def test_dbt_writes_its_output_outside_the_checkout(monkeypatch, tmp_path):
+    from pathlib import Path
+
+    from clearledger.pipeline import ROOT, dbt_env
+    for var in ("DBT_TARGET_PATH", "DBT_LOG_PATH", "CLEARLEDGER_DBT_OUT"):
+        monkeypatch.delenv(var, raising=False)
+    env = dbt_env()
+    assert not Path(env["DBT_TARGET_PATH"]).is_relative_to(ROOT) and not Path(env["DBT_LOG_PATH"]).is_relative_to(ROOT)
+    monkeypatch.setenv("CLEARLEDGER_DBT_OUT", str(tmp_path))
+    assert dbt_env()["DBT_TARGET_PATH"] == str(tmp_path / "target")
+    monkeypatch.setenv("DBT_TARGET_PATH", "/somewhere/else")
+    assert dbt_env()["DBT_TARGET_PATH"] == "/somewhere/else"

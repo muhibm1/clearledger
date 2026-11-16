@@ -1,0 +1,293 @@
+"""The finance models on a small invented company: each case is one thing real books do.
+
+The world is built from nothing but the rows in `build()`, loaded into a scratch Postgres database,
+and the real models run over it (see fixture_world.py). Skipped without a Postgres to make a scratch
+database in, or without dbt.
+"""
+
+import datetime as dt
+from decimal import Decimal
+
+import pytest
+from fixture_world import World, build_world, drop_world
+
+AS_OF = dt.date(2026, 10, 27)
+
+
+def build() -> World:
+    w = World()
+    # Installments: a retainage-style term whose header due date is its last installment.
+    w.partner(1, "Alpha Builders")
+    w.partner(2, "Beta Supply")
+    w.invoice(101, "INV/1", 1, "2026-05-01", "2027-02-01", 1000, 1000)
+    w.line(1001, 101, "2026-08-01", 900, 900)
+    w.line(1002, 101, "2027-02-01", 100, 100)
+    # No installment lines loaded: the header due date stands in.
+    w.invoice(102, "INV/2", 1, "2026-07-01", "2026-09-01", 500, 500)
+    # Lines that do not add up to what the invoice says is open: the header stands in too.
+    w.invoice(103, "INV/3", 1, "2026-07-01", "2026-09-01", 400, 400)
+    w.line(1003, 103, "2027-01-01", 400, 100)
+    # A residue under the materiality floor is not late money.
+    w.invoice(104, "INV/4", 2, "2026-07-01", "2026-09-01", 300, 0.40)
+    w.line(1004, 104, "2026-09-01", 300, 0.40)
+    # Posted invoices that changed afterwards.
+    w.partner(3, "Gamma Works")
+    w.partner(4, "Delta Industrial")
+    w.invoice(201, "INV/201", 3, "2026-06-01", "2026-08-02", 700, 700, write_date="2026-09-01 10:00:00")
+    w.invoice(201, "INV/201", 3, "2026-06-01", "2026-10-02", 700, 700, write_date="2026-10-05 10:00:00")
+    w.invoice(202, "INV/202", 4, "2026-09-01", "2026-09-18", 800, 800, write_date="2026-09-01 10:00:00")
+    w.invoice(202, "INV/202", 3, "2026-09-01", "2026-09-18", 800, 800, write_date="2026-10-05 10:00:00")
+    # Reset to draft and posted again with the same terms: not a change.
+    w.invoice(203, "INV/203", 3, "2026-09-01", "2026-09-18", 900, 900, write_date="2026-09-01 10:00:00")
+    w.invoice(203, "INV/203", 3, "2026-09-01", "2026-09-18", 900, 900, state="draft", write_date="2026-09-02 10:00:00")
+    w.invoice(203, "INV/203", 3, "2026-09-01", "2026-09-18", 900, 900, write_date="2026-09-03 10:00:00")
+    # A parent company pays its subsidiary's invoice.
+    w.partner(5, "Epsilon Holdings")
+    w.partner(6, "Zeta Residential")
+    w.invoice(301, "INV/301", 6, "2026-08-01", "2026-09-01", 1000, 0)
+    w.payment(3001, 5, 1000, "2026-09-02", [301])
+    w.invoice(302, "INV/302", 5, "2026-08-01", "2026-09-01", 500, 500)
+    # A deposit refunded: money in, credit note, money out.
+    w.partner(7, "Eta Homes")
+    w.invoice(401, "INV/401", 7, "2026-06-01", "2026-06-30", 1000, 0)
+    w.payment(4001, 7, 1000, "2026-06-05", [401])
+    w.invoice(402, "RINV/402", 7, "2026-08-01", "2026-08-01", 1000, 0, kind="out_refund")
+    w.payment(4002, 7, 1000, "2026-08-05", [402], kind="outbound")
+    w.invoice(403, "INV/403", 7, "2026-08-10", "2026-09-01", 100, 100)
+    # The same amount sent twice, one copy matched to nothing; and a real overpayment.
+    w.partner(8, "Theta Foods")
+    w.invoice(501, "INV/501", 8, "2026-08-01", "2026-09-01", 300, 0)
+    w.payment(5001, 8, 300, "2026-09-01", [501])
+    w.payment(5002, 8, 300, "2026-09-02", [])
+    w.invoice(502, "INV/502", 8, "2026-08-10", "2026-09-01", 200, 200)
+    w.partner(9, "Iota Dairy")
+    w.invoice(601, "INV/601", 9, "2026-08-01", "2026-09-01", 100, 0)
+    w.payment(6001, 9, 160, "2026-09-01", [601])
+    w.invoice(602, "INV/602", 9, "2026-08-10", "2026-09-01", 50, 50)
+    # An invoice dated after the as_of date.
+    w.partner(10, "Kappa Retail")
+    w.invoice(701, "INV/701", 10, "2026-09-01", "2026-09-01", 400, 400)
+    w.invoice(702, "INV/702", 10, "2026-11-02", "2026-12-02", 16000, 16000)
+    # Deals: an invoice cancelled and rebilled by hand, a cancelled order with a refund, a job paid in
+    # full on less than it ordered, and an invoice linked to its order only by its origin.
+    for pid, name in [(11, "Lambda Cinemas"), (12, "Mu Homes"), (13, "Nu Construction"), (14, "Xi Fitness")]:
+        w.partner(pid, name)
+    w.deal(1, 11)
+    w.order(801, 1, 11, 500, invoices=[8011])
+    w.invoice(8011, "INV/8011", 11, "2026-09-15", "2026-10-15", 500, 0, state="cancel", origin="S00801")
+    w.invoice(8012, "INV/8012", 11, "2026-09-17", "2026-10-17", 500, 500)
+    w.deal(2, 12)
+    w.order(802, 2, 12, 1000, state="cancel", invoices=[8021, 8022])
+    w.invoice(8021, "INV/8021", 12, "2026-05-01", "2026-05-31", 1000, 0, origin="S00802")
+    w.invoice(8022, "RINV/8022", 12, "2026-06-01", "2026-06-01", 1000, 0, kind="out_refund", origin="S00802")
+    w.deal(3, 13)
+    w.order(803, 3, 13, 1000, invoices=[8031])
+    w.invoice(8031, "INV/8031", 13, "2026-05-01", "2026-05-31", 800, 0, origin="S00803")
+    w.invoice(8032, "INV/8032", 13, "2026-08-01", "2026-08-31", 200, 0)
+    w.deal(4, 14)
+    w.order(804, 4, 14, 300)
+    w.invoice(8041, "INV/8041", 14, "2026-05-01", "2026-05-31", 300, 0, origin="S00804")
+    # A customer renamed after its first invoice, and two customers whose names start alike.
+    w.partner(15, "Omicron Fresh", write_date="2026-03-01 10:00:00")
+    w.partner(15, "Omicron Foods", write_date="2026-09-01 10:00:00")
+    w.invoice(901, "INV/901", 15, "2026-04-01", "2026-05-01", 250, 0)
+    w.payment(9001, 15, 250, "2026-05-02", [901])
+    w.partner(18, "Rho Archive", active=False)
+    w.partner(16, "Pi Table")
+    w.partner(17, "Pi Table Garden")
+    w.invoice(902, "INV/902", 16, "2026-04-01", "2026-05-01", 60, 0)
+    w.invoice(903, "INV/903", 17, "2026-04-01", "2026-05-01", 70, 0)
+    return w
+
+
+@pytest.fixture(scope="module")
+def db(tmp_path_factory):
+    conn = build_world(build(), tmp_path_factory.mktemp("dbt"))
+    if conn is None:
+        pytest.skip("no scratch Postgres or no dbt here")
+    yield conn
+    drop_world(conn)
+
+
+def one(db, sql, *args):
+    row = db.execute(sql, args).fetchone()
+    return row
+
+
+def d(x):
+    return Decimal(str(x))
+
+
+def test_each_installment_is_aged_by_its_own_due_date(db):
+    row = one(db, "select late_61_90, late_31_60, not_yet_due, total_open from marts.receivables_aging "
+                  "where customer_name = 'Alpha Builders'")
+    # 900 fell due 2026-08-01 (87 days late); 100 is not due until 2027; the two invoices whose
+    # installments cannot be used (none loaded, or lines that disagree) age on the header date.
+    assert row == (d(900), d(900), d(100), d(1900))
+
+
+def test_an_invoice_with_no_usable_installments_falls_back_to_its_header_due_date(db):
+    days = one(db, "select days_past_due from intermediate.int_invoices where invoice_ref = 'INV/2'")[0]
+    assert days == (AS_OF - dt.date(2026, 9, 1)).days
+    basis = db.execute("select basis from intermediate.int_invoice_dues where invoice_id in (102, 103)").fetchall()
+    assert {b for (b,) in basis} == {"invoice header"}
+
+
+def test_the_overdue_list_dates_an_invoice_by_its_oldest_open_installment(db):
+    row = one(db, "select due_date, days_past_due, amount_open_usd, amount_due_now_usd "
+                  "from marts.overdue_invoices where invoice_ref = 'INV/1'")
+    assert row == (dt.date(2026, 8, 1), 87, d(1000), d(900))
+
+
+def test_a_residue_under_the_materiality_floor_is_not_late_and_is_not_chased(db):
+    row = one(db, "select late_31_60, rounding_residue, total_open from marts.receivables_aging "
+                  "where customer_name = 'Beta Supply'")
+    assert row == (None, d("0.40"), d("0.40"))
+    assert one(db, "select count(*) from marts.overdue_invoices where invoice_ref = 'INV/4'")[0] == 0
+
+
+def test_a_changed_due_date_is_flagged_and_keeps_the_first_posted_one(db):
+    row = one(db, "select changed_after_posting, changed_fields, due_date, days_past_due, first_posted_due_date, "
+                  "days_past_first_posted_due from marts.overdue_invoices where invoice_ref = 'INV/201'")
+    assert row == (True, "due date", dt.date(2026, 10, 2), 25, dt.date(2026, 8, 2), 86)
+
+
+def test_an_invoice_moved_to_another_customer_is_flagged_with_the_first_customer(db):
+    row = one(db, "select changed_fields, customer_name, first_posted_customer from marts.overdue_invoices "
+                  "where invoice_ref = 'INV/202'")
+    assert row == ("customer", "Gamma Works", "Delta Industrial")
+
+
+def test_posting_again_with_the_same_terms_is_not_a_change(db):
+    assert one(db, "select changed_after_posting from marts.overdue_invoices where invoice_ref = 'INV/203'")[0] is False
+    assert one(db, "select count(*) from intermediate.int_invoice_changes where invoice_id = 203")[0] == 0
+
+
+def test_a_parent_paying_a_subsidiarys_invoice_is_cash_for_the_subsidiary_not_credit_on_the_parent(db):
+    assert one(db, "select customer_unmatched_payments_usd from marts.overdue_invoices where invoice_ref = 'INV/302'")[0] == 0
+    cash = dict(db.execute("select customer_name, cash_received from marts.revenue_by_customer "
+                           "where customer_name in ('Epsilon Holdings', 'Zeta Residential')").fetchall())
+    assert cash == {"Epsilon Holdings": 0, "Zeta Residential": d(1000)}
+    assert one(db, "select settles_another_customers_invoices from intermediate.int_payments where payment_id = 3001")[0]
+
+
+def test_a_refund_paid_out_is_taken_off_cash_received(db):
+    row = one(db, "select cash_received, cash_refunded, invoiced, paid from marts.revenue_by_customer "
+                  "where customer_name = 'Eta Homes'")
+    assert row == (d(0), d(1000), d(100), d(0))
+    # Money in and money out cancel against the invoice and the credit note: no credit is left over.
+    assert one(db, "select customer_unmatched_payments_usd from marts.overdue_invoices where invoice_ref = 'INV/403'")[0] == 0
+
+
+def test_a_payment_matched_to_nothing_that_repeats_another_is_a_possible_duplicate(db):
+    row = one(db, "select customer_unmatched_payments_usd, customer_possible_duplicate_payments_usd "
+                  "from marts.overdue_invoices where invoice_ref = 'INV/502'")
+    assert row == (d(300), d(300))
+    assert one(db, "select possible_duplicate_of from intermediate.int_payments where payment_id = 5002")[0] == 5001
+
+
+def test_an_overpayment_is_credit_not_a_duplicate(db):
+    row = one(db, "select customer_unmatched_payments_usd, customer_possible_duplicate_payments_usd "
+                  "from marts.overdue_invoices where invoice_ref = 'INV/602'")
+    assert row == (d(60), d(0))
+
+
+def test_an_invoice_dated_after_the_as_of_date_is_left_out_of_the_books_as_of_it(db):
+    row = one(db, "select invoiced, open, invoiced_after_as_of from marts.revenue_by_customer "
+                  "where customer_name = 'Kappa Retail'")
+    assert row == (d(400), d(400), d(16000))
+    assert one(db, "select count(*) from intermediate.int_invoices where invoice_ref = 'INV/702'")[0] == 0
+    assert one(db, "select total_open from marts.receivables_aging where customer_name = 'Kappa Retail'")[0] == d(400)
+
+
+def deal(db, deal_id):
+    return db.execute("select status, ordered, invoiced, not_yet_invoiced, cancelled_invoice_ids, "
+                      "possible_unlinked_invoice_ids from marts.deal_to_cash where deal_id = %s", (deal_id,)).fetchone()
+
+
+def test_an_order_whose_invoice_was_cancelled_and_rebilled_by_hand_is_reported(db):
+    status, ordered, invoiced, _, cancelled, candidates = deal(db, 1)
+    assert (status, ordered, invoiced) == ("ordered, not invoiced", d(500), d(0))
+    assert cancelled == [8011] and candidates == [8012]
+
+
+def test_the_unlinked_invoice_is_a_candidate_never_counted_as_invoiced(db):
+    assert one(db, "select invoiced from marts.deal_to_cash where deal_id = 1")[0] == 0
+
+
+def test_a_cancelled_order_with_invoices_and_a_refund_is_not_won_no_order(db):
+    status, ordered, invoiced, *_ = deal(db, 2)
+    assert (status, ordered, invoiced) == ("order cancelled", d(0), d(0))
+
+
+def test_a_job_paid_in_full_on_less_than_it_ordered_is_not_paid(db):
+    status, ordered, invoiced, left, _, candidates = deal(db, 3)
+    assert (status, ordered, invoiced, left) == ("paid, order not fully invoiced", d(1000), d(800), d(200))
+    assert candidates == [8032]
+
+
+def test_an_invoice_that_names_its_order_in_its_origin_is_linked_to_it(db):
+    status, ordered, invoiced, *_ = deal(db, 4)
+    assert (status, ordered, invoiced) == ("paid", d(300), d(300))
+
+
+def traced(db, table, name):
+    from clearledger.trace import trace
+    return trace(db, table, name)
+
+
+def test_a_trace_does_not_cry_wolf_on_books_that_are_right(db):
+    # Parent paying a subsidiary, a refunded deposit, a duplicate payment and an overpayment all leave
+    # cash different from what the invoices show as settled. That is explained, not flagged.
+    for name in ["Epsilon Holdings", "Zeta Residential", "Eta Homes", "Theta Foods", "Iota Dairy"]:
+        out = traced(db, "revenue_by_customer", name)
+        assert "DOES NOT ADD UP" not in out, out
+    assert "cash received is" in traced(db, "revenue_by_customer", "Iota Dairy")
+    assert "sent by Epsilon Holdings" in traced(db, "revenue_by_customer", "Zeta Residential")
+
+
+def test_a_trace_still_flags_a_figure_that_really_does_not_add_up(db):
+    from clearledger.trace import _check
+    assert "DOES NOT ADD UP" in _check("paid", d(100), [d(40), d(50)])
+
+
+def test_a_renamed_customer_is_found_under_its_old_name(db):
+    out = traced(db, "revenue_by_customer", "Omicron Fresh")
+    assert out.startswith("Omicron Foods:") and "found under its former name 'Omicron Fresh'" in out
+
+
+def test_an_exact_name_wins_over_a_longer_name_that_contains_it(db):
+    assert traced(db, "revenue_by_customer", "Pi Table").startswith("Pi Table:")
+    with pytest.raises(SystemExit, match="matches 2 customers"):
+        traced(db, "revenue_by_customer", "Pi")
+
+
+def test_find_customers_finds_a_renamed_customer_by_its_old_name(db):
+    from clearledger import ask
+    ask.ensure_reader(db)
+    found = ask.find_customers(db, "omicron fresh")["customers"]
+    assert [c["customer_name"] for c in found] == ["Omicron Foods"]
+    assert "Omicron Fresh" in found[0]["other_names"]
+
+
+def test_the_staged_partner_keeps_its_active_flag(db):
+    flags = dict(db.execute("select partner_name, is_active from staging.stg_partners "
+                            "where partner_name in ('Rho Archive', 'Pi Table')").fetchall())
+    assert flags == {"Rho Archive": False, "Pi Table": True}
+
+
+def test_every_monitor_result_is_recorded_against_a_load_run(db, monkeypatch, tmp_path):
+    from clearledger.monitor import run_checks
+    monkeypatch.setenv("CLEARLEDGER_ALERT_FILE", str(tmp_path / "alerts.jsonl"))
+    db.execute("insert into raw.load_runs (run_id, started_at, finished_at, status) "
+               "values ('run-1', now(), now(), 'ok')")
+
+    class Odoo:
+        def execute(self, *args, **kwargs):
+            return [{"amount_total_signed": 0, "amount_residual_signed": 0}]
+
+    results = run_checks(db, odoo=Odoo())
+    assert any(r.check_name == "source_totals" for r in results)
+    rows = db.execute("select check_name, run_id from raw.monitor_results").fetchall()
+    assert rows and all(run_id == "run-1" for _, run_id in rows if run_id is not None) and all(
+        run_id is not None for _, run_id in rows)

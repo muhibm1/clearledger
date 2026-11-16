@@ -15,6 +15,8 @@ import argparse
 import json
 import sys
 
+from clearledger.ask import AS_OF
+
 
 def pick_customer(conn) -> tuple[str, str, float]:
     """The customer with the largest balance more than 90 days late: (key, name, amount)."""
@@ -42,8 +44,12 @@ def run(via: str = "stub") -> dict:
         return {"mode": "SKIPPED", "reason": f"the warehouse is not reachable: {type(exc).__name__}"}
 
     question = f"How much does {name} owe us that is more than 90 days late?"
-    query = ("select invoice_ref, days_past_due, amount_open, source_ref from intermediate.int_invoices "
-             f"where customer_key = '{key}' and amount_open <> 0 and days_past_due > 90 order by invoice_ref")
+    # Each installment of an invoice is aged by its own due date, and credit notes are not aged, so the
+    # amounts are the open installments of invoices that are more than 90 days past due.
+    query = ("select i.invoice_ref, sum(d.amount_open) as amount_open, i.source_ref "
+             "from intermediate.int_invoice_dues d join intermediate.int_invoices i using (invoice_id) "
+             f"where i.customer_key = '{key}' and i.move_type = 'out_invoice' and abs(d.amount_open) >= 1 "
+             f"and date '{AS_OF}' - d.due_date > 90 group by i.invoice_ref, i.source_ref order by i.invoice_ref")
     if via == "cli":
         model, label = CommandLineModel("sonnet"), "LIVE model through the local claude command-line route"
     else:

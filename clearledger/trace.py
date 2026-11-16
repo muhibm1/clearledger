@@ -42,10 +42,15 @@ where i.invoice_id = any(%s) order by i.invoice_date, i.invoice_id
 """
 
 PAYMENT_SQL = """
-select payment_ref as payment, payment_date as dated, currency, amount as usd,
-       array_to_string(invoice_ids, ',') as invoice_ids,
-       'account.payment/' || payment_id || '@' || to_char(source_version, 'YYYY-MM-DD"T"HH24:MI:SS') as source_ref
-from staging.stg_payments where payment_id = any(%s) order by payment_date, payment_id
+select p.payment_ref as payment, p.payment_date as dated, p.payment_type as kind, p.currency, p.amount as usd,
+       array_to_string(p.invoice_ids, ',') as invoice_ids,
+       case when p.settles_another_customers_invoices then 'sent by ' || payer.customer_name
+            when p.possible_duplicate_of is not null then 'possible duplicate of payment ' || p.possible_duplicate_of
+            when cardinality(p.invoice_ids) = 0 then 'matched to no invoice' else '' end as note,
+       'account.payment/' || p.payment_id || '@' || to_char(p.source_version, 'YYYY-MM-DD"T"HH24:MI:SS') as source_ref
+from intermediate.int_payments p
+join intermediate.int_customers payer on payer.partner_id = p.payer_partner_id
+where p.payment_id = any(%s) order by p.payment_date, p.payment_id
 """
 
 INV_COLS = ["invoice", "dated", "due", "currency", "in_currency", "usd", "paid", "open", "order", "deal", "source_ref"]
@@ -58,10 +63,21 @@ def _check(label, claimed, parts) -> str:
 
 
 def _customer(conn, table, key):
-    found = _rows(conn, f"select * from marts.{table} where customer_name ilike %s", (f"%{key}%",))
+    """The one customer row `key` names: an exact name (current or former) wins over a part of a name."""
+    names = _rows(conn, "select customer_key, name, is_current from intermediate.int_customer_names "
+                        "where name ilike %s", (f"%{key}%",))
+    exact = {n["customer_key"] for n in names if n["name"].lower() == key.strip().lower()}
+    keys = sorted(exact or {n["customer_key"] for n in names})
+    found = _rows(conn, f"select * from marts.{table} where customer_key = any(%s) order by customer_name", (keys,))
     if len(found) != 1:
-        names = ", ".join(r["customer_name"] for r in found) or "no match"
-        raise SystemExit(f"'{key}' matches {len(found)} customers in {table}: {names}")
+        listed = ", ".join(r["customer_name"] for r in found) or "no match"
+        raise SystemExit(f"'{key}' matches {len(found)} customers in {table}: {listed}")
+    # Say so when the name asked for is one the customer no longer uses.
+    old = sorted({n["name"] for n in names if n["customer_key"] == found[0]["customer_key"]
+                  and n["name"] != found[0]["customer_name"]})
+    mine = [n["name"] for n in names if n["customer_key"] == found[0]["customer_key"]
+            and n["name"] == found[0]["customer_name"]]
+    found[0]["_found_as"] = old[0] if old and not mine else None
     return found[0]
 
 
@@ -71,6 +87,8 @@ def trace(conn, table: str, key: str) -> str:
         r = _customer(conn, table, key)
         out.append(f"{r['customer_name']}: billed {_money(r['invoiced'])}, paid {_money(r['paid'])}, "
                    f"open {_money(r['open'])} (USD)")
+        if r.get("_found_as"):
+            out.append(f"  found under its former name '{r['_found_as']}'")
         merged = _rows(conn, "select partner_id from intermediate.int_customers where customer_key = %s "
                              "order by 1", (r["customer_key"],))
         if len(merged) > 1:
@@ -78,10 +96,20 @@ def trace(conn, table: str, key: str) -> str:
         invs = _rows(conn, INVOICE_SQL, (r["source_invoice_ids"],))
         out += ["", "Invoices", _table(invs, INV_COLS)]
         pays = _rows(conn, PAYMENT_SQL, (r["source_payment_ids"] or [],))
-        out += ["", "Payments", _table(pays, ["payment", "dated", "currency", "usd", "invoice_ids", "source_ref"]), ""]
+        out += ["", "Payments", _table(pays, ["payment", "dated", "kind", "currency", "usd", "invoice_ids", "note",
+                                              "source_ref"]), ""]
         out.append(_check("billed", r["invoiced"], [i["usd"] for i in invs]))
         out.append(_check("open", r["open"], [i["open"] for i in invs]))
-        out.append(_check("paid", r["paid"], [p["usd"] for p in pays]))
+        # `paid` is what the invoices show as settled, so it is checked against the invoices. The cash that
+        # came in is checked against the payments. The two differ for ordinary reasons, which is said, not
+        # flagged: a payment that is not a settlement is not a number that fails to add up.
+        out.append(_check("paid", r["paid"], [i["paid"] for i in invs]))
+        out.append(_check("cash received", r["cash_received"], [p["usd"] for p in pays]))
+        gap = (r["cash_received"] or Decimal(0)) - (r["paid"] or Decimal(0))
+        if abs(gap) > TOL:
+            out.append(f"  cash received is {_money(gap)} {'above' if gap > 0 else 'below'} what the invoices show as "
+                       "settled: " + ("an overpayment, a payment matched to no invoice, or a duplicate."
+                                      if gap > 0 else "a write-off or an exchange difference."))
     elif table == "receivables_aging":
         r = _customer(conn, table, key)
         out.append(f"{r['customer_name']}: owes {_money(r['total_open'])} (USD) as of the aging date")
@@ -102,6 +130,16 @@ def trace(conn, table: str, key: str) -> str:
                              "'sale.order/' || order_id as source_ref from staging.stg_orders "
                              "where order_id = any(%s) order by 1", (r["source_order_ids"],))
         out += ["", "Orders", _table(orders, ["order", "dated", "state", "amount", "source_ref"])]
+        if r["source_cancelled_order_ids"]:
+            cancelled = _rows(conn, "select order_ref as \"order\", order_date as dated, state, amount_total as amount, "
+                                    "'sale.order/' || order_id as source_ref from staging.stg_orders "
+                                    "where order_id = any(%s) order by 1", (r["source_cancelled_order_ids"],))
+            out += ["", "Cancelled orders (not counted in ordered)",
+                    _table(cancelled, ["order", "dated", "state", "amount", "source_ref"])]
+        if r["possible_unlinked_invoice_ids"]:
+            out += ["", f"Possibly this deal's, but no order lists them (not counted): invoices {r['possible_unlinked_invoice_ids']}"]
+        if r["cancelled_invoice_ids"]:
+            out += [f"Cancelled invoices on its orders: {r['cancelled_invoice_ids']}"]
         invs = _rows(conn, INVOICE_SQL, (r["source_invoice_ids"],))
         out += ["", "Invoices", _table(invs, ["invoice", "dated", "due", "usd", "paid", "open", "source_ref"]), ""]
         out.append(_check("ordered", r["ordered"], [o["amount"] for o in orders]))

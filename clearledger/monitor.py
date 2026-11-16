@@ -21,6 +21,7 @@ from dataclasses import asdict, dataclass
 
 import psycopg
 
+from .ask import AS_OF
 from .sources import SOURCES
 
 DDL = """
@@ -125,8 +126,10 @@ def check_schema(cur) -> list[Result]:
 
 def check_source_totals(cur, odoo) -> list[Result]:
     """Asks Odoo for its own posted customer totals and compares them with the finance tables."""
+    # The models leave out invoices dated after the as_of date, so Odoo's side must too.
     groups = odoo.execute("account.move", "read_group",
-                          [("move_type", "in", ["out_invoice", "out_refund"]), ("state", "=", "posted")],
+                          [("move_type", "in", ["out_invoice", "out_refund"]), ("state", "=", "posted"),
+                           ("invoice_date", "<=", AS_OF)],
                           ["amount_total_signed:sum", "amount_residual_signed:sum"], [], lazy=False)
     odoo_billed = round(groups[0]["amount_total_signed"] or 0, 2) if groups else 0.0
     odoo_open = round(groups[0]["amount_residual_signed"] or 0, 2) if groups else 0.0
@@ -151,7 +154,11 @@ def run_checks(conn: psycopg.Connection, now=None, odoo=None) -> list[Result]:
                 results += check_source_totals(cur, odoo)
             except Exception as exc:
                 results.append(Result("source_totals", "fail", f"could not compare with Odoo: {exc}"))
+        # A result about the warehouse as a whole belongs to the newest load, so no row has a NULL run.
+        latest = _runs(cur, limit=1)
         for r in results:
+            if r.run_id is None and latest:
+                r.run_id = latest[0][0]
             cur.execute("insert into raw.monitor_results (run_id, check_name, model, status, detail) "
                         "values (%s, %s, %s, %s, %s)",
                         (r.run_id, r.check_name, r.model, r.status, json.dumps({"message": r.message})))
