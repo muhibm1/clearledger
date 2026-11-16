@@ -77,8 +77,27 @@ JOBS = {
         ["voight.train.evaluate", "--model", MODEL, "--adapter", "@sft-1.5b-full", "--name", "qwen1.5b-sft-full",
          "--split", "test", "--range", "--slots", "8"],
     ],
+    # 2026-11-16, one bounded GRPO try from the frozen w4c adapter (sft-1.5b-full, in the bundle at
+    # runs/sft-1.5b-full): 14 iterations of 8 tasks x 8 attempts, drawn from the weak train kinds plus
+    # delimiter-attacked train tasks, capped at 4.5 hours by "timeout:". Then each score is taken once:
+    # the oracle on the pinned attack round 2 (a check of the round itself), the GRPO adapter on all of
+    # test and on round 2, and the starting adapter on round 2 for comparison. No dev scoring, no picking.
+    "r2": [
+        ["voight.attacks_r2", "verify"],
+        ["voight.attacks_r2", "check"],
+        ["timeout:16200", "voight.train.grpo", "--model", MODEL, "--adapter", "runs/sft-1.5b-full",
+         "--out", f"{OUT}/grpo-r2", "--iterations", "14", "--tasks-per-iter", "8", "--group", "8", "--lr", "2e-5",
+         "--kl", "0.01", "--slots", "8", "--save-every", "2", "--kinds", "two_credits,typo_ref,mixed_ref,tie",
+         "--attacks", "delimiter", *BF16],
+        ["voight.train.evaluate", "--model", MODEL, "--adapter", f"{OUT}/grpo-r2", "--name", "qwen1.5b-grpo-r2",
+         "--split", "test", "--slots", "8"],
+        ["voight.train.evaluate", "--model", MODEL, "--adapter", f"{OUT}/grpo-r2", "--name", "qwen1.5b-grpo-r2",
+         "--attacks-r2", "--slots", "8"],
+        ["voight.train.evaluate", "--model", MODEL, "--adapter", "runs/sft-1.5b-full", "--name", "qwen1.5b-sft-full",
+         "--attacks-r2", "--slots", "8"],
+    ],
 }
-RUN = "w4c-test"
+RUN = os.environ.get("VOIGHT_RUN", "r2")
 
 
 def find(name: str) -> str:
@@ -122,12 +141,12 @@ def resolve(arg: str) -> str:
     return os.path.dirname(hits[0]) if hits else find(name)
 
 
-def sh(args: list[str], log: str, **kw) -> None:
+def sh(args: list[str], log: str, ok: tuple = (), **kw) -> None:
     """Runs one step with its output in a log file under out/, and stops the kernel if it fails."""
     print("$", " ".join(args), flush=True)
     with open(f"{OUT}/{log}", "a") as f:
         code = subprocess.call(args, stdout=f, stderr=subprocess.STDOUT, **kw)
-    if code:
+    if code and code not in ok:
         save()
         sys.exit(f"step failed ({code}); see out/{log}")
 
@@ -142,7 +161,11 @@ def main() -> None:
     env = {**os.environ, "PGHOST": "localhost", "PGUSER": "odoo", "PGPASSWORD": "odoo-local",
            "LANGSMITH_TRACING": "false", "PYTHONPATH": REPO}
     for i, step in enumerate(JOBS[RUN]):
-        sh([sys.executable, "-m", *map(resolve, step)], f"step{i}.log", cwd=REPO, env=env)
+        wrap = []
+        if step[0].startswith("timeout:"):  # a step that must stop by itself; the adapter keeps its last save
+            wrap, step = ["timeout", step[0].split(":")[1]], step[1:]
+        sh([*wrap, sys.executable, "-m", *map(resolve, step)], f"step{i}.log", cwd=REPO, env=env,
+                  ok=(124,) if wrap else ())
         save()
     print("done", flush=True)
 

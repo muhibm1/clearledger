@@ -193,7 +193,8 @@ def main(argv=None) -> int:
         return 0
     if cmd == "check":
         from . import __main__ as m
-        from . import scripted
+        from . import env, scripted
+        env.start_server()
         items = load()
         by_id = {t["id"]: t for t in items}
         runs = m._run_all(items, scripted.oracle, 0)
