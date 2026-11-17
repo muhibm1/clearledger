@@ -71,8 +71,12 @@ REVIEW_RULES = (
     "or rates out of line, links that point to the wrong customer, statuses that disagree, zero or "
     "negative values, references that repeat). Give the record (invoice, payment, deal or customer), the "
     "amount, and what the figure would be without the problem when that is clear. If the question asks "
-    "whether to act (chase, send a reminder), say what to confirm first. For a company-wide figure, "
-    "mention every material issue inside it, largest first. "
+    "whether to act (chase, send a reminder), say what to confirm first. Say in plain words what the "
+    "problem means for the figure, not only that it exists: a deposit is owed back, so it is not revenue; "
+    "a write-off closed an invoice without cash; a date edited after the fact is unreliable; a record "
+    "linked only by free text is not in its order's own list; an unpaid fee inflates what is open and "
+    "late. For a company-wide figure, mention every material issue inside it, largest first, and prefer "
+    "a problem the records prove (tax charged twice, a pro-forma, a fee) over one that is only possible. "
     "Only an issue that changes or qualifies THIS figure counts: a mistyped due date bears on what is late, "
     "not on what is owed; tax inside totals bears on billed figures only when the question is about "
     "revenue, tax or a currency. Write at most 4 caveats, each under 130 characters, plain and specific, "
@@ -147,14 +151,15 @@ def gather(conn, issues_table: str, question: str, sql: str, rows: list[dict]) -
         by_type.setdefault(i["issue_type"], []).append(i)
     lines = []
     for kind, items in by_type.items():
-        if len(items) > 4:
+        if len(items) > 8:
             for i in [i for i in items if touches(i)][:3]:
                 lines.append(f"- [{kind}] {i['detail']}")
             total = sum(float(i["amount"] or 0) for i in items)
+            # Each record keeps the start of its own wording: a note's meaning differs record by record.
             each = "; ".join(f"{i['entity_ref']} {i['customer_name'] or ''} {i['event_date'] or ''} "
-                             f"{float(i['amount'] or 0):,.2f}" for i in items[:25])
+                             f"{float(i['amount'] or 0):,.2f} ({(i['detail'] or '')[:150]})" for i in items[:25])
             lines.append(f"- [{kind}] {len(items)} records, amounts totalling {total:,.2f} (record, customer, "
-                         f"date, amount): {each}. As worded for one: {items[0]['detail']}")
+                         f"date, amount, detail): {each}")
         else:
             lines += [f"- [{kind}] {i['detail']}" for i in items]
     return {"issues": "\n".join(lines[:MAX_ISSUES]), "names": sorted(names), "wide": bool(wide),

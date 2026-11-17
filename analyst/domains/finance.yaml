@@ -72,7 +72,7 @@ tables:
       move_type: out_invoice is an invoice, out_refund is a credit note.
       invoice_date: Date the invoice was issued.
       due_date: Date payment was due.
-      currency: The currency the invoice was billed in (USD or EUR).
+      currency: The currency the invoice was billed in (any ISO code, such as USD, EUR, CAD or MXN).
       amount_in_invoice_currency: Amount in the invoice's own currency.
       amount: Amount in USD. Credit notes are negative.
       amount_open: Still unpaid, USD. 0 when fully paid. Credit notes are negative.
@@ -88,6 +88,9 @@ tables:
       source_ref: The exact Odoo record version this row came from, for citations.
       reference: The free-text reference typed on the invoice, if any.
       tax_amount: Tax (VAT, GST, sales tax) included in amount, USD. amount - tax_amount is the untaxed amount.
+      amount_tax_in_invoice_currency: The tax on the invoice in its own currency.
+      amount_untaxed_in_invoice_currency: The amount before tax in the invoice's own currency.
+      customer_country: The customer's country as recorded on its Odoo contact (null when not recorded).
   marts.overdue_invoices:
     about: The collections work list. Every customer invoice with an installment still owed that is due within 3 days or already late, one row per invoice, with the customer's unused credit and the flags the collections playbook holds on.
     columns:
@@ -121,12 +124,13 @@ tables:
       partner_id: The Odoo partner id.
       customer_key: The customer it belongs to.
       merged_into_other: True when this partner is a duplicate merged into another partner's customer.
+      customer_country: The customer's country, such as United States, Canada or Mexico (null when not recorded).
   staging.stg_deals:
-    about: Every CRM deal, won, lost or still open, newest version only. Use it for win and loss counts and rates.
+    about: Every CRM opportunity, won, lost or still open, newest version only. Use it for win and loss counts and rates. Leads (unqualified enquiries) are not in it; marts.data_issues lists leads that carry expected revenue.
     columns:
       stage: The pipeline stage, such as New, Qualified, Proposition, Won.
       is_won: True for won deals.
-      is_lost: True for lost deals. A deal that is neither is still open.
+      is_lost: True for lost (archived) deals. A deal that is neither won nor lost is still open (active); count active or open deals with not is_won and not is_lost.
       expected_revenue: What sales expected, USD.
       closed_on: Date the deal was won or lost.
   staging.stg_invoice_versions:
@@ -184,7 +188,7 @@ not_loaded:
   - costs, timesheets and margins
   - who owns a deal or a customer (salespeople), and customer segments or types
   - the reason written on a credit note (a payment's memo is loaded, in intermediate.int_payments.memo)
-  - when revenue is earned, that is the service periods of terms billed up front (only invoice dates and amounts are held)
+  - deferred revenue schedules, that is which months the service on an up-front bill covers (invoiced revenue by invoice date, with and without tax, is held)
 
 # Which questions ask for which identifier: when the rows hold it and the answer leaves it out, it is added.
 identifiers:

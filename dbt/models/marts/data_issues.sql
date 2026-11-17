@@ -24,6 +24,15 @@ fx_norm as (
     from fx group by currency
 ),
 books as (select min(invoice_date) as first_invoice_date from inv),
+-- Leads are kept out of stg_deals (it holds opportunities only), so read them here.
+leads as (
+    select l.odoo_id as deal_id, l.payload->>'name' as deal_name,
+        (case when jsonb_typeof(l.payload->'partner_id') = 'array' then (l.payload->'partner_id'->>0)::int end) as partner_id,
+        (case when jsonb_typeof(l.payload->'stage_id') = 'array' then l.payload->'stage_id'->>1 end) as stage,
+        coalesce((l.payload->>'expected_revenue')::numeric, 0) as expected_revenue
+    from ({{ latest('crm_lead', 'crm.lead') }}) l
+    where l.payload->>'type' = 'lead' and coalesce((l.payload->>'active')::boolean, true)
+),
 issues as (
 
 -- An invoice due before the date it was issued: its days late are counted from a date that cannot be right.
@@ -322,18 +331,19 @@ union all
 -- a dispute, a set-off, a test.
 select 'note_flags_a_problem', 'invoice', i.invoice_ref, i.customer_key, i.customer_name, i.invoice_date, i.amount,
     array['billed', 'open', 'past_due', 'counts'],
-    format('%s (%s, %s %s) carries the reference "%s".', i.invoice_ref, i.customer_name,
-        to_char(i.amount, 'FM999,999,990.00'), {{ cur }}, i.reference)
+    format('%s (%s, %s, %s %s, open %s) carries the reference "%s".%s', i.invoice_ref, i.customer_name, i.invoice_date,
+        to_char(i.amount, 'FM999,999,990.00'), {{ cur }}, to_char(i.amount_open, 'FM999,999,990.00'), i.reference,
+        coalesce(' ' || {{ note_meaning('i.reference') }}, ''))
 from inv i
-where i.reference ~* '(dup|copy|re-?issu|re-?bill|void|cancel|wrong|error|mistake|correct|test|demo|do not|don''t|dispute|hold|offset|set-?off|net of|deduct|short|write.?off|refund|reversal|credit|replace|internal|free|trial|sample|estimate|proforma|pro-forma|draft)'
+where i.reference ~* '(dup|copy|re-?issu|re-?bill|void|cancel|wrong|error|mistake|correct|test|demo|do not|don''t|disput|hold|offset|set-?off|net of|deduct|short|write.?off|bad debt|refund|reversal|replace|internal|free|trial|sample|estimate|pro-?forma|quot|draft|deposit|\mfees?\M|interest|penalt|surcharge|plan|instal|agreement|grant|not a request|withh|damage)'
 
 union all
 select 'note_flags_a_problem', 'payment', p.payment_ref, c.customer_key, coalesce(c.customer_name, 'no customer'), p.payment_date, p.amount,
     array['cash', 'open'],
-    format('Payment %s (%s, %s %s, %s) carries the memo "%s".', p.payment_ref, coalesce(c.customer_name, 'no customer'),
-        to_char(p.amount, 'FM999,999,990.00'), {{ cur }}, p.payment_date, p.memo)
+    format('Payment %s (%s %s, %s, %s) carries the memo "%s".%s', p.payment_ref, p.payment_type, coalesce(c.customer_name, 'no customer'),
+        to_char(p.amount, 'FM999,999,990.00'), p.payment_date, p.memo, coalesce(' ' || {{ note_meaning('p.memo') }}, ''))
 from pay p left join partner_cust c on c.partner_id = p.partner_id
-where p.memo ~* '(dup|twice|again|copy|void|cancel|wrong|error|mistake|correct|test|do not|dispute|hold|offset|set-?off|net of|less|deduct|short|partial|write.?off|refund|revers|credit|on behalf|for |advance|deposit|prepay|unapplied|unknown|overpa)'
+where p.memo ~* '(dup|twice|again|copy|void|cancel|wrong|error|mistake|correct|test|do not|disput|hold|offset|set-?off|net of|less|deduct|short|partial|write.?off|refund|revers|credit|on behalf|for |advance|deposit|prepay|unapplied|unknown|overpa|plan|instal|agreement|withh|received|only)'
   and p.state <> 'cancel'
 
 union all
@@ -345,7 +355,9 @@ select 'payment_memo_names_other_invoice', 'payment', p.payment_ref, c.customer_
         coalesce((select string_agg(i.invoice_ref, ', ') from inv i where i.invoice_id = any(p.invoice_ids)), 'no invoice'))
 from pay p left join partner_cust c on c.partner_id = p.partner_id
 where p.state in ('posted', 'paid', 'in_process') and p.memo ~ '[A-Z]{2,6}/\d{4}/\d{3,6}'
-  and not exists (select 1 from inv i where i.invoice_id = any(p.invoice_ids) and position(i.invoice_ref in p.memo) > 0)
+  -- Some invoice the memo names is not one the payment is matched to.
+  and exists (select 1 from regexp_matches(p.memo, '[A-Z]{2,6}/\d{4}/\d{3,6}', 'g') m(r)
+              where not exists (select 1 from inv i where i.invoice_id = any(p.invoice_ids) and i.invoice_ref = m.r[1]))
 
 union all
 -- Settled without any cash: a credit note, write-off or set-off closed it.
@@ -388,7 +400,7 @@ select 'possible_duplicate_deal', 'deal', b.deal_name, c.customer_key, c.custome
         a.deal_name, b.deal_name, c.customer_name, case when b.is_won then 'won' else 'open' end, to_char(b.expected_revenue, 'FM999,999,990.00'))
 from {{ ref('stg_deals') }} a join {{ ref('stg_deals') }} b on a.deal_id < b.deal_id and a.partner_id = b.partner_id
     and a.expected_revenue = b.expected_revenue and a.expected_revenue > 0 and a.is_won = b.is_won and not a.is_lost and not b.is_lost
-    and lower(a.deal_name) = lower(b.deal_name)
+    and (lower(a.deal_name) = lower(b.deal_name) or (not a.is_won and not b.is_won))
 join partner_cust c on c.partner_id = b.partner_id
 
 union all
@@ -408,6 +420,85 @@ select 'deal_value_out_of_line', 'deal', w.deal_name, w.customer_key, w.customer
         to_char(w.expected_revenue, 'FM999,999,990.00'), {{ cur }}, to_char(w.ordered, 'FM999,999,990.00'), {{ cur }})
 from {{ ref('deal_to_cash') }} w
 where w.ordered > 0 and (w.expected_revenue <= 0 or w.ordered > 5 * w.expected_revenue or w.ordered * 5 < w.expected_revenue)
+
+union all
+-- An open opportunity whose value is far out of line with every other deal: a likely unit or keying error.
+select 'deal_value_out_of_line', 'deal', d.deal_name, c.customer_key, coalesce(c.customer_name, 'no customer'), null::date, d.expected_revenue,
+    array['deals'],
+    format('Open deal "%s" (%s) expects %s %s, %s times the median deal (%s); it likely has a wrong unit or extra digits and dominates any pipeline total.',
+        d.deal_name, coalesce(c.customer_name, 'no customer'), to_char(d.expected_revenue, 'FM999,999,990.00'), {{ cur }},
+        round(d.expected_revenue / m.med), to_char(m.med, 'FM999,999,990.00'))
+from {{ ref('stg_deals') }} d left join partner_cust c on c.partner_id = d.partner_id
+cross join (select percentile_cont(0.5) within group (order by expected_revenue)::numeric as med from {{ ref('stg_deals') }}
+            where expected_revenue > 0) m
+where not d.is_won and not d.is_lost and d.expected_revenue > 20 * m.med
+
+union all
+-- A lead (not yet a qualified opportunity) carrying expected revenue: it is not pipeline.
+select 'lead_not_opportunity', 'deal', d.deal_name, c.customer_key, coalesce(c.customer_name, 'no customer'), null::date, d.expected_revenue,
+    array['deals', 'counts'],
+    format('"%s" is a lead (record type lead, not an opportunity)%s, expecting %s %s in stage %s; leads are not qualified pipeline, so they are left out of the deals table, pipeline totals and deal counts.',
+        d.deal_name, case when c.customer_name is null then ' with no customer' else ' for ' || c.customer_name end,
+        to_char(d.expected_revenue, 'FM999,999,990.00'), {{ cur }}, coalesce(d.stage, 'none'))
+from leads d left join partner_cust c on c.partner_id = d.partner_id
+where d.expected_revenue > 0
+
+union all
+-- Billed against an order that was never confirmed (a quotation), linked only by the origin text.
+select 'billed_on_unconfirmed_order', 'invoice', i.invoice_ref, i.customer_key, i.customer_name, i.invoice_date, i.amount,
+    array['billed', 'deals'],
+    format('%s (%s, %s %s, %s) bills order %s, which is still in state "%s" (never confirmed); the invoice is tied to it only by its origin text, not in the order''s invoice list. The deal shows no confirmed order although the job was billed.',
+        i.invoice_ref, i.customer_name, to_char(i.amount, 'FM999,999,990.00'), {{ cur }},
+        case when i.amount_open = 0 then 'paid in full' else 'open ' || to_char(i.amount_open, 'FM999,999,990.00') end, o.order_ref, o.state)
+from inv i join {{ ref('stg_invoices') }} si on si.invoice_id = i.invoice_id
+join {{ ref('stg_orders') }} o on o.order_ref = si.invoice_origin
+where o.state not in ('sale', 'done') and i.move_type = 'out_invoice'
+
+union all
+-- A confirmed order with nothing billed long after the usual gap between order and invoice.
+select 'order_not_invoiced', 'deal', o.order_ref, c.customer_key, c.customer_name, o.order_date, o.amount_total,
+    array['deals', 'billed'],
+    format('Order %s (%s, %s %s) was confirmed on %s, %s days before the as-of date, and has no invoice; orders here are usually invoiced within about %s days, so it is probably unbilled.',
+        o.order_ref, c.customer_name, to_char(o.amount_total, 'FM999,999,990.00'), o.currency, o.order_date,
+        {{ as_of }} - o.order_date, g.usual)
+from {{ ref('stg_orders') }} o join partner_cust c on c.partner_id = o.partner_id
+cross join (select greatest(percentile_disc(0.9) within group (order by f.gap), 7) as usual
+            from (select o2.order_id, min(i.invoice_date - o2.order_date) as gap
+                  from {{ ref('stg_orders') }} o2 join inv i on i.order_id = o2.order_id
+                  where i.invoice_date >= o2.order_date and o2.state in ('sale', 'done') group by o2.order_id) f) g
+where o.state in ('sale', 'done') and o.amount_total > 0
+  and not exists (select 1 from inv i where i.order_id = o.order_id)
+  and {{ as_of }} - o.order_date > 2 * g.usual
+
+union all
+-- Money paid out with no credit note behind it, or whose memo says money came in.
+select 'outbound_payment_unsupported', 'payment', p.payment_ref, c.customer_key, c.customer_name, p.payment_date, p.amount,
+    array['cash', 'open'],
+    format('Payment %s is money paid OUT to %s (%s %s, %s)%s%s%s. Cash net of refunds is reduced by it.',
+        p.payment_ref, coalesce(c.customer_name, 'no customer'), to_char(abs(p.amount), 'FM999,999,990.00'), {{ cur }}, p.payment_date,
+        case when cardinality(p.invoice_ids) = 0 then ' and is matched to no credit note' else '' end,
+        coalesce('; its memo says "' || p.memo || '"' || case when p.memo ~* '(received|receipt|from )' then ', which describes money coming in: likely a receipt keyed in the wrong direction' else '' end, ''),
+        coalesce('; ' || (select string_agg(format('an inbound payment %s of the same amount followed on %s', q.payment_ref, q.payment_date), ', ')
+            from pay q where q.partner_id = p.partner_id and q.payment_type = 'inbound' and q.state = 'posted'
+              and abs(abs(q.amount) - abs(p.amount)) <= 0.01 and abs(q.payment_date - p.payment_date) <= 14), ''))
+from pay p left join partner_cust c on c.partner_id = p.partner_id
+where p.payment_type = 'outbound' and p.state in ('posted', 'paid', 'in_process')
+  and (cardinality(p.invoice_ids) = 0 or p.memo ~* '(received|receipt)')
+
+union all
+-- Tax at a rate far from the rate the same currency's other invoices carry (charged twice, or not at all).
+select 'tax_rate_out_of_line', 'invoice', s.invoice_ref, c.customer_key, c.customer_name, s.invoice_date,
+    round(s.amount * s.amount_tax_in_invoice_currency / nullif(s.amount_in_invoice_currency, 0), 2),
+    array['billed', 'open', 'past_due'],
+    format('%s (%s) charges tax at %s%% of its untaxed amount (%s %s tax), against %s%% on the other taxed %s invoices; it looks like tax charged twice or at the wrong rate.',
+        s.invoice_ref, c.customer_name, round(100 * s.amount_tax_in_invoice_currency / s.amount_untaxed_in_invoice_currency, 2),
+        to_char(s.amount_tax_in_invoice_currency, 'FM999,999,990.00'), s.currency, round((100 * r.usual)::numeric, 2), s.currency)
+from {{ ref('stg_invoices') }} s join partner_cust c on c.partner_id = s.partner_id
+join (select currency, percentile_cont(0.5) within group (order by amount_tax_in_invoice_currency / amount_untaxed_in_invoice_currency) as usual, count(*) as n
+      from {{ ref('stg_invoices') }} where state = 'posted' and amount_tax_in_invoice_currency > 0 and amount_untaxed_in_invoice_currency > 0
+      group by currency) r on r.currency = s.currency
+where s.state = 'posted' and s.amount_tax_in_invoice_currency > 0 and s.amount_untaxed_in_invoice_currency > 0 and r.n >= 3
+  and abs(s.amount_tax_in_invoice_currency / s.amount_untaxed_in_invoice_currency - r.usual::numeric) > greatest(0.25 * r.usual::numeric, 0.005)
 
 union all
 -- A customer known under another name.

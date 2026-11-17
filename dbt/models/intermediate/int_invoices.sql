@@ -25,7 +25,7 @@ dues as (
 )
 select
     i.invoice_id, i.invoice_ref, i.move_type, i.invoice_date, i.due_date,
-    c.customer_key, c.customer_name, i.partner_id,
+    c.customer_key, c.customer_name, c.customer_country, i.partner_id,
     i.currency, i.amount_in_invoice_currency, i.amount, i.amount_open, i.amount_open_in_invoice_currency,
     i.amount - i.amount_open as amount_paid,
     -- Nothing open, nothing late: a paid invoice is 0 days past due whatever its due date.
@@ -41,6 +41,7 @@ select
          then greatest(0, '{{ var("as_of") }}'::date - ch.first_posted_due_date) end as days_past_first_posted_due,
     o.order_id, o.deal_id,
     i.reference,
+    i.amount_untaxed_in_invoice_currency, i.amount_tax_in_invoice_currency,
     round(i.amount * coalesce(i.amount_tax_in_invoice_currency, 0) / nullif(i.amount_in_invoice_currency, 0), 2) as tax_amount,
     'account.move/' || i.invoice_id || '@' || to_char(i.source_version, 'YYYY-MM-DD"T"HH24:MI:SS') as source_ref
 from {{ ref('stg_invoices') }} i
