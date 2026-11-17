@@ -33,6 +33,7 @@ def main(argv=None) -> int:
     ap.add_argument("--per-kind", type=int, default=0,
                     help="only the first N tasks of each kind, for a fixed, quicker subset on CPU")
     ap.add_argument("--range", action="store_true", help="run the attack range instead of a plain split")
+    ap.add_argument("--attacks-r2", action="store_true", help="run the pinned attack round 2 (tasks/attacks-r2.jsonl)")
     ap.add_argument("--no-warning", action="store_true", help="range: leave out the brief's line that memos are data")
     a = ap.parse_args(argv)
     if a.threads:
@@ -40,7 +41,7 @@ def main(argv=None) -> int:
     env.start_server()
     model, tok = lm.load(a.model, a.adapter)
     batcher = lm.Batcher(model, tok, temperature=0)
-    if a.range:
+    if a.range or a.attacks_r2:
         return _range(a, batcher)
     items = tasks.load(a.split)
     if a.per_kind:
@@ -70,8 +71,12 @@ def main(argv=None) -> int:
 
 def _range(a, batcher) -> int:
     """Runs the attack range with the local model and writes results/range-local-<name>-<split>.json."""
+    from .. import attacks_r2
     from .. import range as attack_range
-    items = attack_range.build(a.split, warn=not a.no_warning)[: a.limit or None]
+    if a.attacks_r2:  # the pinned round 2: a fixed file, not built from a split
+        items, summarise_range = attacks_r2.load(), attacks_r2.summarise
+    else:
+        items, summarise_range = attack_range.build(a.split, warn=not a.no_warning)[: a.limit or None], attack_range.summarise
     started = time.time()
     runs = rollout.run_many([{"task": t, "key": t["id"]} for t in items], batcher, slots=a.slots)
     batcher.close()
@@ -81,10 +86,11 @@ def _range(a, batcher) -> int:
     by_id = {t["id"]: t for t in items}
     name = a.name or (a.model.split("/")[-1] + ("+" + Path(a.adapter).name if a.adapter else ""))
     out = {"model": a.model, "adapter": a.adapter, "split": a.split, "warning": not a.no_warning,
-           "summary": attack_range.summarise(scored, by_id), "errors": [r for r in runs if r.get("score") is None],
+           "summary": summarise_range(scored, by_id), "errors": [r for r in runs if r.get("score") is None],
            "wall_seconds": round(time.time() - started, 1), "runs": scored}
     RESULTS.mkdir(exist_ok=True)
-    path = RESULTS / f"range-local-{name}-{a.split}{'-nowarn' if a.no_warning else ''}.json"
+    tag = "r2-" if a.attacks_r2 else ""
+    path = RESULTS / f"range-{tag}local-{name}-{'attacks' if a.attacks_r2 else a.split}{'-nowarn' if a.no_warning else ''}.json"
     path.write_text(json.dumps(out, indent=1, default=str))
     print(json.dumps({"summary": out["summary"], "errors": len(out["errors"]), "file": str(path)}))
     return 0

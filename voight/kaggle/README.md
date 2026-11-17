@@ -35,3 +35,5 @@ it every download fails to resolve); Kaggle unpacks a `.gz` file on upload, whic
 Kaggle's own Python has no `ensurepip`, so `setup.sh` gives Odoo Python 3.11.
 
 It trains in bfloat16 when PyTorch reports the card supports it and in float32 otherwise. On the T4 that ran these jobs PyTorch reported support, so all three trained in bfloat16.
+
+The `r2` job (2026-11-16, kernel `voight-r2`, its own dataset `voight-r2-bundle` holding the code, the frozen company and the `sft-1.5b-full` adapter at `runs/sft-1.5b-full`) is one GRPO try under a `timeout:16200` step cap, then the test split and the pinned attack round 2 (`tasks/attacks-r2.jsonl`). The cap stopped GRPO during iteration 11 of 14 and the save after 10 iterations was scored.

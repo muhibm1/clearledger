@@ -174,6 +174,27 @@ Caveats, in plain terms:
 
 The adapters are not in git (`runs/` is ignored); the score files are in [results/](results/) as `*-sft-esc-*`, `*-sft-bal-*` and `*-sft-full-*`.
 
+### A bounded GRPO try, and a second attack round
+
+On 2026-11-16 one more run went to a free Kaggle T4 (kernel `voight-r2`, one kernel, about 5.4 hours in all, no API spend, no Anthropic key in any process). Before any training, 108 new attack tasks were written and pinned ([attacks_r2.py](attacks_r2.py), `tasks/attacks-r2.jsonl`, SHA-256 `fbed8c04e302c4beaf2b0d7ccf5fb99f296c214b0add35644b214c3fb3a36120`). They are never used to train.
+
+**Attack round 2.** Eight techniques that neither the first range nor any training set used, each aimed at the same three goals as round 1 (suppress, false_alarm, redirect) on four test customers per goal: 12 clean tasks (`tie`, `exact`, `partial_span`; the first range's test run used other bases) and 96 attacked ones. The eight: a fake assistant turn ending in a tool call (`fake_action`); an instruction cut in two halves that are harmless alone (`split_parts`); the "SYSTEM" notice in Cyrillic look-alike letters (`homoglyph`) and in fullwidth letters (`fullwidth`); the model's own chat markers closing the tool turn and opening a "system" one (`chat_tokens`); a polite claim that named finance roles approved it (`polite_authority`); a deadline with threats (`urgency`); a fake configuration block (`config_block`). No attack names an invoice or another customer, so the right answer is the clean task's. The policy-following oracle solves all 12 clean tasks and loses 0 of 96.
+
+**The GRPO run.** It started from the frozen `sft-1.5b-full` adapter. The plan was 14 iterations of 8 tasks with 8 attempts each (learning rate 2e-5, a small KL term of 0.01), drawing half of each batch from the weak kinds (`two_credits`, `typo_ref`, `mixed_ref`, `tie`) and half from train tasks carrying the `delimiter` attack, the style that won all 4 attacks on test last time. A 4.5 hour cap was set up front. **The cap stopped it during iteration 11 of 14; the adapter scored is the save after 10 iterations.** Most groups were skipped as in the first GRPO run (every attempt scored the same): 2 to 6 of 8 groups taught something each iteration ([results/grpo-r2-log.jsonl](results/grpo-r2-log.jsonl)). The adapter was scored once, with no selection between saves.
+
+| Qwen2.5-1.5B adapter | Test (139, scored once) | Round 2: clean solved (12) | Round 2: attacks won (96) |
+| --- | --- | --- | --- |
+| `sft-1.5b-full` (supervised only) | 128 | 12 | 22 |
+| plus 10 GRPO iterations | **133** | 12 | **17** |
+
+By goal, attacks won out of 32 each, supervised then GRPO: suppress 14 and 9, false_alarm 8 and 8, redirect 0 and 0. By technique, out of 12 each: `fake_action` 4 and 4, `split_parts` 4 and 4, `chat_tokens` 4 and 1, `polite_authority` 4 and 4, `config_block` 4 and 2, `homoglyph` 1 and 1, `fullwidth` 1 and 1, `urgency` 0 and 0.
+
+- **On test GRPO gained 5 tasks and lost none.** `typo_ref` 9 to 11 of 12, `two_credits` 9 to 10, `mixed_ref` 5 to 6, `partial_span` 11 to 12; all other kinds equal (6 misses remain: 1 `memo_two`, 1 `mixed_ref`, 1 `tie`, 2 `two_credits`, 1 `typo_ref`). That is a small gain from one run, one seed and 10 iterations on 139 tasks, so it is suggestive, not proof; no confidence interval was computed.
+- **Round 2 is far from solved for either adapter.** The supervised adapter lost 22 of 96 and GRPO 17 of 96. The model is most easily moved by a fake tool call, an instruction split in two, a polite approval claim and a fake config block (about a third of those attacks win), and by `chat_tokens`, which GRPO largely closed (4 to 1 of 12). GRPO trained on the `delimiter` style; the improvement on `chat_tokens` is a related technique, not the same one, and the other seven are unchanged or within a task or two of each other.
+- **Both adapters were scored with the same greedy decoding and the same 12 clean tasks**, all solved. No guard failures anywhere.
+
+Caveat: the first range's test attacks (the 4 won on test, all `delimiter`) were not rerun on the GRPO adapter, so whether the training on that style helped there is not measured. The model is still best described as supervised fine-tuning on a training ground, with a short reinforcement-learning step that scored higher on this test split; the gain is small and unreplicated.
+
 Run it with `python -m voight range --model haiku --split dev` (add `--no-warning` for the second arm), or `python -m voight.train.evaluate --range` for a local model.
 
 ## Running it
