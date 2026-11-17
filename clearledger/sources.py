@@ -23,7 +23,9 @@ SOURCES = {
     "account.move": ["name", "move_type", "state", "partner_id", "invoice_date",
                      "invoice_date_due", "amount_total", "amount_total_signed",
                      "amount_residual", "amount_residual_signed", "currency_id",
-                     "payment_state", "invoice_origin"],
+                     "payment_state", "invoice_origin",
+                     # Tax inside the total (VAT), and the free-text reference people type.
+                     "amount_untaxed", "amount_tax", "ref"],
     # One receivable line per installment of an invoice's payment terms. The invoice header holds
     # only the last due date, so "what is late" needs these: each line has its own due date and
     # its own open amount.
@@ -31,7 +33,9 @@ SOURCES = {
                           "display_type", "partner_id"],
     "account.payment": ["name", "partner_id", "amount", "amount_company_currency_signed",
                         "currency_id", "date", "state", "payment_type", "partner_type",
-                        "reconciled_invoice_ids"],
+                        "reconciled_invoice_ids",
+                        # The memo typed on the payment: often the only place a short payment is explained.
+                        "ref"],
     "res.currency": ["name", "symbol", "active"],
 }
 

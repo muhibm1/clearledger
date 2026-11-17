@@ -126,10 +126,13 @@ def trace(conn, table: str, key: str) -> str:
         out.append(f"Deal {r['deal_id']} '{r['deal_name']}' for {r['customer_name']}: {r['status']}")
         out.append(f"  expected {_money(r['expected_revenue'])}, ordered {_money(r['ordered'])}, "
                    f"invoiced {_money(r['invoiced'])}, paid {_money(r['paid'])}, open {_money(r['open'])}")
-        orders = _rows(conn, "select order_ref as \"order\", order_date as dated, state, amount_total as amount, "
-                             "'sale.order/' || order_id as source_ref from staging.stg_orders "
+        # An order in another currency counts in ordered at its USD value (int_orders), so the check adds those.
+        orders = _rows(conn, "select order_ref as \"order\", order_date as dated, state, currency, "
+                             "amount_total as in_currency, round(amount_usd, 2) as amount, "
+                             "'sale.order/' || order_id as source_ref from intermediate.int_orders "
                              "where order_id = any(%s) order by 1", (r["source_order_ids"],))
-        out += ["", "Orders", _table(orders, ["order", "dated", "state", "amount", "source_ref"])]
+        out += ["", "Orders", _table(orders, ["order", "dated", "state", "currency", "in_currency", "amount",
+                                              "source_ref"])]
         if r["source_cancelled_order_ids"]:
             cancelled = _rows(conn, "select order_ref as \"order\", order_date as dated, state, amount_total as amount, "
                                     "'sale.order/' || order_id as source_ref from staging.stg_orders "

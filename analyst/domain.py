@@ -33,6 +33,7 @@ class Domain:
     citations: str | None = None
     not_loaded: list = field(default_factory=list)   # what the warehouse does not hold at all
     identifiers: dict = field(default_factory=dict)  # column -> words that ask for it
+    issues: str | None = None  # table listing suspect records, read by the review step
     columns: dict = field(default_factory=dict)  # "schema.table" -> [(column, type)], read live
 
     def connect(self):
@@ -51,6 +52,7 @@ def load(name_or_path: str) -> Domain:
         tables=d.get("tables") or {}, terms=d.get("terms") or {}, examples=d.get("examples") or [],
         privacy=d.get("privacy"), reader_role=d.get("reader_role"), citations=d.get("citations"),
         not_loaded=d.get("not_loaded") or [], identifiers=d.get("identifiers") or {},
+        issues=d.get("issues"),
     )
     return dom
 

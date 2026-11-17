@@ -9,10 +9,10 @@ with won as (select * from {{ ref('stg_deals') }} where is_won),
 orders as (
     select deal_id,
         array_agg(order_id order by order_id) filter (where state in ('sale', 'done')) as order_ids,
-        sum(amount_total) filter (where state in ('sale', 'done')) as ordered,
+        round(sum(amount_usd) filter (where state in ('sale', 'done')), 2) as ordered,
         array_agg(order_id order by order_id) filter (where state = 'cancel') as cancelled_order_ids,
         min(order_date) as first_order_date
-    from {{ ref('stg_orders') }} group by deal_id
+    from {{ ref('int_orders') }} group by deal_id
 ),
 inv as (
     select deal_id, array_agg(invoice_id order by invoice_id) as invoice_ids,
