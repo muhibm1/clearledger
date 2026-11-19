@@ -158,7 +158,7 @@ terms:
   duplicate customer: A company entered more than once in Odoo. intermediate.int_customers.merged_into_other marks the extra partner.
   won deal: A CRM deal marked won. Every won deal has one row in marts.deal_to_cash; win and loss counts come from staging.stg_deals.
   currency: Every amount column named amount, invoiced, paid or open is already in USD. Only amount_in_invoice_currency is in the original currency.
-  tax: Invoice totals include any tax (VAT, GST, sales tax) charged on them. intermediate.int_invoices.tax_amount is the tax part in USD; billed figures include it unless you subtract it.
+  tax: Invoice totals include any tax (VAT, GST, HST, sales tax) charged on them. intermediate.int_invoices.tax_amount is the tax part in USD and amount_tax_in_invoice_currency the same tax in the invoice's own currency; billed figures include it unless you subtract it. A question about one named tax (HST, VAT, sales tax) on some invoices is answered from those columns for those invoices, since Odoo holds one tax figure per invoice, not one per tax type, so give the figure and say so rather than declining
   anomaly: A record that looks wrong (a mistyped date or rate, a duplicate, a test account, a payment not posted). marts.data_issues lists them in plain words.
   as of: The warehouse is aged as of 2026-10-27; "today" and "right now" mean that date.
 

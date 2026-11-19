@@ -318,11 +318,17 @@ union all
 -- The invoice and the order it bills disagree on who the customer is, the currency, or the dates.
 select 'invoice_disagrees_with_order', 'invoice', i.invoice_ref, i.customer_key, i.customer_name, i.invoice_date, i.amount,
     array['billed', 'deals', 'open'],
-    format('%s (%s) bills order %s, but %s.', i.invoice_ref, i.customer_name, o.order_ref,
+    format('%s (%s, %s %s, %s) bills order %s, but %s.', i.invoice_ref, i.customer_name, to_char(i.amount, 'FM999,999,990.00'), {{ cur }},
+        case when abs(i.amount_open) < 0.01 then 'paid' else 'open ' || to_char(i.amount_open, 'FM999,999,990.00')
+             || case when i.days_past_due > 0 then ', ' || i.days_past_due || ' days past due' else ', not yet due' end end,
+        o.order_ref,
         concat_ws('; ',
-            case when oc.customer_key <> i.customer_key then 'the order is ' || oc.customer_name || '''s' end,
-            case when o.currency <> i.currency then 'the order is in ' || o.currency || ' and the invoice in ' || i.currency end,
-            case when i.invoice_date < o.order_date - 1 then 'the invoice is dated ' || i.invoice_date || ', before the order (' || o.order_date || ')' end))
+            case when oc.customer_key <> i.customer_key then 'the order is ' || oc.customer_name || '''s, so this balance sits under '
+                || i.customer_name || ', not ' || oc.customer_name end,
+            case when o.currency <> i.currency then 'the order is in ' || o.currency || ' and the invoice in ' || i.currency
+                || ' for the same number, probably a currency keyed wrong on the invoice' end,
+            case when i.invoice_date < o.order_date - 1 then 'the invoice is dated ' || i.invoice_date || ', before the order (' || o.order_date
+                || '); the order date was probably keyed or changed after billing' end))
 from inv i join {{ ref('stg_orders') }} o on o.order_id = i.order_id join partner_cust oc on oc.partner_id = o.partner_id
 where oc.customer_key <> i.customer_key or o.currency <> i.currency or i.invoice_date < o.order_date - 1
 
@@ -350,9 +356,12 @@ union all
 -- A payment whose memo names an invoice other than the one it was matched to.
 select 'payment_memo_names_other_invoice', 'payment', p.payment_ref, c.customer_key, c.customer_name, p.payment_date, p.amount,
     array['cash', 'open', 'past_due'],
-    format('Payment %s (%s %s, %s) says "%s" but is matched to %s; the cash may sit on the wrong invoice.',
+    format('Payment %s (%s %s, %s) says "%s" but is matched to %s; the cash may sit on the wrong invoice.%s',
         p.payment_ref, to_char(p.amount, 'FM999,999,990.00'), {{ cur }}, coalesce(c.customer_name, 'no customer'), p.memo,
-        coalesce((select string_agg(i.invoice_ref, ', ') from inv i where i.invoice_id = any(p.invoice_ids)), 'no invoice'))
+        coalesce((select string_agg(i.invoice_ref, ', ') from inv i where i.invoice_id = any(p.invoice_ids)), 'no invoice'),
+        coalesce((select string_agg(format(' %s is in state "%s" (%s %s), not a posted invoice, so it is in no billed or open figure although the customer paid it.',
+                     s.invoice_ref, s.state, to_char(s.amount, 'FM999,999,990.00'), s.currency), '')
+                  from {{ ref('stg_invoices') }} s where s.state <> 'posted' and position(s.invoice_ref in p.memo) > 0), ''))
 from pay p left join partner_cust c on c.partner_id = p.partner_id
 where p.state in ('posted', 'paid', 'in_process') and p.memo ~ '[A-Z]{2,6}/\d{4}/\d{3,6}'
   -- Some invoice the memo names is not one the payment is matched to.
@@ -467,7 +476,7 @@ cross join (select greatest(percentile_disc(0.9) within group (order by f.gap), 
                   from {{ ref('stg_orders') }} o2 join inv i on i.order_id = o2.order_id
                   where i.invoice_date >= o2.order_date and o2.state in ('sale', 'done') group by o2.order_id) f) g
 where o.state in ('sale', 'done') and o.amount_total > 0
-  and not exists (select 1 from inv i where i.order_id = o.order_id)
+  and not exists (select 1 from inv i where i.order_id = o.order_id) and cardinality(o.invoice_ids) = 0
   and {{ as_of }} - o.order_date > 2 * g.usual
 
 union all
@@ -499,6 +508,78 @@ join (select currency, percentile_cont(0.5) within group (order by amount_tax_in
       group by currency) r on r.currency = s.currency
 where s.state = 'posted' and s.amount_tax_in_invoice_currency > 0 and s.amount_untaxed_in_invoice_currency > 0 and r.n >= 3
   and abs(s.amount_tax_in_invoice_currency / s.amount_untaxed_in_invoice_currency - r.usual::numeric) > greatest(0.25 * r.usual::numeric, 0.005)
+
+union all
+-- One invoice listed by more than one order: summing invoiced per order counts it more than once.
+select 'invoice_on_several_orders', 'invoice', i.invoice_ref, i.customer_key, i.customer_name, i.invoice_date, i.amount,
+    array['billed', 'deals'],
+    format('%s (%s, %s %s) is listed by %s orders (%s); a per-order or per-deal invoiced total counts it %s times, so do not add those totals up.',
+        i.invoice_ref, i.customer_name, to_char(i.amount, 'FM999,999,990.00'), {{ cur }}, count(*),
+        string_agg(o.order_ref, ', ' order by o.order_ref), count(*))
+from inv i join {{ ref('stg_orders') }} o on i.invoice_id = any(o.invoice_ids)
+group by i.invoice_ref, i.customer_key, i.customer_name, i.invoice_date, i.amount
+having count(*) > 1
+
+union all
+-- Two customers that look like one organisation (same mail domain, or one name starting with the other's
+-- first words) but are not linked as parent and site.
+select 'related_customer_not_linked', 'customer', b.customer_name, b.customer_key, b.customer_name, null::date, bt.billed,
+    array['billed', 'open', 'past_due', 'counts'],
+    format('%s (billed %s %s, open %s) looks like part of %s (%s) but is a separate customer, not linked to it as a site; totals for %s leave it out.',
+        b.customer_name, to_char(coalesce(bt.billed, 0), 'FM999,999,990.00'), {{ cur }}, to_char(coalesce(bt.open, 0), 'FM999,999,990.00'),
+        a.customer_name, case when a.domain = b.domain then 'same mail domain ' || a.domain else 'same name' end, a.customer_name)
+from (select distinct c.customer_key, c.customer_name, split_part(p.email, '@', 2) as domain,
+          lower(split_part(c.customer_name, ' ', 1) || ' ' || split_part(c.customer_name, ' ', 2)) as stem
+      from partner_cust c join {{ ref('stg_partners') }} p on p.partner_id = c.customer_key) a
+join (select distinct c.customer_key, c.customer_name, split_part(p.email, '@', 2) as domain,
+          lower(split_part(c.customer_name, ' ', 1) || ' ' || split_part(c.customer_name, ' ', 2)) as stem
+      from partner_cust c join {{ ref('stg_partners') }} p on p.partner_id = c.customer_key) b
+  on a.customer_key < b.customer_key
+ and ((a.domain = b.domain and a.domain <> '' and a.domain !~* '^(gmail|yahoo|outlook|hotmail|icloud|aol|proton)')
+      or (length(a.stem) > 8 and a.stem = b.stem))
+join (select customer_key, sum(amount) as billed, sum(amount_open) as open from inv group by 1) bt on bt.customer_key = b.customer_key
+where exists (select 1 from inv where inv.customer_key = a.customer_key)
+
+union all
+-- A country that the customer's own mail domain or billing currency contradicts.
+select 'customer_country_out_of_line', 'customer', c.customer_name, c.customer_key, c.customer_name, null::date, null::numeric,
+    array['counts', 'billed'],
+    format('%s is recorded in %s, but %s; the country is probably keyed wrong, so by-country figures may misplace it.',
+        c.customer_name, p.country, concat_ws(' and ',
+            case when t.tld_country is not null and t.tld_country <> p.country then 'its mail domain ends .' || t.tld || ' (' || t.tld_country || ')' end,
+            case when p.country = 'United States' and cur.currencies is not null and not ('USD' = any(cur.currencies))
+                 then 'it is billed only in ' || array_to_string(cur.currencies, ', ') end))
+from partner_cust c join {{ ref('stg_partners') }} p on p.partner_id = c.customer_key
+left join lateral (select substring(p.email from '\.([a-z]{2})$') as tld) e on true
+left join (values ('uk', 'United Kingdom'), ('ca', 'Canada'), ('de', 'Germany'), ('nl', 'Netherlands'), ('fr', 'France'),
+                  ('mx', 'Mexico'), ('au', 'Australia'), ('ie', 'Ireland'), ('es', 'Spain'), ('it', 'Italy'), ('be', 'Belgium'),
+                  ('ch', 'Switzerland'), ('jp', 'Japan'), ('in', 'India'), ('br', 'Brazil')) t(tld, tld_country) on t.tld = e.tld
+left join (select customer_key, array_agg(distinct currency) as currencies from inv group by 1) cur on cur.customer_key = c.customer_key
+where c.partner_id = c.customer_key and p.country is not null
+  and ((t.tld_country is not null and t.tld_country <> p.country)
+       or (p.country = 'United States' and cur.currencies is not null and not ('USD' = any(cur.currencies))))
+
+union all
+-- Deals closed before they were created, or many created on one day: the create dates are an import, not opening dates.
+select 'deal_dates_out_of_order', 'deal', d.deal_name, c.customer_key, c.customer_name, d.closed_on, d.expected_revenue,
+    array['deals'],
+    format('Deal "%s" (%s) was closed on %s but created on %s%s; its create date is not when it opened, so cycle times from it are wrong.',
+        d.deal_name, c.customer_name, d.closed_on, d.created_at::date,
+        case when b.n >= 10 then format(', one of %s deals created that same day (a bulk entry or import)', b.n) else '' end)
+from {{ ref('stg_deals') }} d join partner_cust c on c.partner_id = d.partner_id
+left join (select created_at::date as day, count(*) as n from {{ ref('stg_deals') }} group by 1) b on b.day = d.created_at::date
+where d.closed_on < d.created_at::date - 1 and d.created_at::date <= {{ as_of }}
+
+union all
+select 'deals_created_in_bulk', 'deal', 'created ' || b.day, null::int, null, b.day, b.value,
+    array['deals', 'counts'],
+    format('%s of %s deals (%s %s expected) carry the create date %s, %s of them closed before that date: a bulk entry or import. Create dates on or before that day are not opening dates, so counts of deals created by month and deal cycle times are unreliable.',
+        b.n, t.n, to_char(b.value, 'FM999,999,990.00'), {{ cur }}, b.day, b.closed_before)
+from (select created_at::date as day, count(*) as n, sum(expected_revenue) as value,
+             count(*) filter (where closed_on < created_at::date) as closed_before
+      from {{ ref('stg_deals') }} where created_at::date <= {{ as_of }} group by 1) b
+cross join (select count(*) as n from {{ ref('stg_deals') }}) t
+where b.n >= 10 and b.n >= 0.2 * t.n and b.closed_before > 0
 
 union all
 -- A customer known under another name.

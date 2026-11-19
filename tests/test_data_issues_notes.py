@@ -64,6 +64,25 @@ def build() -> World:
     w.invoice(4001, "INV/2026/04001", 5, "2026-07-01", "2026-07-31", 900, 900)
     w.invoice(4002, "INV/2026/04002", 5, "2026-08-01", "2026-08-31", 900, 0)
     w.payment(5401, 5, 900, "2026-09-02", [4002], ref="Remittance for INV/2026/04001 only. INV/2026/04002 withheld: disputed")
+    # Fern Clinics: a site keyed as its own company on the parent's mail domain; a lookalike on a public
+    # mail domain stays apart. Gorse LLP: recorded in the US, mails from .co.uk, billed only in pounds.
+    w.partner(6, "Fern Clinics Group", email="ap@fernclinics.example.com")
+    w.partner(7, "Fern Clinics - Lakeside", email="lakeside@fernclinics.example.com")
+    w.partner(8, "Hazel Cafe", email="hazel@gmail.com")
+    w.partner(9, "Ivy Bakery", email="ivy@gmail.com")
+    w.add("res_partner", 10, {"name": "Gorse LLP", "email": "ap@gorse.example.co.uk", "is_company": True, "active": True,
+                              "commercial_partner_id": [10, "Gorse LLP"], "country_id": [233, "United States"]})
+    for iid, partner in [(6001, 6), (6002, 7), (6003, 8), (6004, 9)]:
+        w.invoice(iid, f"INV/{iid}", partner, "2026-09-01", "2026-10-01", 100, 0)
+        w.payment(iid + 1000, partner, 100, "2026-09-15", [iid])
+    w.invoice(6005, "INV/6005", 10, "2026-09-01", "2026-10-01", 200, 0, currency_id=[3, "GBP"],
+              amount_total=160, amount_total_signed=200)
+    w.payment(7005, 10, 200, "2026-09-15", [6005])
+    # One invoice listed by two orders.
+    w.order(301, None, 4, 600, invoices=[6101], date="2026-09-01 00:00:00")
+    w.order(302, None, 4, 400, invoices=[6101], date="2026-09-01 00:00:00")
+    w.invoice(6101, "INV/6101", 4, "2026-09-05", "2026-10-05", 1000, 0)
+    w.payment(7101, 4, 1000, "2026-09-20", [6101])
     return w
 
 
@@ -128,3 +147,22 @@ def test_clean_records_have_no_issues(db):
                       "('INV/1101', 'INV/1102', 'INV/1103', 'S00106', 'Cold call', 'Alder job 21', 'PAY/5304', "
                       "'PAY/5302', 'INV/3002', 'RINV/3003') and issue_type not in ('tax_inside_total')").fetchall()
     assert rows == []
+
+
+def test_a_site_keyed_as_its_own_company_on_the_parents_domain_is_flagged(db):
+    got = issues(db, "related_customer_not_linked")
+    assert set(got) == {"Fern Clinics - Lakeside"}
+    assert "Fern Clinics Group" in got["Fern Clinics - Lakeside"]
+
+
+def test_a_country_its_mail_domain_and_currency_contradict_is_flagged(db):
+    got = issues(db, "customer_country_out_of_line")
+    assert set(got) == {"Gorse LLP"}
+    assert "GBP" in got["Gorse LLP"]
+
+
+def test_an_invoice_listed_by_two_orders_is_flagged_and_its_orders_are_not_unbilled(db):
+    got = issues(db, "invoice_on_several_orders")
+    assert set(got) == {"INV/6101"}
+    assert "S00301" in got["INV/6101"] and "S00302" in got["INV/6101"]
+    assert not {"S00301", "S00302"} & set(issues(db, "order_not_invoiced"))
