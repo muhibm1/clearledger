@@ -132,6 +132,8 @@ from inv a join inv b on a.customer_key = b.customer_key and a.invoice_id < b.in
     -- Close together (a monthly fee repeats a month apart, which is not a duplicate), or one says it copies the other.
     and (abs(b.invoice_date - a.invoice_date) <= 20 or position(a.invoice_ref in coalesce(b.reference, '')) > 0)
     and (a.order_id is null or b.order_id is null or a.order_id = b.order_id)
+    -- Installments of one job say so in their references; they are not a charge billed twice.
+    and not (coalesce(a.reference, '') ~* 'part \d+ of \d+' and coalesce(b.reference, '') ~* 'part \d+ of \d+')
 
 union all
 -- Unusually large against the customer's own history: a possible extra zero.
@@ -341,7 +343,8 @@ select 'note_flags_a_problem', 'invoice', i.invoice_ref, i.customer_key, i.custo
         to_char(i.amount, 'FM999,999,990.00'), {{ cur }}, to_char(i.amount_open, 'FM999,999,990.00'), i.reference,
         coalesce(' ' || {{ note_meaning('i.reference') }}, ''))
 from inv i
-where i.reference ~* '(dup|copy|re-?issu|re-?bill|void|cancel|wrong|error|mistake|correct|test|demo|do not|don''t|disput|hold|offset|set-?off|net of|deduct|short|write.?off|bad debt|refund|reversal|replace|internal|free|trial|sample|estimate|pro-?forma|quot|draft|deposit|\mfees?\M|interest|penalt|surcharge|plan|instal|agreement|grant|not a request|withh|damage)'
+where coalesce(array_length(regexp_split_to_array(trim(i.reference), '\s+'), 1), 0) >= 4
+   or i.reference ~* '(opening balance|migrat|legacy|carried forward|intercompany|inter-company|sister|related party|bill.and.hold|held at|part \d+ of \d+|allowance|dup|copy|re-?issu|re-?bill|void|cancel|wrong|error|mistake|correct|test|demo|do not|don''t|disput|hold|offset|set-?off|net of|deduct|short|write.?off|bad debt|refund|reversal|replace|internal|free|trial|sample|estimate|pro-?forma|quot|draft|deposit|\mfees?\M|interest|penalt|surcharge|plan|instal|agreement|grant|not a request|withh|damage)'
 
 union all
 select 'note_flags_a_problem', 'payment', p.payment_ref, c.customer_key, coalesce(c.customer_name, 'no customer'), p.payment_date, p.amount,
@@ -580,6 +583,20 @@ from (select created_at::date as day, count(*) as n, sum(expected_revenue) as va
       from {{ ref('stg_deals') }} where created_at::date <= {{ as_of }} group by 1) b
 cross join (select count(*) as n from {{ ref('stg_deals') }}) t
 where b.n >= 10 and b.n >= 0.2 * t.n and b.closed_before > 0
+
+union all
+-- One exchange rate used unchanged across months while the currency's rate moved before: a rate never updated.
+select 'exchange_rate_not_updated', 'invoice', f.currency || ' at ' || round(f.rate, 4), null::int, null, f.first_date, f.usd,
+    array['billed', 'open', 'past_due'],
+    format('%s %s invoices from %s to %s (%s USD) were all converted at the same rate, %s USD per %s, while %s invoices used %s different rates in all: the rate looks never updated, so their US-dollar amounts are stale (the %s amounts are right). Customers: %s.',
+        f.n, f.currency, f.first_date, f.last_date, to_char(f.usd, 'FM999,999,990.00'), round(f.rate, 4), f.currency, f.currency,
+        o.other_rates, f.currency, f.customers)
+from (select currency, round(usd_per_unit, 6) as rate, count(*) as n, min(invoice_date) as first_date, max(invoice_date) as last_date,
+             sum(abs(amount)) as usd, string_agg(distinct customer_name, ', ') as customers
+      from fx group by 1, 2) f
+join (select currency, count(distinct round(usd_per_unit, 6)) as other_rates, min(invoice_date) as first_date from fx group by 1) o
+  on o.currency = f.currency
+where f.n >= 5 and f.last_date - f.first_date >= 60 and o.other_rates >= 3 and f.first_date > o.first_date
 
 union all
 -- A customer known under another name.

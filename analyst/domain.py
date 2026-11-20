@@ -35,6 +35,7 @@ class Domain:
     identifiers: dict = field(default_factory=dict)  # column -> words that ask for it
     issues: str | None = None  # table listing suspect records, read by the review step
     columns: dict = field(default_factory=dict)  # "schema.table" -> [(column, type)], read live
+    findings: list = field(default_factory=list)  # what the onboarding pass wrote about these books, read live
 
     def connect(self):
         return psycopg.connect(self.dsn, autocommit=True)
@@ -69,6 +70,12 @@ def read_columns(dom: Domain, conn) -> dict:
         for table, column, kind in cur.fetchall():
             cols.setdefault(table, []).append((column, kind))
     dom.columns = cols
+    # The onboarding pass's notes on these books (analyst/onboard.py), when it has run here.
+    with conn.cursor() as cur:
+        cur.execute("select to_regclass('marts.onboarding_findings')")
+        if cur.fetchone()[0]:
+            cur.execute("select entity_ref, detail from marts.onboarding_findings order by issue_id")
+            dom.findings = [{"refs": r, "detail": d} for r, d in cur.fetchall()]
     return cols
 
 
@@ -91,6 +98,9 @@ def documents(dom: Domain) -> list[dict]:
         docs.append({"kind": "table", "key": table, "text": "\n".join(lines)})
     for term, meaning in dom.terms.items():
         docs.append({"kind": "term", "key": term, "text": f"TERM {term}: {meaning}"})
+    for i, f in enumerate(dom.findings):
+        docs.append({"kind": "finding", "key": f"finding-{i}",
+                     "text": f"NOTED ON FIRST READ OF THESE BOOKS ({f['refs']}): {f['detail']}"})
     for i, ex in enumerate(dom.examples):
         docs.append({"kind": "example", "key": f"example-{i}",
                      "text": f"EXAMPLE\n  Question: {ex['question']}\n  SQL: {ex['sql']}"})

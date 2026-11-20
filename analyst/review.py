@@ -19,6 +19,7 @@ import json
 import re
 
 MAX_ISSUES = 40
+FINDINGS_TABLE = "marts.onboarding_findings"  # written by analyst/onboard.py
 MAX_RECORDS = 40
 
 ENTITY_COLUMNS = ("customer_name", "customer_key", "invoice_ref", "deal_name", "payment_ref", "order_ref",
@@ -131,11 +132,16 @@ def gather(conn, issues_table: str, question: str, sql: str, rows: list[dict]) -
     wide = bool(sql) and _company_wide(sql, rows)
     names = _entities(conn, question, sql, rows, wide)
     measures = _measures(sql)
+    cols_sql = "issue_type, entity_kind, entity_ref, customer_key, customer_name, event_date, amount, affects, detail"
     with conn.cursor() as cur:
-        cur.execute(f"select issue_type, entity_kind, entity_ref, customer_key, customer_name, event_date, "
-                    f"amount, affects, detail from {issues_table}")
+        cur.execute(f"select {cols_sql} from {issues_table}")
         cols = [d.name for d in cur.description]
         issues = [dict(zip(cols, r)) for r in cur.fetchall()]
+        # What the onboarding pass wrote on its first read of these books, when it has run.
+        cur.execute("select to_regclass(%s)", (FINDINGS_TABLE,))
+        if cur.fetchone()[0]:
+            cur.execute(f"select {cols_sql} from {FINDINGS_TABLE}")
+            issues += [dict(zip(cols, r)) for r in cur.fetchall()]
     low = [n.lower() for n in names]
 
     def touches(i):

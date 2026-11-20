@@ -83,6 +83,13 @@ def build() -> World:
     w.order(302, None, 4, 400, invoices=[6101], date="2026-09-01 00:00:00")
     w.invoice(6101, "INV/6101", 4, "2026-09-05", "2026-10-05", 1000, 0)
     w.payment(7101, 4, 1000, "2026-09-20", [6101])
+    # Juniper Labs: one job billed in three parts (not duplicates), and an opening balance from the old system.
+    w.partner(11, "Juniper Labs")
+    for n, iid in enumerate([6201, 6202, 6203], 1):
+        w.invoice(iid, f"INV/{iid}", 11, "2026-08-14", "2026-09-13", 500, 0, ref=f"PO JL-1 part {n} of 3")
+        w.payment(iid + 1000, 11, 500, "2026-09-01", [iid])
+    w.invoice(6204, "INV/6204", 11, "2026-01-01", "2026-01-31", 900, 900,
+              ref="Opening balance migrated from legacy AR: 2025 invoices 25-1, 25-2")
     return w
 
 
@@ -166,3 +173,10 @@ def test_an_invoice_listed_by_two_orders_is_flagged_and_its_orders_are_not_unbil
     assert set(got) == {"INV/6101"}
     assert "S00301" in got["INV/6101"] and "S00302" in got["INV/6101"]
     assert not {"S00301", "S00302"} & set(issues(db, "order_not_invoiced"))
+
+
+def test_installments_of_one_job_are_not_duplicates_and_an_opening_balance_reads_as_one(db):
+    assert not {"INV/6201", "INV/6202", "INV/6203"} & set(issues(db, "possible_duplicate_invoice"))
+    notes = issues(db, "note_flags_a_problem")
+    assert "not duplicates" in notes["INV/6202"]
+    assert "opening balance carried over" in notes["INV/6204"]
