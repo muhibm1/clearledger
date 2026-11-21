@@ -9,7 +9,7 @@ with p as (
     from {{ ref('stg_partners') }} s
 ),
 companies as (
-    select partner_id as company_id, partner_name, email,
+    select partner_id as company_id, partner_name, email, country,
         regexp_replace(name_norm, '\s+', ' ', 'g') as name_norm
     from p where partner_id = company_id
 ),
@@ -33,6 +33,7 @@ select
     p.partner_id,
     k.customer_key,
     key_row.partner_name as customer_name,
+    key_row.country as customer_country,
     count(*) over (partition by k.customer_key) > 1 and p.partner_id = p.company_id
         and k.customer_key <> p.partner_id as merged_into_other
 from p

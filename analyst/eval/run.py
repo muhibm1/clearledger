@@ -103,7 +103,11 @@ def run_one(dom, model, condition, retriever, row) -> dict:
                                 "error": out.get("explanation") if out["status"] == "failed" else None}]
         else:
             v2 = condition == "full-v2"
+            import os
+            reviewer = os.environ.get("ANALYST_REVIEW_MODEL") or getattr(dom, "review_model", None)
             app = build(dom, model, context=condition in FULL, retriever=retriever,
+                        review_model=CommandLineModel(reviewer, usage_log=getattr(model, "usage_log", None))
+                        if reviewer and isinstance(model, CommandLineModel) else None,
                         max_tries=1 if condition == "one-shot-read" else 3,
                         max_lookups=2 if v2 else 0, max_redrafts=1 if v2 else 0)
             out = ask(app, row["question"], thread=row["id"])
@@ -115,6 +119,7 @@ def run_one(dom, model, condition, retriever, row) -> dict:
            "explanation": out.get("explanation"), "sql": out.get("sql"),
            "attempts": out.get("attempts", []), "lookups": out.get("lookups", []),
            "redrafts": out.get("redrafts", 0), "retrieved": out.get("retrieved", []),
+           "caveats": out.get("caveats", []), "review_error": out.get("review_error"), "review_checks": out.get("review_checks", []),
            "sources": out.get("sources", []), "citations_ok": (out.get("citations") or {}).get("all_ok"),
            "seconds": round(time.time() - t, 1)}
     rec["correct"] = correct(row, rec)

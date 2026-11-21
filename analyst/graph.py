@@ -36,6 +36,7 @@ from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, StateGraph
 
 from . import answers
+from . import review as reviewing
 from . import sql as sqltool
 from .domain import Domain, bare_schema
 from .retrieve import Retriever
@@ -99,6 +100,9 @@ class State(TypedDict, total=False):
     explanation: str
     sources: list
     citations: dict
+    caveats: list                            # what the review step found that bears on the answer
+    review_error: str
+    review_checks: list                      # the reviewer's own read-only checks of the books
 
 
 def _system(dom: Domain) -> str:
@@ -113,22 +117,32 @@ def _system(dom: Domain) -> str:
         + (" The warehouse does not hold: " + "; ".join(dom.not_loaded) + ". A question that needs any of "
            "these is not answerable: say what is missing, and give the nearest figure the warehouse does "
            "hold with its limit. Never answer 0 or 'none' because the data is silent." if dom.not_loaded else "")
+        + (" HOW TO ANSWER IN THIS WAREHOUSE: " + " ".join(dom.rules) if dom.rules else "")
         + " For a question that ranks things (the most, the largest, the top N), return every row tied at "
           "the cut-off with the measure, never LIMIT alone, and say in the answer when there is a tie."
     )
 
 
 def build(dom: Domain, model, *, context: bool = True, retriever: Retriever | None = None, checkpointer=None,
-          max_tries: int = MAX_TRIES, max_lookups: int = MAX_LOOKUPS, max_redrafts: int = MAX_REDRAFTS):
+          max_tries: int = MAX_TRIES, max_lookups: int = MAX_LOOKUPS, max_redrafts: int = MAX_REDRAFTS,
+          with_review: bool | None = None, review_model=None):
     """Compile the graph for one domain. `model(system, prompt, schema) -> dict`.
 
     `max_lookups=0, max_redrafts=0` is the agent as first scored: one query, repaired on error."""
     from .domain import documents
 
+    # The review reads the domain's issues table, which is domain knowledge: the no-context ablation
+    # goes without it unless asked.
+    with_review = context if with_review is None else with_review
+    if review_model is None and dom.review_model:
+        from .model import CommandLineModel
+        if isinstance(model, CommandLineModel):  # the domain's stronger reviewer, on the same route
+            review_model = CommandLineModel(dom.review_model, usage_log=getattr(model, "usage_log", None))
     if context and retriever is None:
         retriever = Retriever(documents(dom))
     system = _system(dom) + (" " + LOOKUP_RULE if max_lookups else "")
-    fresh = {"attempts": [], "lookups": [], "redrafts": 0, "sources": [], "citations": {}}
+    fresh = {"attempts": [], "lookups": [], "redrafts": 0, "sources": [], "citations": {}, "caveats": [],
+             "review_error": ""}
 
     def retrieve(state: State) -> dict:
         if not context:
@@ -194,12 +208,17 @@ def build(dom: Domain, model, *, context: bool = True, retriever: Retriever | No
         shown = json.dumps(rows[:ROWS_SHOWN], default=str)
         more = f"\n({len(rows) - ROWS_SHOWN} more rows not shown)" if len(rows) > ROWS_SHOWN else ""
         nothing = not rows or (len(rows) == 1 and all(v is None for v in rows[0].values()))
-        prompt = (f"QUESTION\n{state['question']}\n\nQUERY YOU RAN\n{state['sql']}\n\n"
+        looked = "".join(f"\n- {x['sql']}\n  FOUND: {x['found'][:600]}" for x in state.get("lookups", []))
+        prompt = (f"QUESTION\n{state['question']}\n\n"
+                  + (f"YOUR LOOKUPS (what they found exists in the data){looked}\n\n" if looked else "")
+                  + f"QUERY YOU RAN\n{state['sql']}\n\n"
                   f"RESULT ({len(rows)} rows)\n{shown}{more}\n\n"
                   "Give the answer. A single amount or count is a number (dollars as a plain number, "
                   "no symbols); a list is a list of strings. If the question asks for more than one thing "
-                  "(an amount and which invoice, a customer and a figure), state every part, naming the "
-                  "invoice, customer or deal from the rows. If several rows share the top value, say they "
+                  "(an amount and which invoice, a customer and a figure; what was ordered, invoiced and unpaid), "
+                  "the answer is one string that states every part with its figure, naming the order, invoice, "
+                  "customer or deal from the rows; an amount on a record in another currency is given in that "
+                  "currency as well as in USD. Nothing asked for may sit only in the explanation. If several rows share the top value, say they "
                   "are tied and name them all. Decline only when the question asks for something this data "
                   "does not hold, or the query was the wrong one; when you decline, say in one sentence what "
                   "is missing and give the nearest figure the warehouse does hold with its limit.")
@@ -207,7 +226,9 @@ def build(dom: Domain, model, *, context: bool = True, retriever: Retriever | No
             prompt += (" The query found nothing (no rows, or only NULL). That is a true 0 (or []) only when "
                        "what the question names exists and simply has nothing of this kind. If it names a "
                        "customer, deal or invoice that the notes or a lookup have not shown to exist, you "
-                       "cannot tell: decline, and say the name could not be found.")
+                       "cannot tell: decline, and say the name could not be found. A name a lookup above found "
+                       "does exist. For a yes or no question (is it late, are there any, did it), a correct query "
+                       "that finds nothing answers No.")
         out = model(system, prompt, ANSWER_SCHEMA)
         status = out.get("status") if out.get("status") in ("answer", "not_answerable") else "answer"
         if status == "not_answerable" and state.get("redrafts", 0) < max_redrafts:
@@ -225,6 +246,44 @@ def build(dom: Domain, model, *, context: bool = True, retriever: Retriever | No
                 got = answers.with_identifiers(got, missing)
         return {"status": status, "answer": got, "explanation": out.get("explanation", "")}
 
+    def review(state: State) -> dict:
+        """Check the books behind the answer and add the caveats a careful analyst would state."""
+        if state.get("status") not in ("answer", "not_answerable") or not dom.issues:
+            return {}
+        try:
+            with dom.connect() as conn:
+                found = reviewing.gather(conn, dom.issues, state["question"], state.get("sql", ""),
+                                         state.get("rows", []))
+                if dom.investigate:
+                    def run_check(q):
+                        sqltool.prepare(dom, conn)
+                        return sqltool.run(dom, conn, q)
+                    out = reviewing.investigate(
+                        conn, dom, review_model or model, system, state["question"], state.get("sql", ""),
+                        state.get("rows", []), state.get("answer"), state.get("explanation", ""),
+                        state["status"], found, dom.not_loaded, run_check)
+            if not dom.investigate:
+                if not found["issues"] and not found["records"]:
+                    return {}
+                out = (review_model or model)(system, reviewing.prompt(
+                    state["question"], state.get("sql", ""), state.get("rows", []), state.get("answer"),
+                    state.get("explanation", ""), found), reviewing.REVIEW_SCHEMA)
+        except Exception as exc:  # a failed review never loses the answer; it says so
+            return {"caveats": [], "review_error": f"{type(exc).__name__}: {str(exc)[:200]}"}
+        caveats = [c for c in out.get("caveats") or [] if isinstance(c, str)][:6]
+        update = {"caveats": caveats, "explanation": reviewing.merge(state.get("explanation", ""), caveats),
+                  "review_checks": out.get("checks", [])}
+        verdict = out.get("status") or "keep"
+        if verdict == "not_answerable" and state["status"] == "answer":
+            update.update(status="not_answerable", answer=None)
+        elif verdict == "answer" and state["status"] == "not_answerable" and (out.get("answer") or "").strip():
+            update.update(status="answer", answer=out["answer"].strip())
+        elif state["status"] == "answer":
+            restated = reviewing.revised(state.get("answer"), out.get("answer"))
+            if restated:
+                update["answer"] = restated
+        return update
+
     def cite(state: State) -> dict:
         refs = sorted({str(r[c]) for r in state.get("rows", []) for c in r
                        if c == "source_ref" and r[c]})
@@ -240,14 +299,17 @@ def build(dom: Domain, model, *, context: bool = True, retriever: Retriever | No
 
     g = StateGraph(State)
     for name, fn in [("retrieve", retrieve), ("draft", draft), ("execute", execute), ("answer", answer),
-                     ("cite", cite), ("remember", remember)]:
+                     ("review", review), ("cite", cite), ("remember", remember)]:
         g.add_node(name, fn)
     g.add_edge(START, "retrieve")
     g.add_edge("retrieve", "draft")
-    g.add_conditional_edges("draft", lambda s: "execute" if s["status"] in ("running", "lookup") else "remember")
+    g.add_conditional_edges("draft", lambda s: "execute" if s["status"] in ("running", "lookup")
+                            else ("review" if with_review and s["status"] == "not_answerable" else "remember"))
     g.add_conditional_edges("execute", lambda s: {"repair": "draft", "looked": "draft",
                                                   "failed": "remember"}.get(s["status"], "answer"))
-    g.add_conditional_edges("answer", lambda s: "draft" if s["status"] == "redraft" else "cite")
+    g.add_conditional_edges("answer", lambda s: "draft" if s["status"] == "redraft"
+                            else ("review" if with_review else "cite"))
+    g.add_edge("review", "cite")
     g.add_edge("cite", "remember")
     g.add_edge("remember", END)
     return g.compile(checkpointer=checkpointer if checkpointer is not None else InMemorySaver())
