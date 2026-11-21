@@ -104,7 +104,7 @@ def run_one(dom, model, condition, retriever, row) -> dict:
         else:
             v2 = condition == "full-v2"
             import os
-            reviewer = os.environ.get("ANALYST_REVIEW_MODEL")
+            reviewer = os.environ.get("ANALYST_REVIEW_MODEL") or getattr(dom, "review_model", None)
             app = build(dom, model, context=condition in FULL, retriever=retriever,
                         review_model=CommandLineModel(reviewer, usage_log=getattr(model, "usage_log", None))
                         if reviewer and isinstance(model, CommandLineModel) else None,

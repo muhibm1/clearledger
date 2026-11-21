@@ -49,7 +49,7 @@ REVIEW_SCHEMA = {
     "type": "object",
     "properties": {
         "caveats": {"type": "array", "items": {"type": "string"},
-                    "description": "At most 4 caveats, most material first, each one short sentence with its "
+                    "description": "At most 6 caveats, most material first, each one short sentence with its "
                                    "figures and record references. Empty when nothing bears on the answer."},
         "answer": {"type": "string",
                    "description": "Empty, unless an issue shows the answer misstates what was asked: then the "
@@ -80,13 +80,20 @@ REVIEW_RULES = (
     "a problem the records prove (tax charged twice, a pro-forma, a fee) over one that is only possible. "
     "Only an issue that changes or qualifies THIS figure counts: a mistyped due date bears on what is late, "
     "not on what is owed; tax inside totals bears on billed figures only when the question is about "
-    "revenue, tax or a currency. Write at most 4 caveats, each under 130 characters, plain and specific, "
+    "revenue, tax or a currency. Write at most 6 caveats, each under 170 characters, covering every distinct problem that touches a record in the answer (do not drop one to keep it short), plain and specific, "
     "the question's own subject first. "
-    "Fill 'answer' only when the issues show the answer itself misleads (it counts a test or internal "
-    "account as a customer, names a deal won that the CRM also marks lost, credits a customer with an "
-    "order or payment that is another party's): restate it with the books figure kept and the corrected "
-    "reading beside it. Otherwise leave it empty. Never invent a problem: if nothing bears on the answer, "
-    "return no caveats."
+    "Fill 'answer' when the issues or records show the answer itself misleads, and a caveat alone would "
+    "leave a wrong headline: it counts a test or internal account as a customer; names a deal won that "
+    "the CRM also marks lost; credits a customer with an order or payment that is another party's; calls "
+    "an invoice paid that was reversed by a credit note; counts as open pipeline a deal already sold or "
+    "dead by its stage, or leaves such deals out of a win or loss count; adds deal values keyed in "
+    "another currency as if they were dollars; gives one invoice when more were billed for the same job "
+    "(a deposit billed on top of the order); or says there is something to bill when it is a duplicate. "
+    "Then restate it: keep every figure the answer gave, say plainly which is the books figure, and give "
+    "the corrected figure beside it, worked out from the records, for example '34 on the books; 33 "
+    "excluding the test account' or '50,000 on the final invoice; 65,000 billed in all, 15,000 over the "
+    "order'. Otherwise leave it empty. Never invent a problem: if nothing bears on the answer, return no "
+    "caveats."
 )
 
 
@@ -225,7 +232,8 @@ def prompt(question: str, sql: str, rows: list[dict], answer, explanation: str, 
             + REVIEW_RULES)
 
 
-CAVEAT_ROOM = 480
+CAVEAT_ROOM = 900
+CAVEAT_MAX = 300  # one caveat longer than this is a runaway, not a caveat
 
 
 def revised(answer, proposed: str):
@@ -247,7 +255,7 @@ def revised(answer, proposed: str):
 def merge(explanation: str, caveats: list[str]) -> str:
     """The explanation's first sentence with the caveats after it, kept short enough to be read whole:
     caveats come most material first, and one that would push past the room is left out."""
-    caveats = [c.strip() for c in caveats or [] if c and c.strip()]
+    caveats = [c.strip() for c in caveats or [] if c and c.strip() and len(c.strip()) <= CAVEAT_MAX]
     if not caveats:
         return explanation
     kept, used = [], 0

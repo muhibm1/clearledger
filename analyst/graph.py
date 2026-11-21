@@ -116,6 +116,7 @@ def _system(dom: Domain) -> str:
         + (" The warehouse does not hold: " + "; ".join(dom.not_loaded) + ". A question that needs any of "
            "these is not answerable: say what is missing, and give the nearest figure the warehouse does "
            "hold with its limit. Never answer 0 or 'none' because the data is silent." if dom.not_loaded else "")
+        + (" HOW TO ANSWER IN THIS WAREHOUSE: " + " ".join(dom.rules) if dom.rules else "")
         + " For a question that ranks things (the most, the largest, the top N), return every row tied at "
           "the cut-off with the measure, never LIMIT alone, and say in the answer when there is a tie."
     )
@@ -132,6 +133,10 @@ def build(dom: Domain, model, *, context: bool = True, retriever: Retriever | No
     # The review reads the domain's issues table, which is domain knowledge: the no-context ablation
     # goes without it unless asked.
     with_review = context if with_review is None else with_review
+    if review_model is None and dom.review_model:
+        from .model import CommandLineModel
+        if isinstance(model, CommandLineModel):  # the domain's stronger reviewer, on the same route
+            review_model = CommandLineModel(dom.review_model, usage_log=getattr(model, "usage_log", None))
     if context and retriever is None:
         retriever = Retriever(documents(dom))
     system = _system(dom) + (" " + LOOKUP_RULE if max_lookups else "")
@@ -202,12 +207,17 @@ def build(dom: Domain, model, *, context: bool = True, retriever: Retriever | No
         shown = json.dumps(rows[:ROWS_SHOWN], default=str)
         more = f"\n({len(rows) - ROWS_SHOWN} more rows not shown)" if len(rows) > ROWS_SHOWN else ""
         nothing = not rows or (len(rows) == 1 and all(v is None for v in rows[0].values()))
-        prompt = (f"QUESTION\n{state['question']}\n\nQUERY YOU RAN\n{state['sql']}\n\n"
+        looked = "".join(f"\n- {x['sql']}\n  FOUND: {x['found'][:600]}" for x in state.get("lookups", []))
+        prompt = (f"QUESTION\n{state['question']}\n\n"
+                  + (f"YOUR LOOKUPS (what they found exists in the data){looked}\n\n" if looked else "")
+                  + f"QUERY YOU RAN\n{state['sql']}\n\n"
                   f"RESULT ({len(rows)} rows)\n{shown}{more}\n\n"
                   "Give the answer. A single amount or count is a number (dollars as a plain number, "
                   "no symbols); a list is a list of strings. If the question asks for more than one thing "
-                  "(an amount and which invoice, a customer and a figure), state every part, naming the "
-                  "invoice, customer or deal from the rows. If several rows share the top value, say they "
+                  "(an amount and which invoice, a customer and a figure; what was ordered, invoiced and unpaid), "
+                  "the answer is one string that states every part with its figure, naming the order, invoice, "
+                  "customer or deal from the rows; an amount on a record in another currency is given in that "
+                  "currency as well as in USD. Nothing asked for may sit only in the explanation. If several rows share the top value, say they "
                   "are tied and name them all. Decline only when the question asks for something this data "
                   "does not hold, or the query was the wrong one; when you decline, say in one sentence what "
                   "is missing and give the nearest figure the warehouse does hold with its limit.")
@@ -215,7 +225,9 @@ def build(dom: Domain, model, *, context: bool = True, retriever: Retriever | No
             prompt += (" The query found nothing (no rows, or only NULL). That is a true 0 (or []) only when "
                        "what the question names exists and simply has nothing of this kind. If it names a "
                        "customer, deal or invoice that the notes or a lookup have not shown to exist, you "
-                       "cannot tell: decline, and say the name could not be found.")
+                       "cannot tell: decline, and say the name could not be found. A name a lookup above found "
+                       "does exist. For a yes or no question (is it late, are there any, did it), a correct query "
+                       "that finds nothing answers No.")
         out = model(system, prompt, ANSWER_SCHEMA)
         status = out.get("status") if out.get("status") in ("answer", "not_answerable") else "answer"
         if status == "not_answerable" and state.get("redrafts", 0) < max_redrafts:
@@ -248,7 +260,7 @@ def build(dom: Domain, model, *, context: bool = True, retriever: Retriever | No
                 state.get("explanation", ""), found), reviewing.REVIEW_SCHEMA)
         except Exception as exc:  # a failed review never loses the answer; it says so
             return {"caveats": [], "review_error": f"{type(exc).__name__}: {str(exc)[:200]}"}
-        caveats = [c for c in out.get("caveats") or [] if isinstance(c, str)][:4]
+        caveats = [c for c in out.get("caveats") or [] if isinstance(c, str)][:6]
         update = {"caveats": caveats, "explanation": reviewing.merge(state.get("explanation", ""), caveats)}
         restated = reviewing.revised(state.get("answer"), out.get("answer")) if state["status"] == "answer" else None
         if restated:

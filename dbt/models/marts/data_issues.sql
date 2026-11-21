@@ -243,8 +243,12 @@ union all
 -- Cash matched to no invoice.
 select 'payment_not_matched', 'payment', p.payment_ref, c.customer_key, c.customer_name, p.payment_date, p.amount,
     array['cash', 'open'],
-    format('Payment %s from %s (%s %s, %s) is not matched to any invoice, so the invoices it may be for still show as open.',
-        p.payment_ref, c.customer_name, to_char(p.amount, 'FM999,999,990.00'), {{ cur }}, p.payment_date)
+    format('Payment %s from %s (%s %s, %s) is not matched to any invoice, so the invoices it may be for still show as open%s.',
+        p.payment_ref, c.customer_name, to_char(p.amount, 'FM999,999,990.00'), {{ cur }}, p.payment_date,
+        coalesce((select '. It should be matched to ' || string_agg(i.invoice_ref || ' (open ' || to_char(i.amount_open, 'FM999,999,990.00')
+                   || case when i.days_past_due > 0 then ', shown ' || i.days_past_due || ' days late' else '' end || ')', ', ')
+                   || ': until it is, that invoice shows as open and late although this cash already came in, and the cash shows as unapplied'
+                  from inv i where i.customer_key = c.customer_key and i.move_type = 'out_invoice' and i.amount_open >= p.amount - 0.01), ''))
 from pay p join partner_cust c on c.partner_id = p.partner_id
 where p.state in ('posted', 'paid', 'in_process') and cardinality(p.invoice_ids) = 0 and p.payment_type = 'inbound'
 
@@ -275,7 +279,7 @@ union all
 -- A deal marked lost (or still open) whose order was confirmed and billed: the CRM and the books disagree.
 select 'deal_status_contradicts_sales', 'deal', d.deal_name, c.customer_key, c.customer_name, d.closed_on, s.invoiced,
     array['deals', 'counts'],
-    format('Deal "%s" (%s) is %s in the CRM, yet its order %s was confirmed and invoiced %s %s, %s paid. The two records contradict each other.',
+    format('Deal "%s" (%s) is %s in the CRM, yet its order %s was confirmed and invoiced %s %s, %s paid. The two records contradict each other: it was really won, so a win count by the flag misses it and an open-pipeline figure wrongly includes it.',
         d.deal_name, c.customer_name,
         case when d.is_lost and d.is_won then 'in the ' || d.stage || ' stage but archived as lost'
              when d.is_lost then 'archived as lost' else 'still open (stage ' || d.stage || ')' end,
@@ -375,9 +379,12 @@ union all
 -- Settled without any cash: a credit note, write-off or set-off closed it.
 select 'settled_without_payment', 'invoice', i.invoice_ref, i.customer_key, i.customer_name, i.invoice_date, i.amount_paid,
     array['cash', 'open'],
-    format('%s (%s) shows %s %s settled, but no customer payment is matched to it: it was closed by a credit note, write-off or set-off, not cash.',
-        i.invoice_ref, i.customer_name, to_char(i.amount_paid, 'FM999,999,990.00'), {{ cur }})
-from inv i where i.move_type = 'out_invoice' and i.amount_paid > 0.01
+    format('%s (%s) shows %s %s settled, but no customer payment is matched to it: %s',
+        i.invoice_ref, i.customer_name, to_char(i.amount_paid, 'FM999,999,990.00'), {{ cur }},
+        case when si.payment_state = 'reversed'
+             then 'Odoo marks it reversed: it was cancelled by a credit note, so it was NOT paid. Count it neither as paid nor as billed; any replacement invoice is the one that counts.'
+             else 'it was closed by a credit note, write-off or set-off, not cash.' end)
+from inv i join {{ ref('stg_invoices') }} si on si.invoice_id = i.invoice_id where i.move_type = 'out_invoice' and i.amount_paid > 0.01
   and not exists (select 1 from pay_inv pi where pi.invoice_id = i.invoice_id)
 
 union all
@@ -470,9 +477,13 @@ union all
 -- A confirmed order with nothing billed long after the usual gap between order and invoice.
 select 'order_not_invoiced', 'deal', o.order_ref, c.customer_key, c.customer_name, o.order_date, o.amount_total,
     array['deals', 'billed'],
-    format('Order %s (%s, %s %s) was confirmed on %s, %s days before the as-of date, and has no invoice; orders here are usually invoiced within about %s days, so it is probably unbilled.',
+    format('Order %s (%s, %s %s) was confirmed on %s, %s days before the as-of date, and has no invoice; %s',
         o.order_ref, c.customer_name, to_char(o.amount_total, 'FM999,999,990.00'), o.currency, o.order_date,
-        {{ as_of }} - o.order_date, g.usual)
+        {{ as_of }} - o.order_date,
+        coalesce((select 'it is an identical copy of order ' || string_agg(o2.order_ref, ', ') || ' on the same deal, which was invoiced: two orders for one job. Nothing is really left to bill; the copy should be cancelled, not billed.'
+                  from {{ ref('stg_orders') }} o2 where o2.deal_id = o.deal_id and o2.order_id <> o.order_id and o2.state in ('sale', 'done')
+                    and abs(o2.amount_total - o.amount_total) < 0.01 and exists (select 1 from inv i2 where i2.order_id = o2.order_id)),
+                 'orders here are usually invoiced within about ' || g.usual || ' days, so it is probably unbilled.'))
 from {{ ref('stg_orders') }} o join partner_cust c on c.partner_id = o.partner_id
 cross join (select greatest(percentile_disc(0.9) within group (order by f.gap), 7) as usual
             from (select o2.order_id, min(i.invoice_date - o2.order_date) as gap
@@ -597,6 +608,53 @@ from (select currency, round(usd_per_unit, 6) as rate, count(*) as n, min(invoic
 join (select currency, count(distinct round(usd_per_unit, 6)) as other_rates, min(invoice_date) as first_date from fx group by 1) o
   on o.currency = f.currency
 where f.n >= 5 and f.last_date - f.first_date >= 60 and o.other_rates >= 3 and f.first_date > o.first_date
+
+union all
+-- An open deal parked in a stage whose name says it is over (lost, closed, dead, cancelled) but not
+-- archived as lost: it is still counted in the open pipeline and left out of losses.
+select 'deal_stage_says_closed', 'deal', d.deal_name, c.customer_key, coalesce(c.customer_name, 'no customer'), d.closed_on, d.expected_revenue,
+    array['deals', 'counts'],
+    format('Deal "%s" (%s, %s) sits in stage "%s" but is not marked lost or won, so it still counts as open pipeline. By its stage it is dead: leave it out of the open pipeline and count it as a loss.',
+        d.deal_name, coalesce(c.customer_name, 'no customer'), to_char(d.expected_revenue, 'FM999,999,990.00'), d.stage)
+from {{ ref('stg_deals') }} d left join partner_cust c on c.partner_id = d.partner_id
+where not d.is_won and not d.is_lost and d.stage ~* '(lost|closed|dead|cancel|declin|rejected|no go|abandon)'
+  and d.stage !~* 'won'
+
+union all
+-- A deal whose value matches its orders in their own currency, not in US dollars: sales keyed the
+-- foreign amount as if it were dollars, so every dollar total of deal values is off for it.
+select 'deal_value_in_order_currency', 'deal', d.deal_name, c.customer_key, c.customer_name, d.closed_on, d.expected_revenue,
+    array['deals'],
+    format('Deal "%s" (%s) carries %s as its value, which matches its order%s %s (%s %s) in %s, not their %s USD: the deal value was keyed in %s, so it is not in US dollars. Convert it (about %s USD) before adding it to dollar figures or comparing it with what was billed.',
+        d.deal_name, c.customer_name, to_char(d.expected_revenue, 'FM999,999,990.00'),
+        case when o.n > 1 then 's' else '' end, o.refs, to_char(o.own, 'FM999,999,990.00'), o.cur, o.cur,
+        to_char(o.usd, 'FM999,999,990.00'), o.cur, to_char(d.expected_revenue * o.usd / nullif(o.own, 0), 'FM999,999,990.00'))
+from {{ ref('stg_deals') }} d join partner_cust c on c.partner_id = d.partner_id
+join (select deal_id, min(currency) as cur, count(*) as n, string_agg(order_ref, ', ') as refs,
+             sum(amount_total) as own, sum(amount_usd) as usd
+      from {{ ref('int_orders') }} where state in ('sale', 'done') group by deal_id
+      having count(distinct currency) = 1 and min(currency) <> {{ cur }}) o on o.deal_id = d.deal_id
+where d.expected_revenue > 0
+  and abs(d.expected_revenue - o.own) <= 0.01 * d.expected_revenue
+  and abs(d.expected_revenue - o.usd) > 0.03 * d.expected_revenue
+
+union all
+-- An order billed for an amount with the same digits as its total in another order (18,450 billed as
+-- 14,850): a keying slip, so the gap is under- or over-billing, not a later invoice still to come.
+select 'invoice_digits_transposed', 'invoice', b.invoice_refs, b.customer_key, b.customer_name, b.order_date, b.billed - b.amount_total,
+    array['billed', 'deals', 'open'],
+    format('Order %s (%s) totals %s %s but was billed %s on %s: the same digits in another order, so it was probably keyed wrong. It is %s by %s; the gap is a keying error to correct, not an invoice still to come.',
+        b.order_ref, b.customer_name, to_char(b.amount_total, 'FM999,999,990.00'), b.currency, to_char(b.billed, 'FM999,999,990.00'),
+        b.invoice_refs, case when b.billed < b.amount_total then 'under-billed' else 'over-billed' end,
+        to_char(abs(b.amount_total - b.billed), 'FM999,999,990.00'))
+from (select o.order_ref, o.order_date, o.amount_total, o.currency, c.customer_key, c.customer_name,
+             sum(i.amount_in_invoice_currency) as billed, string_agg(i.invoice_ref, ', ') as invoice_refs
+      from {{ ref('stg_orders') }} o join inv i on i.order_id = o.order_id join partner_cust c on c.partner_id = o.partner_id
+      where o.state in ('sale', 'done') and i.move_type = 'out_invoice'
+      group by o.order_ref, o.order_date, o.amount_total, o.currency, c.customer_key, c.customer_name) b
+where abs(b.billed - b.amount_total) >= 1
+  and (select string_agg(ch, '' order by ch) from regexp_split_to_table(to_char(b.billed, 'FM9999999990.00'), '') ch)
+    = (select string_agg(ch, '' order by ch) from regexp_split_to_table(to_char(b.amount_total, 'FM9999999990.00'), '') ch)
 
 union all
 -- A customer known under another name.

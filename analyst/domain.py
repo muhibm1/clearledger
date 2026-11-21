@@ -36,6 +36,8 @@ class Domain:
     issues: str | None = None  # table listing suspect records, read by the review step
     columns: dict = field(default_factory=dict)  # "schema.table" -> [(column, type)], read live
     findings: list = field(default_factory=list)  # what the onboarding pass wrote about these books, read live
+    rules: list = field(default_factory=list)  # how to answer, always shown to the model (not retrieved)
+    review_model: str | None = None  # a stronger model for the review step, when the domain names one
 
     def connect(self):
         return psycopg.connect(self.dsn, autocommit=True)
@@ -53,7 +55,7 @@ def load(name_or_path: str) -> Domain:
         tables=d.get("tables") or {}, terms=d.get("terms") or {}, examples=d.get("examples") or [],
         privacy=d.get("privacy"), reader_role=d.get("reader_role"), citations=d.get("citations"),
         not_loaded=d.get("not_loaded") or [], identifiers=d.get("identifiers") or {},
-        issues=d.get("issues"),
+        issues=d.get("issues"), rules=d.get("rules") or [], review_model=d.get("review_model"),
     )
     return dom
 
