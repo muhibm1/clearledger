@@ -8,6 +8,7 @@ select
     coalesce((s.payload->>'is_won')::boolean, false) as is_won,
     not (l.payload->>'active')::boolean as is_lost,
     (l.payload->>'expected_revenue')::numeric as expected_revenue,
+    (nullif(l.payload->>'probability', 'false'))::numeric as probability,
     (l.payload->>'create_date')::timestamp as created_at,
     (nullif(l.payload->>'date_closed', 'false'))::timestamp::date as closed_on,
     l.write_date as source_version

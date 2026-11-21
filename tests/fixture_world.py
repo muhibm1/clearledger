@@ -40,38 +40,38 @@ class World:
                  write_date)
 
     def invoice(self, iid, name, partner, date, due, amount, open_=0.0, state="posted", kind="out_invoice",
-                origin=False, write_date=WHEN, partner_name=""):
+                origin=False, write_date=WHEN, partner_name="", **extra):
         sign = -1 if kind == "out_refund" else 1
         self.add("account_move", iid, {
             "name": name, "move_type": kind, "state": state, "partner_id": m2o(partner, partner_name),
             "invoice_date": date, "invoice_date_due": due, "currency_id": [1, "USD"],
             "amount_total": amount, "amount_total_signed": sign * amount,
             "amount_residual": open_, "amount_residual_signed": sign * open_,
-            "payment_state": "paid" if not open_ else "not_paid", "invoice_origin": origin}, write_date)
+            "payment_state": "paid" if not open_ else "not_paid", "invoice_origin": origin, **extra}, write_date)
 
     def line(self, lid, invoice, due, balance, open_, state="posted"):
         self.add("account_move_line", lid, {
             "move_id": m2o(invoice, "x"), "date_maturity": due, "balance": balance, "amount_residual": open_,
             "parent_state": state, "display_type": "payment_term", "partner_id": False})
 
-    def payment(self, pid, partner, amount, date, invoices=(), state="posted", kind="inbound"):
+    def payment(self, pid, partner, amount, date, invoices=(), state="posted", kind="inbound", **extra):
         self.add("account_payment", pid, {
             "name": f"PAY/{pid}", "partner_id": m2o(partner, "x"), "date": date, "state": state,
             "payment_type": kind, "currency_id": [1, "USD"],
             "amount_company_currency_signed": amount if kind == "inbound" else -amount,
-            "reconciled_invoice_ids": list(invoices)})
+            "reconciled_invoice_ids": list(invoices), **extra})
 
-    def order(self, oid, deal, partner, amount, state="sale", invoices=(), date="2026-03-01 00:00:00"):
+    def order(self, oid, deal, partner, amount, state="sale", invoices=(), date="2026-03-01 00:00:00", **extra):
         self.add("sale_order", oid, {
             "name": f"S{oid:05d}", "partner_id": m2o(partner, "x"), "opportunity_id": m2o(deal, "d"),
             "state": state, "date_order": date, "amount_total": amount, "currency_id": [1, "USD"],
-            "invoice_ids": list(invoices)})
+            "invoice_ids": list(invoices), **extra})
 
-    def deal(self, did, partner, name="Job", revenue=0.0, won=True):
+    def deal(self, did, partner, name="Job", revenue=0.0, won=True, active=True):
         self.add("crm_stage", 1, {"name": "Won", "is_won": True, "sequence": 1})
         self.add("crm_lead", did, {"name": name, "type": "opportunity", "partner_id": m2o(partner, "x"),
                                    "stage_id": [1, "Won"], "expected_revenue": revenue, "date_closed": "2026-03-01 00:00:00",
-                                   "active": True, "create_date": "2026-01-01 00:00:00"})
+                                   "active": active, "create_date": "2026-01-01 00:00:00"})
 
 
 def _dbt():

@@ -16,5 +16,8 @@ select
     (payload->>'amount_residual')::numeric as amount_open_in_invoice_currency,
     payload->>'payment_state' as payment_state,
     {{ txt('invoice_origin') }} as invoice_origin,
+    (payload->>'amount_untaxed')::numeric as amount_untaxed_in_invoice_currency,
+    (payload->>'amount_tax')::numeric as amount_tax_in_invoice_currency,
+    {{ txt('ref') }} as reference,
     write_date as source_version
 from m

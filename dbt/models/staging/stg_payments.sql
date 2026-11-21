@@ -8,6 +8,7 @@ select
     payload->>'payment_type' as payment_type,
     {{ m2o_name('currency_id') }} as currency,
     (payload->>'amount_company_currency_signed')::numeric as amount,
+    {{ txt('ref') }} as memo,
     array(select jsonb_array_elements_text(payload->'reconciled_invoice_ids')::int) as invoice_ids,
     write_date as source_version
 from p

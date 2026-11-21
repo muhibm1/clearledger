@@ -13,7 +13,7 @@ import math
 import re
 from collections import Counter
 
-LIMITS = {"table": 4, "term": 4, "example": 2}
+LIMITS = {"table": 4, "term": 4, "example": 2, "finding": 3}
 RRF_K = 60
 _TOKEN = re.compile(r"[a-z0-9]+")
 
