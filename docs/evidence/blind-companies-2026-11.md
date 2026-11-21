@@ -17,8 +17,8 @@ written from Odoo itself and frozen with a hash before scoring:
    match Odoo.
 3. Run the onboarding pass (`python -m analyst.onboard`). It reads the books only, never the
    questions.
-4. Run the analyst once on all 100 questions (Sonnet). Grade once with an Opus grader against the
-   frozen keys.
+4. Run the analyst once on all 100 questions (Sonnet drafts and reads; from company J on, the review
+   step runs on Opus). Grade once with an Opus grader against the frozen keys.
 5. A company scored once becomes development data. Its misses feed the next round, and the next
    score comes from a new company.
 
@@ -32,7 +32,9 @@ frozen code. Each company's `runs/FREEZE.txt` records this.
 | E, scored once | cc03d7d | 33/36 | 22/43 | 21/21 | 76 |
 | F, scored once | f10a5b2 | 34/36 | 20/43 | 20/21 | 74 |
 | G, scored once | e6d7bd3 | 35/36 | 18/43 | 20/21 | 73 |
-| H, scored once, with the onboarding pass | 308e60e | 33/36 | 32/43 | 20/21 | **85** |
+| H, scored once, with the onboarding pass | 308e60e | 33/36 | 32/43 | 20/21 | 85 |
+| I, scored once, Opus review | 2cf9643 | 36/36 | 20/43 | 17/21 | 73 |
+| J, scored once, review that checks the books itself | 361515b | 35/36 | 37/43 | 21/21 | **93** |
 
 Without the onboarding pass, plain questions held at about 95% on every new company, but caveat
 questions stayed under half. Fixed detectors catch the kinds of mess they were written for, and each
@@ -42,6 +44,14 @@ The onboarding pass changed that. On G, as development data, it was the only cha
 frozen code, and it took G from 73 to 79. Showing its notes to the analyst while it drafts took G
 to 83, and reading invoice notes for meaning took it to 87. On H, a company nobody had seen, the
 frozen code scored 85.
+
+After H, fixes to H's misses took the development companies to 90 to 95, yet fresh company I scored
+73: its messes were new kinds again, and the caveats missed them. So the review step was redesigned.
+It now runs on Opus and checks the books itself before an answer goes out: up to four read-only queries
+of the records behind the answer, comparing each with the records it links to and breaking a
+company-wide figure down by customer. It can also decline a question that needs something the books
+do not record, rather than derive a figure. On I, as development data, this took 73 to 85. On J, a
+company nobody had seen, the frozen code scored 93.
 
 ## What the onboarding pass is
 
