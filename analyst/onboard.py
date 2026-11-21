@@ -72,7 +72,10 @@ SECTIONS = {
                (select count(*) from intermediate.int_invoices i where i.partner_id = p.partner_id) as invoices,
                (select round(sum(amount), 2) from intermediate.int_invoices i where i.partner_id = p.partner_id) as billed_usd,
                (select round(sum(amount_open), 2) from intermediate.int_invoices i where i.partner_id = p.partner_id) as open_usd,
-               (select string_agg(distinct currency, ',') from intermediate.int_invoices i where i.partner_id = p.partner_id) as currencies
+               (select string_agg(distinct currency, ',') from intermediate.int_invoices i where i.partner_id = p.partner_id) as currencies,
+               (select count(*) from staging.stg_deals d where d.partner_id = p.partner_id and d.is_won) as won_deals,
+               (select round(avg(expected_revenue), 2) from staging.stg_deals d where d.partner_id = p.partner_id and d.is_won) as avg_won_deal,
+               (select count(*) from staging.stg_orders o where o.partner_id = p.partner_id and o.state in ('sale', 'done')) as orders
         from staging.stg_partners p left join intermediate.int_customers c using (partner_id)
         order by c.customer_key, p.partner_id""",
     "invoices": """

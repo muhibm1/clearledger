@@ -102,6 +102,7 @@ class State(TypedDict, total=False):
     citations: dict
     caveats: list                            # what the review step found that bears on the answer
     review_error: str
+    review_checks: list                      # the reviewer's own read-only checks of the books
 
 
 def _system(dom: Domain) -> str:
@@ -253,18 +254,34 @@ def build(dom: Domain, model, *, context: bool = True, retriever: Retriever | No
             with dom.connect() as conn:
                 found = reviewing.gather(conn, dom.issues, state["question"], state.get("sql", ""),
                                          state.get("rows", []))
-            if not found["issues"] and not found["records"]:
-                return {}
-            out = (review_model or model)(system, reviewing.prompt(
-                state["question"], state.get("sql", ""), state.get("rows", []), state.get("answer"),
-                state.get("explanation", ""), found), reviewing.REVIEW_SCHEMA)
+                if dom.investigate:
+                    def run_check(q):
+                        sqltool.prepare(dom, conn)
+                        return sqltool.run(dom, conn, q)
+                    out = reviewing.investigate(
+                        conn, dom, review_model or model, system, state["question"], state.get("sql", ""),
+                        state.get("rows", []), state.get("answer"), state.get("explanation", ""),
+                        state["status"], found, dom.not_loaded, run_check)
+            if not dom.investigate:
+                if not found["issues"] and not found["records"]:
+                    return {}
+                out = (review_model or model)(system, reviewing.prompt(
+                    state["question"], state.get("sql", ""), state.get("rows", []), state.get("answer"),
+                    state.get("explanation", ""), found), reviewing.REVIEW_SCHEMA)
         except Exception as exc:  # a failed review never loses the answer; it says so
             return {"caveats": [], "review_error": f"{type(exc).__name__}: {str(exc)[:200]}"}
         caveats = [c for c in out.get("caveats") or [] if isinstance(c, str)][:6]
-        update = {"caveats": caveats, "explanation": reviewing.merge(state.get("explanation", ""), caveats)}
-        restated = reviewing.revised(state.get("answer"), out.get("answer")) if state["status"] == "answer" else None
-        if restated:
-            update["answer"] = restated
+        update = {"caveats": caveats, "explanation": reviewing.merge(state.get("explanation", ""), caveats),
+                  "review_checks": out.get("checks", [])}
+        verdict = out.get("status") or "keep"
+        if verdict == "not_answerable" and state["status"] == "answer":
+            update.update(status="not_answerable", answer=None)
+        elif verdict == "answer" and state["status"] == "not_answerable" and (out.get("answer") or "").strip():
+            update.update(status="answer", answer=out["answer"].strip())
+        elif state["status"] == "answer":
+            restated = reviewing.revised(state.get("answer"), out.get("answer"))
+            if restated:
+                update["answer"] = restated
         return update
 
     def cite(state: State) -> dict:

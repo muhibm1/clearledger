@@ -80,7 +80,7 @@ REVIEW_RULES = (
     "a problem the records prove (tax charged twice, a pro-forma, a fee) over one that is only possible. "
     "Only an issue that changes or qualifies THIS figure counts: a mistyped due date bears on what is late, "
     "not on what is owed; tax inside totals bears on billed figures only when the question is about "
-    "revenue, tax or a currency. Write at most 6 caveats, each under 170 characters, covering every distinct problem that touches a record in the answer (do not drop one to keep it short), plain and specific, "
+    "revenue, tax or a currency. Write at most 5 caveats, each under 110 characters, together under 460 characters (a reader takes in no more), one per distinct problem that touches a record in the answer, most material first, with no restating of the figure, plain and specific, "
     "the question's own subject first. "
     "Fill 'answer' when the issues or records show the answer itself misleads, and a caveat alone would "
     "leave a wrong headline: it counts a test or internal account as a customer; names a deal won that "
@@ -232,7 +232,7 @@ def prompt(question: str, sql: str, rows: list[dict], answer, explanation: str, 
             + REVIEW_RULES)
 
 
-CAVEAT_ROOM = 900
+CAVEAT_ROOM = 470  # with the first sentence, the explanation stays under about 700 characters: what a reader takes in
 CAVEAT_MAX = 300  # one caveat longer than this is a runaway, not a caveat
 
 
@@ -266,3 +266,76 @@ def merge(explanation: str, caveats: list[str]) -> str:
         used += len(c) + 1
     first = re.split(r"(?<=[.!?])\s+", (explanation or "").strip(), maxsplit=1)[0][:220]
     return first + " Caveat: " + " ".join(kept)
+
+
+# The investigating review: the reviewer may check the books itself before it writes the caveats. A
+# new client's books always hold kinds of mess no detector was written for, so the reviewer looks at
+# the records behind the answer the way a careful analyst would, with a few read-only queries.
+MAX_CHECKS = 4
+CHECK_ROWS_SHOWN = 40
+
+INVESTIGATE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "action": {"type": "string", "enum": ["check", "final"]},
+        "sql": {"type": "string", "description": "One read-only PostgreSQL SELECT when action is check, else empty."},
+        "why": {"type": "string", "description": "What this check looks for, or empty."},
+        "status": {"type": "string", "enum": ["keep", "answer", "not_answerable"],
+                   "description": "final only: keep the drafted status; 'answer' when the drafted reply declined "
+                                  "but the books hold the figure; 'not_answerable' when the question needs "
+                                  "something the warehouse does not hold."},
+        "caveats": REVIEW_SCHEMA["properties"]["caveats"],
+        "answer": {"type": "string",
+                   "description": "final only: the restated answer, or empty to keep the drafted one. When "
+                                  "status is 'answer', the answer itself."},
+    },
+    "required": ["action", "sql", "why", "status", "caveats", "answer"],
+}
+
+INVESTIGATE_RULES = (
+    "Before you write, you may CHECK the books yourself with up to {left} more read-only SELECT queries "
+    "(action 'check'), over the same schemas. Use them to look at the records behind this answer for "
+    "anything that qualifies it, including kinds of problem no issue above names: compare each record "
+    "with the ones it links to (a payment with its invoice: same currency, an amount that fits, a memo "
+    "that agrees; a credit note with its invoice: date order, currency; an order with its invoices and its "
+    "deal: value, currency, count; a deal's stage with its flags and probability), and with records of "
+    "its own kind (one far out of line, one repeated, one customer's records that differ from everyone "
+    "else's). For a company-wide figure (a total, a count, an average, a rate, a ranking), spend one check "
+    "breaking it down by customer (and by currency where amounts are involved) to see what drives it: one "
+    "customer whose records behave unlike everyone else's (many tiny deals, an amount far out of line, a "
+    "different currency) qualifies the figure, and the answer should give it with and without that part. "
+    "Read references and memos for what they say. Check only what bears on this answer. When "
+    "you have seen enough, give action 'final'. "
+    "Status: keep the drafted status unless the checks show otherwise. Use 'answer' only when the drafted "
+    "reply declined but the warehouse holds the figure (give it in 'answer' with its caveats); use "
+    "'not_answerable' when the question asks for something the warehouse does not hold at all (what "
+    "actually reached the bank, what a customer intended, a date or rate no field records, a reason no note "
+    "states): then say in the caveats what is missing and what the books do show."
+)
+
+
+def investigate(conn, dom, model, system: str, question: str, sql: str, rows: list[dict], answer, explanation: str,
+                status: str, found: dict, not_loaded: list[str], run) -> dict:
+    """The review with checks: up to MAX_CHECKS read-only queries, then the final caveats, answer and status.
+    `run(sql) -> {"ok", "rows", "error"}` executes a check through the warehouse's read-only path."""
+    checks = []
+    base = prompt(question, sql, rows, answer, explanation, found)
+    if status == "not_answerable":
+        base = base.replace("ANSWER GIVEN", "ANSWER GIVEN (the draft DECLINED this question)", 1)
+    missing = ("\n\nTHE WAREHOUSE DOES NOT HOLD: " + "; ".join(not_loaded)) if not_loaded else ""
+    for _ in range(MAX_CHECKS + 1):
+        left = MAX_CHECKS - len(checks)
+        done = "".join(f"\n- {c['why']}\n  SQL: {c['sql']}\n  FOUND: {c['found']}" for c in checks)
+        text = (base + missing + ("\n\nYOUR CHECKS SO FAR" + done if done else "") + "\n\n"
+                + (INVESTIGATE_RULES.format(left=left) if left > 0 else
+                   "No checks are left: give action 'final' now."))
+        out = model(system, text, INVESTIGATE_SCHEMA)
+        if out.get("action") == "check" and left > 0 and (out.get("sql") or "").strip():
+            got = run(out["sql"])
+            found_text = (json.dumps(got["rows"][:CHECK_ROWS_SHOWN], default=str) if got["ok"]
+                          else "ERROR: " + str(got["error"])[:300])
+            checks.append({"sql": out["sql"], "why": out.get("why", ""), "found": found_text[:4000]})
+            continue
+        out["checks"] = checks
+        return out
+    return {"action": "final", "caveats": [], "answer": "", "status": "keep", "checks": checks}

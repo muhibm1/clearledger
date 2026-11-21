@@ -19,6 +19,8 @@ issues: marts.data_issues
 # The review step decides which caveats an answer needs and whether its headline misleads: judgement
 # over many records, so it runs on the stronger model. Drafting and reading stay on the analyst's model.
 review_model: opus
+# The reviewer may run a few read-only checks of the records behind an answer before it writes.
+investigate: true
 
 tables:
   marts.revenue_by_customer:
@@ -136,7 +138,8 @@ tables:
       is_won: True for won deals.
       is_lost: True for lost (archived) deals. A deal that is neither won nor lost is still open (active); count active or open deals with not is_won and not is_lost.
       expected_revenue: What sales expected, as keyed (meant to be USD; see marts.data_issues deal_value_in_order_currency for deals keyed in another currency).
-      closed_on: Date the deal was won or lost.
+      closed_on: Date the deal was won or lost. Odoo also stamps it when someone sets probability to 100 by hand on a deal that is not won, so on an open deal it is not a close date.
+      probability: The chance of winning, 0 to 100, as sales set it. Weighted pipeline is the sum of expected_revenue * probability / 100 over open deals. 100 on a deal that is not is_won was set by hand, so it is not a win.
   staging.stg_invoice_versions:
     about: One row per saved version of each invoice. An invoice changed after it was first loaded has more than one row. Use only for questions about edits or history.
   staging.stg_invoices:
@@ -196,6 +199,8 @@ rules:
 
   - "Never build a breakdown by product, service line or category out of deal, order or customer names: line items are not loaded, so such a question is not answerable (give the total the books hold as the nearest figure)."
   - "A question about why something happened, or whether something happened outside what the books record (paid some other way, agreed by phone), is not answerable unless a note, memo or reference states it: say what the books show and decline. Do not guess a reason."
+
+  - "A figure the warehouse does not record is not answered by deriving or guessing it: a rate per load worked out from totals, a contact from an email field, an expected close date from a date Odoo stamped, what actually reached the bank from a payment keyed wrong. Decline, say what is missing, and give what the books do show as the nearest figure."
 
 # What this warehouse does not hold at all, so a question that needs it cannot be answered from it.
 not_loaded:

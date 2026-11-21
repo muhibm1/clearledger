@@ -119,7 +119,7 @@ def run_one(dom, model, condition, retriever, row) -> dict:
            "explanation": out.get("explanation"), "sql": out.get("sql"),
            "attempts": out.get("attempts", []), "lookups": out.get("lookups", []),
            "redrafts": out.get("redrafts", 0), "retrieved": out.get("retrieved", []),
-           "caveats": out.get("caveats", []), "review_error": out.get("review_error"),
+           "caveats": out.get("caveats", []), "review_error": out.get("review_error"), "review_checks": out.get("review_checks", []),
            "sources": out.get("sources", []), "citations_ok": (out.get("citations") or {}).get("all_ok"),
            "seconds": round(time.time() - t, 1)}
     rec["correct"] = correct(row, rec)
