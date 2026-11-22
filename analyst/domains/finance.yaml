@@ -121,6 +121,9 @@ tables:
       possible_duplicate_of: Set on an unmatched payment that repeats another one.
       memo: The memo typed on the payment (often the invoice number, sometimes why it is short).
       invoice_ids: The Odoo invoice ids this payment settled (join to intermediate.int_invoices.invoice_id with = any(invoice_ids)).
+      currency: The currency the payment was made in (USD, EUR, CAD and so on).
+      amount: The payment in USD, signed (a refund paid out is negative).
+      amount_in_payment_currency: The payment as made, in its own currency (currency), unsigned. A payment total in a currency other than USD sums this column over that currency.
     notes: A receipt with no customer on it has customer_key NULL; it is still cash received, so a company-wide cash total by date includes it. Only state 'posted' payments are here; a payment left in draft is not cash in the books (marts.data_issues lists it).
   intermediate.int_customer_names:
     about: Every name a customer has had, current and former. Use it to find a customer by an old name.
@@ -134,6 +137,7 @@ tables:
   staging.stg_deals:
     about: Every CRM opportunity, won, lost or still open, newest version only. Use it for win and loss counts and rates. Leads (unqualified enquiries) are not in it; marts.data_issues lists leads that carry expected revenue.
     columns:
+      stage_sequence: The stage's position in the pipeline (lower is earlier).
       stage: The pipeline stage, such as New, Qualified, Proposition, Won. Companies add their own stages; a stage's name can contradict the flags (a deal in a stage named lost or closed that is not is_lost, or one in a signed stage that is not is_won), and marts.data_issues lists those.
       is_won: True for won deals.
       is_lost: True for lost (archived) deals. A deal that is neither won nor lost is still open (active); count active or open deals with not is_won and not is_lost.
@@ -146,8 +150,16 @@ tables:
     about: Invoices per Odoo partner, before duplicate customers are merged. Prefer intermediate.int_invoices, which is already per real customer.
   staging.stg_payments:
     about: Payments per Odoo partner, before duplicates are merged. Prefer marts.revenue_by_customer.paid for totals.
+    columns:
+      amount: The payment in USD, signed.
+      amount_in_payment_currency: The payment in its own currency (currency), unsigned.
+      partner_type: customer for customer payments (only these are loaded).
+  staging.stg_currencies:
+    about: Currencies known to the books, with symbol and whether each is active.
   staging.stg_partners:
     about: Raw Odoo contacts. Names here can be duplicates; look customers up in marts.revenue_by_customer or intermediate.int_customers instead.
+    columns:
+      created_at: When the contact was created in Odoo.
   staging.stg_orders:
     about: Sales orders, with the deal they came from.
 
@@ -164,7 +176,7 @@ terms:
   customer: A real company after duplicates are merged. Find one by name with customer_name ILIKE '%name%' in marts.revenue_by_customer, then use its customer_key. A name with no row there may still be an Odoo contact with no invoices (a payer, a lessor, a parent company), so look in staging.stg_partners and staging.stg_payments before saying it does not exist; such a party owes nothing.
   duplicate customer: A company entered more than once in Odoo. intermediate.int_customers.merged_into_other marks the extra partner.
   won deal: A CRM deal marked won. Every won deal has one row in marts.deal_to_cash; win and loss counts come from staging.stg_deals.
-  currency: Every amount column named amount, invoiced, paid or open is already in USD. Only amount_in_invoice_currency is in the original currency.
+  currency: Every amount column named amount, invoiced, paid or open is already in USD. Only amount_in_invoice_currency (invoices) and amount_in_payment_currency (payments) are in the original currency.
   tax: Invoice totals include any tax (VAT, GST, HST, sales tax) charged on them. intermediate.int_invoices.tax_amount is the tax part in USD and amount_tax_in_invoice_currency the same tax in the invoice's own currency; billed figures include it unless you subtract it. A question about one named tax (HST, VAT, sales tax) on some invoices is answered from those columns for those invoices, since Odoo holds one tax figure per invoice, not one per tax type, so give the figure and say so rather than declining
   anomaly: A record that looks wrong (a mistyped date or rate, a duplicate, a test account, a payment not posted). marts.data_issues lists them in plain words.
   country: A customer's country is intermediate.int_customers.customer_country (and intermediate.int_invoices.customer_country per invoice), such as United States, Canada or Germany. Use it for questions about customers in a country.
@@ -208,7 +220,6 @@ not_loaded:
   - the text of an invoice's payment terms and notes (only the due dates of its installments)
   - quantities, hours and line items on orders and invoices
   - payment journals and methods
-  - the amount of a payment in its own currency (only its value in US dollars)
   - collections notes, disputes and what was said to a customer
   - supplier bills and what is owed to suppliers (only customer invoices, credit notes and payments are loaded)
   - costs, timesheets and margins
