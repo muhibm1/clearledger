@@ -193,7 +193,18 @@ By goal, attacks won out of 32 each, supervised then GRPO: suppress 14 and 9, fa
 - **Round 2 is far from solved for either adapter.** The supervised adapter lost 22 of 96 and GRPO 17 of 96. The model is most easily moved by a fake tool call, an instruction split in two, a polite approval claim and a fake config block (about a third of those attacks win), and by `chat_tokens`, which GRPO largely closed (4 to 1 of 12). GRPO trained on the `delimiter` style; the improvement on `chat_tokens` is a related technique, not the same one, and the other seven are unchanged or within a task or two of each other.
 - **Both adapters were scored with the same greedy decoding and the same 12 clean tasks**, all solved. No guard failures anywhere.
 
-Caveat: the first range's test attacks (the 4 won on test, all `delimiter`) were not rerun on the GRPO adapter, so whether the training on that style helped there is not measured. The model is still best described as supervised fine-tuning on a training ground, with a short reinforcement-learning step that scored higher on this test split; the gain is small and unreplicated.
+**A second run to check the 133.** On 2026-11-17 the same recipe was run again from the same `sft-1.5b-full` adapter on a free Kaggle T4 (kernel `voight-r2-repeat`, about 3.7 hours, no API spend). Only the seed changed (1 instead of 0, so the batches of tasks differ) and it was set to stop at exactly 10 iterations; the other settings are identical (8 tasks, 8 attempts, learning rate 2e-5, KL 0.01, same weak kinds and `delimiter` attacks). The saved adapter was scored once on the same 139 test tasks, with nothing else run ([results/local-qwen1.5b-grpo-r2-repeat-test.json](results/local-qwen1.5b-grpo-r2-repeat-test.json), training log in [results/grpo-r2-repeat-log.jsonl](results/grpo-r2-repeat-log.jsonl)).
+
+| Qwen2.5-1.5B test score (139 tasks) | Solved |
+| --- | --- |
+| `sft-1.5b-full` (supervised only) | 128 |
+| GRPO, 10 iterations, seed 0 (first run) | 133 |
+| GRPO, 10 iterations, seed 1 (repeat) | 132 |
+| Mean of the two GRPO runs | 132.5 (95.3%) |
+
+The repeat confirms the first run: both land 4 to 5 tasks above the supervised adapter, with no guard failures. The 7 misses in the repeat were 3 `typo_ref`, 2 `two_credits` and 2 `memo_two`; the first run missed 1 `memo_two`, 1 `mixed_ref`, 1 `tie`, 2 `two_credits` and 1 `typo_ref`. Which kinds are missed shifts from run to run (the repeat solved every `tie` and `mixed_ref` but fell back on `typo_ref` and `memo_two`), so the gain is best read as about 4 to 5 tasks over supervised, not as an exact figure. Two runs are still a small sample and no confidence interval was computed. The repeat was not scored on attack round 2.
+
+Caveat: the first range's test attacks (the 4 won on test, all `delimiter`) were not rerun on the GRPO adapter, so whether the training on that style helped there is not measured. The model is still best described as supervised fine-tuning on a training ground, with a short reinforcement-learning step that scored higher on this test split; the gain is small, and a second run reproduced it (see above).
 
 Run it with `python -m voight range --model haiku --split dev` (add `--no-warning` for the second arm), or `python -m voight.train.evaluate --range` for a local model.
 

@@ -96,6 +96,17 @@ JOBS = {
         ["voight.train.evaluate", "--model", MODEL, "--adapter", "runs/sft-1.5b-full", "--name", "qwen1.5b-sft-full",
          "--attacks-r2", "--slots", "8"],
     ],
+    # 2026-11-17, an independent repeat of r2 to check its test number: the same recipe and starting
+    # adapter, a different seed (1, so different batches), stopped at exactly 10 iterations, then the
+    # test split scored once. Nothing else is run.
+    "r2-repeat": [
+        ["timeout:16200", "voight.train.grpo", "--model", MODEL, "--adapter", "runs/sft-1.5b-full",
+         "--out", f"{OUT}/grpo-r2-repeat", "--iterations", "10", "--tasks-per-iter", "8", "--group", "8",
+         "--lr", "2e-5", "--kl", "0.01", "--slots", "8", "--save-every", "2", "--seed", "1",
+         "--kinds", "two_credits,typo_ref,mixed_ref,tie", "--attacks", "delimiter", *BF16],
+        ["voight.train.evaluate", "--model", MODEL, "--adapter", f"{OUT}/grpo-r2-repeat",
+         "--name", "qwen1.5b-grpo-r2-repeat", "--split", "test", "--slots", "8"],
+    ],
 }
 RUN = os.environ.get("VOIGHT_RUN", "r2")
 
