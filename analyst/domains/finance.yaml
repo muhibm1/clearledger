@@ -21,6 +21,16 @@ issues: marts.data_issues
 review_model: opus
 # The reviewer may run a few read-only checks of the records behind an answer before it writes.
 investigate: true
+# Where a name a question filters on can be found. When one of these holds it and the query finds
+# nothing, the empty result is a true zero, not a name that could not be found.
+entities:
+  - intermediate.int_customers.customer_name
+  - intermediate.int_customer_names.name
+  - staging.stg_partners.partner_name
+  - staging.stg_deals.deal_name
+  - staging.stg_orders.order_ref
+  - staging.stg_invoices.invoice_ref
+  - staging.stg_payments.payment_ref
 
 tables:
   marts.revenue_by_customer:
