@@ -133,12 +133,127 @@ def _company_wide(sql: str, rows: list[dict]) -> bool:
     return not filtered or len(rows) > 5
 
 
+# Columns in a result that name the records behind a figure, by the kind of record they name.
+ID_COLUMNS = {"invoice_id": "invoice", "payment_id": "payment", "order_id": "order", "deal_id": "deal",
+              "customer_key": "customer"}
+REF_COLUMNS = {"invoice_ref": "invoice", "payment_ref": "payment", "order_ref": "order", "deal_name": "deal",
+               "customer_name": "customer", "first_posted_customer": "customer"}
+ARRAY_COLUMNS = {"source_invoice_ids": "invoice", "invoice_ids": "invoice", "source_payment_ids": "payment",
+                 "possible_unlinked_invoice_ids": "invoice", "cancelled_invoice_ids": "invoice"}
+KINDS = ("invoice", "payment", "order", "deal", "customer")
+FINDING_ID_COLUMNS = {"invoice": "invoice_ids", "payment": "payment_ids", "order": "order_ids", "deal": "deal_ids",
+                      "customer": "customer_keys"}
+RESOLVE_SQL = """
+    select 'invoice', invoice_id, invoice_ref from staging.stg_invoices where lower(invoice_ref) = any(%(exact)s)
+    union all select 'payment', payment_id, payment_ref from staging.stg_payments where lower(payment_ref) = any(%(exact)s)
+    union all select 'order', order_id, order_ref from staging.stg_orders where lower(order_ref) = any(%(exact)s)
+    union all select 'deal', deal_id, deal_name from staging.stg_deals
+        where lower(deal_name) = any(%(exact)s) or lower(deal_name) like any(%(loose)s)
+    union all select distinct 'customer', customer_key, customer_name from intermediate.int_customers
+        where lower(customer_name) = any(%(exact)s) or lower(customer_name) like any(%(loose)s)"""
+# One hop from each record to the records it is built on or settled by.
+EXPAND_SQL = """
+    select 'order', o.order_id from staging.stg_orders o where o.deal_id = any(%(deal)s)
+       or o.invoice_ids && %(invoice)s::int[] or o.order_id = any(%(order)s)
+    union all select 'deal', o.deal_id from staging.stg_orders o where o.order_id = any(%(order)s) and o.deal_id is not null
+    union all select 'invoice', unnest(o.invoice_ids) from staging.stg_orders o
+        where o.order_id = any(%(order)s) or o.deal_id = any(%(deal)s)
+    union all select 'invoice', unnest(p.invoice_ids) from staging.stg_payments p where p.payment_id = any(%(payment)s)
+    union all select 'payment', p.payment_id from staging.stg_payments p where p.invoice_ids && %(invoice)s::int[]"""
+REFS_SQL = """
+    select invoice_ref from staging.stg_invoices where invoice_id = any(%(invoice)s)
+    union all select payment_ref from staging.stg_payments where payment_id = any(%(payment)s)
+    union all select order_ref from staging.stg_orders where order_id = any(%(order)s)
+    union all select deal_name from staging.stg_deals where deal_id = any(%(deal)s)
+    union all select customer_name from intermediate.int_customers where customer_key = any(%(customer)s)"""
+
+
+def _q(conn, sql: str, params: dict) -> list[tuple]:
+    """Runs one lookup; a warehouse without one of its tables gives no rows instead of failing the answer."""
+    try:
+        with conn.cursor() as cur:
+            cur.execute(sql, params)
+            return cur.fetchall()
+    except Exception:
+        if not conn.autocommit:
+            conn.rollback()
+        return []
+
+
+def answer_records(conn, question: str, sql: str, rows: list[dict], wide: bool) -> dict:
+    """The records behind an answer's figure, as ids by kind: the records its rows name (all rows), the
+    records its filters and question name, and one hop out (a deal's orders and invoices, an invoice's
+    order and payments, a payment's invoices). `refs` holds their references, lower-cased."""
+    ids = {k: set() for k in KINDS}
+    refs: set[str] = set()
+    if not wide:
+        for r in rows:
+            for col, kind in ID_COLUMNS.items():
+                v = r.get(col)
+                if isinstance(v, int) and not isinstance(v, bool):
+                    ids[kind].add(v)
+            for col, kind in ARRAY_COLUMNS.items():
+                for v in r.get(col) or [] if isinstance(r.get(col), list) else []:
+                    if isinstance(v, int):
+                        ids[kind].add(v)
+            for col in REF_COLUMNS:
+                v = r.get(col)
+                if isinstance(v, str) and v.strip():
+                    refs.add(v.strip().lower())
+    names = _entities(conn, question, sql, rows, True)  # names from the question and the query's filters
+    exact = sorted(refs | {n.lower() for n in names})
+    loose = [f"%{n.lower()}%" for n in names if len(n) >= 4]
+    if exact or loose:
+        for kind, rid, _ in _q(conn, RESOLVE_SQL, {"exact": exact, "loose": loose or ["\x00"]}):
+            ids[kind].add(rid)
+    customer_level = set(ids["customer"])
+    if any(ids[k] for k in ("invoice", "payment", "order", "deal")):
+        params = {k: sorted(ids[k]) for k in KINDS}
+        for kind, rid in _q(conn, EXPAND_SQL, params):
+            if rid is not None:
+                ids[kind].add(rid)
+    params = {k: sorted(ids[k]) for k in KINDS}
+    refs |= {r[0].lower() for r in _q(conn, REFS_SQL, params) if r[0]}
+    return {"ids": ids, "customer_level": customer_level, "refs": refs}
+
+
+def _id_overlap(issue: dict, behind: dict) -> str:
+    """How an issue joins the answer's records: 'record' by a shared invoice, payment, order or deal,
+    'customer' by a customer the answer is about, or '' when it does not."""
+    ids = behind["ids"]
+    for kind in ("invoice", "payment", "order", "deal"):
+        if set(issue.get(FINDING_ID_COLUMNS[kind]) or []) & ids[kind]:
+            return "record"
+    ref = str(issue.get("entity_ref") or "").lower()
+    if ref and any(r in ref for r in behind["refs"] if len(r) >= 5 and not r.isdigit()) and \
+            issue.get("issue_type") != "onboarding_finding":
+        return "record"
+    keys = set(issue.get("customer_keys") or []) | ({issue["customer_key"]} if issue.get("customer_key") is not None else set())
+    if keys & (behind["customer_level"] or ids["customer"]):
+        return "customer"
+    return ""
+
+
+def _line(i: dict) -> str:
+    """One issue as a line for the reviewer; a verified finding keeps its record references verbatim."""
+    if i.get("verified"):
+        return (f"- [verified finding, records: {i.get('entity_ref')}; amount {float(i.get('amount') or 0):,.2f}] "
+                f"{i['detail']}")
+    return f"- [{i['issue_type']}] {i['detail']}"
+
+
 def gather(conn, issues_table: str, question: str, sql: str, rows: list[dict]) -> dict:
-    """The issues and records that bear on one answer, as text for the model."""
+    """The issues and records that bear on one answer, as text for the model.
+
+    Onboarding findings join the answer by the record ids behind its figure (`answer_records`); detector
+    rows join by those records' references, by customer, or by a name the question or query filters on.
+    For a company-wide figure, verified findings on the measure come first, largest amount first, ahead
+    of detector rows."""
     # A question declined before any query ran has no figure to qualify: only what it names is checked.
     wide = bool(sql) and _company_wide(sql, rows)
     names = _entities(conn, question, sql, rows, wide)
     measures = _measures(sql)
+    behind = answer_records(conn, question, sql, rows, wide)
     cols_sql = "issue_type, entity_kind, entity_ref, customer_key, customer_name, event_date, amount, affects, detail"
     with conn.cursor() as cur:
         cur.execute(f"select {cols_sql} from {issues_table}")
@@ -146,23 +261,39 @@ def gather(conn, issues_table: str, question: str, sql: str, rows: list[dict]) -
         issues = [dict(zip(cols, r)) for r in cur.fetchall()]
         # What the onboarding pass wrote on its first read of these books, when it has run.
         cur.execute("select to_regclass(%s)", (FINDINGS_TABLE,))
+        findings = []
         if cur.fetchone()[0]:
-            cur.execute(f"select {cols_sql} from {FINDINGS_TABLE}")
-            issues += [dict(zip(cols, r)) for r in cur.fetchall()]
+            cur.execute(f"select * from {FINDINGS_TABLE}")
+            fcols = [d.name for d in cur.description]
+            findings = [dict(zip(fcols, r)) for r in cur.fetchall()]
     low = [n.lower() for n in names]
 
     def touches(i):
         text = " ".join(str(i.get(k) or "") for k in ("entity_ref", "customer_name", "detail")).lower()
         return any(n in text for n in low)
 
-    picked = [i for i in issues if touches(i)]
+    def on_measure(i):
+        return not measures or bool(set(i.get("affects") or []) & measures)
+
+    def size(i):
+        return -abs(float(i.get("amount") or 0))
+
+    typed = [f for f in findings if f.get("records") is not None]
+    untyped = [f for f in findings if f.get("records") is None]  # an older findings table: names only
+    by_record = sorted([f for f in typed if _id_overlap(f, behind) == "record"], key=size)
+    by_customer = sorted([f for f in typed if f not in by_record and _id_overlap(f, behind) == "customer"
+                          and on_measure(f)], key=size)
+    picked_findings = by_record + by_customer
     if wide:
-        picked += [i for i in issues if i not in picked and (not measures or set(i["affects"] or []) & measures)]
-    # Many issues of one kind (tax on every euro invoice, a run of zero invoices) read as one list.
+        picked_findings += sorted([f for f in typed if f not in picked_findings and on_measure(f)], key=size)
+    picked = [i for i in issues + untyped if _id_overlap(i, behind) or touches(i)]
+    if wide:
+        picked += [i for i in issues + untyped if i not in picked and on_measure(i)]
+    # Many detector rows of one kind (tax on every euro invoice, a run of zero invoices) read as one list.
     by_type: dict = {}
     for i in picked:
         by_type.setdefault(i["issue_type"], []).append(i)
-    lines = []
+    lines = [_line(f) for f in picked_findings]
     for kind, items in by_type.items():
         if len(items) > 8:
             for i in [i for i in items if touches(i)][:3]:
@@ -174,8 +305,9 @@ def gather(conn, issues_table: str, question: str, sql: str, rows: list[dict]) -
             lines.append(f"- [{kind}] {len(items)} records, amounts totalling {total:,.2f} (record, customer, "
                          f"date, amount, detail): {each}")
         else:
-            lines += [f"- [{kind}] {i['detail']}" for i in items]
+            lines += [_line(i) for i in items]
     return {"issues": "\n".join(lines[:MAX_ISSUES]), "names": sorted(names), "wide": bool(wide),
+            "verified": len(picked_findings),
             "records": _records(conn, names) if names and not wide else ""}
 
 
