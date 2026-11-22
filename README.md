@@ -6,6 +6,8 @@
 
 A company runs on Odoo, an open-source ERP (enterprise resource planning: the system that holds orders, invoices and the books) with a CRM built in (the system that tracks customers and deals). Finance wants three answers: what each customer was billed and has paid, who is late and by how much, and whether every deal sales won actually turned into cash. This project answers them, and can show its work for any number. Ask why Northwind Logistics owes $26,835.00, and you get the three invoices and two payments behind it, with their Odoo ids and the exact version of each, plus the note that Northwind exists twice in Odoo and was merged ([example](docs/examples/trace-northwind.txt)).
 
+**Headline result.** On a company it had never seen, built by a separate author who planted kinds of mess in its books that no earlier test company had, the ClearLedger analyst got **93 of 100** finance questions right, with the code frozen first and the test scored once. That includes 37 of 43 questions where the figure is right as booked but a careful analyst must also say what is wrong behind it, and 21 of 21 where the right answer is that the books do not say. Earlier unseen companies scored 73 to 85, and the write-up shows what changed between them: [docs/evidence/blind-companies-2026-11.md](docs/evidence/blind-companies-2026-11.md).
+
 **See it as an engagement.** [`engagement/`](engagement/README.md) wraps this work in a simulated client engagement: discovery, rollout and rollback, security, runbook, handover, a 90-day review and a product feedback memo. `python -m engagement` runs its twelve seeded failures in about 10 seconds, with no database.
 
 It runs on a schedule, watches itself, and has been broken on purpose five ways to prove it fails loudly and recovers. It also builds a question set an AI finance assistant can be judged on and trained with, with every answer computed from the data rather than written by hand or by a model.
@@ -61,11 +63,12 @@ Billed in total: $1,379,155.41. Still owed: $362,891.89, of which $118,375.00 is
 | --- | --- |
 | Loads | 3 runs; the third, with nothing changed in Odoo, stored 0 records |
 | Failure drills | 5 of 5 caught and recovered: Odoo down (fails in 6 s, catches up after), two runs at once (one skips), a custom field added and removed (warned, value loaded), 3 invoices lost from the warehouse (caught against Odoo, repaired in under a second), 3 hours stale (fails) |
-| Checks | 23 in `dbt build`: 17 hard checks pass, 6 source-quality checks warn, one for each kind of planted problem, each naming the records |
+| Checks | 29 in `dbt build`: 16 hard checks pass, 13 source-quality checks warn, each naming the records behind a planted problem ([list](docs/checks.md)) |
 | Traceability | Every customer and every won deal traces to records that add up (`tests/test_warehouse.py`) |
 | A real bug the checks caught | Partners with no email were being merged into one customer; recorded as `changelens/incidents/INC-001.md` |
-| Model on the question set | Claude Sonnet: 47 of 47 on test with or without being told how the records are messy; answering 0 to everything gets 23 ([details](eval/RESULTS.md)) |
-| Agent with tools | Sonnet given only the questions and the tools: 46 of 47 correct, and all 73 of its citations real and current. The miss cited a real record and still had the wrong number, which is why answers are graded and cited separately ([details](eval/RESULTS.md)) |
+| Analyst on unseen companies | **93 of 100** on company J, scored once on frozen code: 35/36 plain, 37/43 caveat, 21/21 cannot tell. Earlier unseen companies E to I scored 73 to 85 ([evidence](docs/evidence/blind-companies-2026-11.md)) |
+| Model on the question set | On the built-in demo company's test split (October 2026), Claude Sonnet: 47 of 47 on test with or without being told how the records are messy; answering 0 to everything gets 23 ([details](eval/RESULTS.md)) |
+| Agent with tools | Same demo company: Sonnet given only the questions and the tools: 46 of 47 correct, and all 73 of its citations real and current. The miss cited a real record and still had the wrong number, which is why answers are graded and cited separately ([details](eval/RESULTS.md)) |
 | Analyst agent | A question-to-SQL agent that works on this warehouse and a second, ads dataset: 102 of 103 held-out questions right with Sonnet, and all 18 requests that would expose small groups refused by the tool ([analyst/](analyst/README.md)) |
 | Rebuilt from nothing | A fresh Odoo, a fresh warehouse, the same seed: all 184 answers came out identical |
 | Hand-off test | A fresh agent given only the docs fixed a broken morning (a failed run plus two invoices lost from the warehouse) in seven commands; its six complaints about the runbook were fixed ([write-up](docs/handoff-test.md)) |
