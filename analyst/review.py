@@ -49,14 +49,17 @@ REVIEW_SCHEMA = {
     "type": "object",
     "properties": {
         "caveats": {"type": "array", "items": {"type": "string"},
-                    "description": "At most 6 caveats, most material first, each one short sentence with its "
-                                   "figures and record references. Empty when nothing bears on the answer."},
-        "answer": {"type": "string",
-                   "description": "Empty, unless an issue shows the answer misstates what was asked: then the "
-                                  "answer restated with the books figure AND the corrected one, for example "
-                                  "'34 on the books; 33 excluding the test account'."},
+                    "description": "Most material first. Each one sentence: the record references exactly as the "
+                                   "books write them, the amount, and what it means for this figure. Empty when "
+                                   "nothing bears on the answer."},
+        "corrected": {"type": "string",
+                      "description": "Empty, unless the issues show the books figure misstates what was asked: "
+                                     "then one short sentence giving the corrected figure and what it leaves out, "
+                                     "for example 'Excluding the test account: 33.' The books figure stays the "
+                                     "answer; this sentence comes second."},
+        "answer": {"type": "string", "description": "Leave empty."},
     },
-    "required": ["caveats", "answer"],
+    "required": ["caveats", "corrected", "answer"],
 }
 
 REVIEW_RULES = (
@@ -70,30 +73,33 @@ REVIEW_RULES = (
     "whether its record is inside the figure, and say how much of the figure it is. Also look at the "
     "records yourself for anything inconsistent that the issue list missed (dates out of order, amounts "
     "or rates out of line, links that point to the wrong customer, statuses that disagree, zero or "
-    "negative values, references that repeat). Give the record (invoice, payment, deal or customer), the "
-    "amount, and what the figure would be without the problem when that is clear. If the question asks "
-    "whether to act (chase, send a reminder), say what to confirm first. Say in plain words what the "
-    "problem means for the figure, not only that it exists: a deposit is owed back, so it is not revenue; "
-    "a write-off closed an invoice without cash; a date edited after the fact is unreliable; a record "
-    "linked only by free text is not in its order's own list; an unpaid fee inflates what is open and "
-    "late. For a company-wide figure, mention every material issue inside it, largest first, and prefer "
-    "a problem the records prove (tax charged twice, a pro-forma, a fee) over one that is only possible. "
+    "negative values, references that repeat). If the question asks whether to act (chase, send a "
+    "reminder, bill), say what to confirm first. Say in plain words what the problem means for the "
+    "figure, not only that it exists: a deposit is owed back, so it is not revenue; a write-off closed an "
+    "invoice without cash; a date edited after the fact is unreliable; a record linked only by free text "
+    "is not in its order's own list; an unpaid fee inflates what is open and late. "
     "Only an issue that changes or qualifies THIS figure counts: a mistyped due date bears on what is late, "
     "not on what is owed; tax inside totals bears on billed figures only when the question is about "
-    "revenue, tax or a currency. Write at most 5 caveats, each under 110 characters, together under 460 characters (a reader takes in no more), one per distinct problem that touches a record in the answer, most material first, with no restating of the figure, plain and specific, "
-    "the question's own subject first. "
-    "Fill 'answer' when the issues or records show the answer itself misleads, and a caveat alone would "
-    "leave a wrong headline: it counts a test or internal account as a customer; names a deal won that "
-    "the CRM also marks lost; credits a customer with an order or payment that is another party's; calls "
-    "an invoice paid that was reversed by a credit note; counts as open pipeline a deal already sold or "
-    "dead by its stage, or leaves such deals out of a win or loss count; adds deal values keyed in "
-    "another currency as if they were dollars; gives one invoice when more were billed for the same job "
-    "(a deposit billed on top of the order); or says there is something to bill when it is a duplicate. "
-    "Then restate it: keep every figure the answer gave, say plainly which is the books figure, and give "
-    "the corrected figure beside it, worked out from the records, for example '34 on the books; 33 "
-    "excluding the test account' or '50,000 on the final invoice; 65,000 billed in all, 15,000 over the "
-    "order'. Otherwise leave it empty. Never invent a problem: if nothing bears on the answer, return no "
-    "caveats."
+    "revenue, tax or a currency. "
+    "RANKING: a [verified finding] was checked against the books' own rows; state every verified finding "
+    "that touches a record inside this figure, largest first, before any problem you only suspect. For a "
+    "company-wide figure (a total, a count, an average, a rate, a ranking), cover every verified finding "
+    "inside it. A suspicion of your own needs a check of yours that returned rows showing it. "
+    "NEVER CONTRADICT A MART: the marts' own figures and statuses (a deal's status, what is not yet "
+    "invoiced, what is open) are computed from the records. Do not suggest that one of them is wrong, or "
+    "offer a rival explanation of the figure, unless a check you ran returned rows showing it; then give "
+    "those rows' references and amounts. "
+    "EACH CAVEAT: the record references copied exactly as the books write them (invoice, payment and order "
+    "numbers, deal and customer names), the amount, and what it means for this figure, in one sentence. "
+    "Never paraphrase a reference away ('two invoices' is not enough; name them). Write at most "
+    "{count} caveats, together under {room} characters, one per distinct problem, most material first, "
+    "with no restating of the figure, plain and specific, the question's own subject first. "
+    "THE HEADLINE: the books figure stays the only answer. Fill 'corrected' only when an issue shows the "
+    "figure itself misleads and a caveat alone would leave a wrong headline (a test or internal account "
+    "counted as a customer, money that belongs to another party, a deal marked won and lost, values in "
+    "another currency added as dollars, a duplicate): one short sentence with the corrected figure worked "
+    "out from the records and what it leaves out. It must differ from the books figure. Otherwise leave it "
+    "empty. Never invent a problem: if nothing bears on the answer, return no caveats."
 )
 
 
@@ -354,17 +360,30 @@ def _records(conn, names: set[str]) -> str:
     return "\n\n".join(out)
 
 
+def budget(verified: int) -> tuple[int, int]:
+    """How many caveats, and how many characters in all, an answer may carry: more verified findings
+    inside the figure earn more room, up to MAX_CAVEATS and MAX_ROOM."""
+    n = max(0, int(verified or 0))
+    return min(MAX_CAVEATS, BASE_CAVEATS + n), min(MAX_ROOM, CAVEAT_ROOM + PER_FINDING_ROOM * n)
+
+
 def prompt(question: str, sql: str, rows: list[dict], answer, explanation: str, found: dict) -> str:
+    """The reviewer's prompt: the answer, the issues and records behind it, and the rules with its budget."""
     shown = json.dumps(rows[:30], default=str)
     return (f"QUESTION\n{question}\n\nQUERY\n{sql}\n\nRESULT ({len(rows)} rows)\n{shown}\n\n"
             f"ANSWER GIVEN\n{json.dumps(answer, default=str)}\n{explanation}\n\n"
             f"ISSUES FOUND IN THE BOOKS ({'company-wide figure: all issues inside the measure' if found['wide'] else 'touching what the answer names'})\n"
             f"{found['issues'] or '(none)'}\n\n"
             + (f"RECORDS BEHIND THE ANSWER\n{found['records']}\n\n" if found.get("records") else "")
-            + REVIEW_RULES)
+            + REVIEW_RULES.format(count=budget(found.get("verified", 0))[0],
+                                  room=budget(found.get("verified", 0))[1]))
 
 
-CAVEAT_ROOM = 470  # with the first sentence, the explanation stays under about 700 characters: what a reader takes in
+CAVEAT_ROOM = 470  # the room with no verified finding inside the figure
+PER_FINDING_ROOM = 110  # more room for each verified finding inside the figure
+MAX_ROOM = 900
+BASE_CAVEATS = 5
+MAX_CAVEATS = 8
 CAVEAT_MAX = 300  # one caveat longer than this is a runaway, not a caveat
 
 
@@ -384,20 +403,44 @@ def revised(answer, proposed: str):
     return proposed
 
 
-def merge(explanation: str, caveats: list[str]) -> str:
-    """The explanation's first sentence with the caveats after it, kept short enough to be read whole:
-    caveats come most material first, and one that would push past the room is left out."""
+NUMBER = re.compile(r"-?\d+(?:\.\d+)?")
+
+
+def _numbers(value) -> list[float]:
+    """Every number written in a value, thousands separators ignored."""
+    text = re.sub(r"(?<=\d),(?=\d{3})", "", json.dumps(value, default=str) if not isinstance(value, str) else value)
+    return [float(x) for x in NUMBER.findall(text)]
+
+
+def corrected_sentence(answer, corrected: str) -> str:
+    """The reviewer's corrected figure as a labelled second sentence, kept only when it states a figure
+    that differs from every figure in the books answer; otherwise ''."""
+    corrected = (corrected or "").strip()
+    if not corrected:
+        return ""
+    headline = _numbers(answer)
+    figures = [x for x in _numbers(corrected) if abs(x) >= 1 and not (1990 <= x <= 2100 and x.is_integer())]
+    if not figures or all(any(abs(x - h) < 0.006 for h in headline) for x in figures):
+        return ""
+    text = corrected if corrected.endswith((".", "!", "?")) else corrected + "."
+    return text if re.match(r"(?i)^corrected\b", text) else "Corrected: " + text
+
+
+def merge(explanation: str, caveats: list[str], room: int = CAVEAT_ROOM, corrected: str = "") -> str:
+    """The explanation's first sentence, then the labelled corrected figure if any, then the caveats, kept
+    short enough to be read whole: caveats come most material first, and one that would push past the
+    room is left out."""
     caveats = [c.strip() for c in caveats or [] if c and c.strip() and len(c.strip()) <= CAVEAT_MAX]
-    if not caveats:
+    first = re.split(r"(?<=[.!?])\s+", (explanation or "").strip(), maxsplit=1)[0][:220]
+    if not caveats and not corrected:
         return explanation
     kept, used = [], 0
     for c in caveats:
-        if kept and used + len(c) > CAVEAT_ROOM:
+        if kept and used + len(c) > room:
             break
         kept.append(c)
         used += len(c) + 1
-    first = re.split(r"(?<=[.!?])\s+", (explanation or "").strip(), maxsplit=1)[0][:220]
-    return first + " Caveat: " + " ".join(kept)
+    return " ".join(x for x in (first, corrected, ("Caveat: " + " ".join(kept)) if kept else "") if x)
 
 
 # The investigating review: the reviewer may check the books itself before it writes the caveats. A
@@ -417,11 +460,12 @@ INVESTIGATE_SCHEMA = {
                                   "but the books hold the figure; 'not_answerable' when the question needs "
                                   "something the warehouse does not hold."},
         "caveats": REVIEW_SCHEMA["properties"]["caveats"],
+        "corrected": REVIEW_SCHEMA["properties"]["corrected"],
         "answer": {"type": "string",
-                   "description": "final only: the restated answer, or empty to keep the drafted one. When "
-                                  "status is 'answer', the answer itself."},
+                   "description": "final only: empty, unless status is 'answer' (the drafted reply declined): "
+                                  "then the answer itself."},
     },
-    "required": ["action", "sql", "why", "status", "caveats", "answer"],
+    "required": ["action", "sql", "why", "status", "caveats", "corrected", "answer"],
 }
 
 INVESTIGATE_RULES = (
