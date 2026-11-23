@@ -16,7 +16,7 @@ with settles as (
 base as (
     select p.payment_id, p.payment_ref, p.partner_id as payer_partner_id, payer.customer_key as payer_customer_key,
         case when s.owners = 1 then s.owner_key else payer.customer_key end as customer_key,
-        p.payment_date, p.state, p.payment_type, p.currency, p.amount, p.invoice_ids, p.memo, p.source_version
+        p.payment_date, p.state, p.payment_type, p.currency, p.amount, p.amount_in_payment_currency, p.invoice_ids, p.memo, p.source_version
     from {{ ref('stg_payments') }} p
     -- A receipt with no customer on it (an unidentified remittance) is kept, with no customer.
     left join {{ ref('int_customers') }} payer on payer.partner_id = p.partner_id

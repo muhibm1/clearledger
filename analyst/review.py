@@ -49,8 +49,9 @@ REVIEW_SCHEMA = {
     "type": "object",
     "properties": {
         "caveats": {"type": "array", "items": {"type": "string"},
-                    "description": "At most 6 caveats, most material first, each one short sentence with its "
-                                   "figures and record references. Empty when nothing bears on the answer."},
+                    "description": "Most material first, each one short sentence with its figures and the "
+                                   "record references exactly as the books write them. Empty when nothing "
+                                   "bears on the answer."},
         "answer": {"type": "string",
                    "description": "Empty, unless an issue shows the answer misstates what was asked: then the "
                                   "answer restated with the books figure AND the corrected one, for example "
@@ -78,9 +79,13 @@ REVIEW_RULES = (
     "linked only by free text is not in its order's own list; an unpaid fee inflates what is open and "
     "late. For a company-wide figure, mention every material issue inside it, largest first, and prefer "
     "a problem the records prove (tax charged twice, a pro-forma, a fee) over one that is only possible. "
+    "An issue marked [verified finding] was checked against the books' own rows, so it counts as proved. "
+    "Name each record exactly as the books write it (invoice, payment and order numbers, deal and customer "
+    "names); 'two invoices' is not enough. Do not call a mart's own figure or status wrong unless the "
+    "records or a check you ran show it. "
     "Only an issue that changes or qualifies THIS figure counts: a mistyped due date bears on what is late, "
     "not on what is owed; tax inside totals bears on billed figures only when the question is about "
-    "revenue, tax or a currency. Write at most 5 caveats, each under 110 characters, together under 460 characters (a reader takes in no more), one per distinct problem that touches a record in the answer, most material first, with no restating of the figure, plain and specific, "
+    "revenue, tax or a currency. Write at most {count} caveats, together under {room} characters (a reader takes in no more), one per distinct problem that touches a record in the answer, most material first, with no restating of the figure, plain and specific, "
     "the question's own subject first. "
     "Fill 'answer' when the issues or records show the answer itself misleads, and a caveat alone would "
     "leave a wrong headline: it counts a test or internal account as a customer; names a deal won that "
@@ -133,12 +138,127 @@ def _company_wide(sql: str, rows: list[dict]) -> bool:
     return not filtered or len(rows) > 5
 
 
+# Columns in a result that name the records behind a figure, by the kind of record they name.
+ID_COLUMNS = {"invoice_id": "invoice", "payment_id": "payment", "order_id": "order", "deal_id": "deal",
+              "customer_key": "customer"}
+REF_COLUMNS = {"invoice_ref": "invoice", "payment_ref": "payment", "order_ref": "order", "deal_name": "deal",
+               "customer_name": "customer", "first_posted_customer": "customer"}
+ARRAY_COLUMNS = {"source_invoice_ids": "invoice", "invoice_ids": "invoice", "source_payment_ids": "payment",
+                 "possible_unlinked_invoice_ids": "invoice", "cancelled_invoice_ids": "invoice"}
+KINDS = ("invoice", "payment", "order", "deal", "customer")
+FINDING_ID_COLUMNS = {"invoice": "invoice_ids", "payment": "payment_ids", "order": "order_ids", "deal": "deal_ids",
+                      "customer": "customer_keys"}
+RESOLVE_SQL = """
+    select 'invoice', invoice_id, invoice_ref from staging.stg_invoices where lower(invoice_ref) = any(%(exact)s)
+    union all select 'payment', payment_id, payment_ref from staging.stg_payments where lower(payment_ref) = any(%(exact)s)
+    union all select 'order', order_id, order_ref from staging.stg_orders where lower(order_ref) = any(%(exact)s)
+    union all select 'deal', deal_id, deal_name from staging.stg_deals
+        where lower(deal_name) = any(%(exact)s) or lower(deal_name) like any(%(loose)s)
+    union all select distinct 'customer', customer_key, customer_name from intermediate.int_customers
+        where lower(customer_name) = any(%(exact)s) or lower(customer_name) like any(%(loose)s)"""
+# One hop from each record to the records it is built on or settled by.
+EXPAND_SQL = """
+    select 'order', o.order_id from staging.stg_orders o where o.deal_id = any(%(deal)s)
+       or o.invoice_ids && %(invoice)s::int[] or o.order_id = any(%(order)s)
+    union all select 'deal', o.deal_id from staging.stg_orders o where o.order_id = any(%(order)s) and o.deal_id is not null
+    union all select 'invoice', unnest(o.invoice_ids) from staging.stg_orders o
+        where o.order_id = any(%(order)s) or o.deal_id = any(%(deal)s)
+    union all select 'invoice', unnest(p.invoice_ids) from staging.stg_payments p where p.payment_id = any(%(payment)s)
+    union all select 'payment', p.payment_id from staging.stg_payments p where p.invoice_ids && %(invoice)s::int[]"""
+REFS_SQL = """
+    select invoice_ref from staging.stg_invoices where invoice_id = any(%(invoice)s)
+    union all select payment_ref from staging.stg_payments where payment_id = any(%(payment)s)
+    union all select order_ref from staging.stg_orders where order_id = any(%(order)s)
+    union all select deal_name from staging.stg_deals where deal_id = any(%(deal)s)
+    union all select customer_name from intermediate.int_customers where customer_key = any(%(customer)s)"""
+
+
+def _q(conn, sql: str, params: dict) -> list[tuple]:
+    """Runs one lookup; a warehouse without one of its tables gives no rows instead of failing the answer."""
+    try:
+        with conn.cursor() as cur:
+            cur.execute(sql, params)
+            return cur.fetchall()
+    except Exception:
+        if not conn.autocommit:
+            conn.rollback()
+        return []
+
+
+def answer_records(conn, question: str, sql: str, rows: list[dict], wide: bool) -> dict:
+    """The records behind an answer's figure, as ids by kind: the records its rows name (all rows), the
+    records its filters and question name, and one hop out (a deal's orders and invoices, an invoice's
+    order and payments, a payment's invoices). `refs` holds their references, lower-cased."""
+    ids = {k: set() for k in KINDS}
+    refs: set[str] = set()
+    if not wide:
+        for r in rows:
+            for col, kind in ID_COLUMNS.items():
+                v = r.get(col)
+                if isinstance(v, int) and not isinstance(v, bool):
+                    ids[kind].add(v)
+            for col, kind in ARRAY_COLUMNS.items():
+                for v in r.get(col) or [] if isinstance(r.get(col), list) else []:
+                    if isinstance(v, int):
+                        ids[kind].add(v)
+            for col in REF_COLUMNS:
+                v = r.get(col)
+                if isinstance(v, str) and v.strip():
+                    refs.add(v.strip().lower())
+    names = _entities(conn, question, sql, rows, True)  # names from the question and the query's filters
+    exact = sorted(refs | {n.lower() for n in names})
+    loose = [f"%{n.lower()}%" for n in names if len(n) >= 4]
+    if exact or loose:
+        for kind, rid, _ in _q(conn, RESOLVE_SQL, {"exact": exact, "loose": loose or ["\x00"]}):
+            ids[kind].add(rid)
+    customer_level = set(ids["customer"])
+    if any(ids[k] for k in ("invoice", "payment", "order", "deal")):
+        params = {k: sorted(ids[k]) for k in KINDS}
+        for kind, rid in _q(conn, EXPAND_SQL, params):
+            if rid is not None:
+                ids[kind].add(rid)
+    params = {k: sorted(ids[k]) for k in KINDS}
+    refs |= {r[0].lower() for r in _q(conn, REFS_SQL, params) if r[0]}
+    return {"ids": ids, "customer_level": customer_level, "refs": refs}
+
+
+def _id_overlap(issue: dict, behind: dict) -> str:
+    """How an issue joins the answer's records: 'record' by a shared invoice, payment, order or deal,
+    'customer' by a customer the answer is about, or '' when it does not."""
+    ids = behind["ids"]
+    for kind in ("invoice", "payment", "order", "deal"):
+        if set(issue.get(FINDING_ID_COLUMNS[kind]) or []) & ids[kind]:
+            return "record"
+    ref = str(issue.get("entity_ref") or "").lower()
+    if ref and any(r in ref for r in behind["refs"] if len(r) >= 5 and not r.isdigit()) and \
+            issue.get("issue_type") != "onboarding_finding":
+        return "record"
+    keys = set(issue.get("customer_keys") or []) | ({issue["customer_key"]} if issue.get("customer_key") is not None else set())
+    if keys & (behind["customer_level"] or ids["customer"]):
+        return "customer"
+    return ""
+
+
+def _line(i: dict) -> str:
+    """One issue as a line for the reviewer; a verified finding keeps its record references verbatim."""
+    if i.get("verified"):
+        return (f"- [verified finding, records: {i.get('entity_ref')}; amount {float(i.get('amount') or 0):,.2f}] "
+                f"{i['detail']}")
+    return f"- [{i['issue_type']}] {i['detail']}"
+
+
 def gather(conn, issues_table: str, question: str, sql: str, rows: list[dict]) -> dict:
-    """The issues and records that bear on one answer, as text for the model."""
+    """The issues and records that bear on one answer, as text for the model.
+
+    Onboarding findings join the answer by the record ids behind its figure (`answer_records`); detector
+    rows join by those records' references, by customer, or by a name the question or query filters on.
+    For a company-wide figure, verified findings on the measure come first, largest amount first, ahead
+    of detector rows."""
     # A question declined before any query ran has no figure to qualify: only what it names is checked.
     wide = bool(sql) and _company_wide(sql, rows)
     names = _entities(conn, question, sql, rows, wide)
     measures = _measures(sql)
+    behind = answer_records(conn, question, sql, rows, wide)
     cols_sql = "issue_type, entity_kind, entity_ref, customer_key, customer_name, event_date, amount, affects, detail"
     with conn.cursor() as cur:
         cur.execute(f"select {cols_sql} from {issues_table}")
@@ -146,23 +266,39 @@ def gather(conn, issues_table: str, question: str, sql: str, rows: list[dict]) -
         issues = [dict(zip(cols, r)) for r in cur.fetchall()]
         # What the onboarding pass wrote on its first read of these books, when it has run.
         cur.execute("select to_regclass(%s)", (FINDINGS_TABLE,))
+        findings = []
         if cur.fetchone()[0]:
-            cur.execute(f"select {cols_sql} from {FINDINGS_TABLE}")
-            issues += [dict(zip(cols, r)) for r in cur.fetchall()]
+            cur.execute(f"select * from {FINDINGS_TABLE}")
+            fcols = [d.name for d in cur.description]
+            findings = [dict(zip(fcols, r)) for r in cur.fetchall()]
     low = [n.lower() for n in names]
 
     def touches(i):
         text = " ".join(str(i.get(k) or "") for k in ("entity_ref", "customer_name", "detail")).lower()
         return any(n in text for n in low)
 
-    picked = [i for i in issues if touches(i)]
+    def on_measure(i):
+        return not measures or bool(set(i.get("affects") or []) & measures)
+
+    def size(i):
+        return -abs(float(i.get("amount") or 0))
+
+    typed = [f for f in findings if f.get("records") is not None]
+    untyped = [f for f in findings if f.get("records") is None]  # an older findings table: names only
+    by_record = sorted([f for f in typed if _id_overlap(f, behind) == "record"], key=size)
+    by_customer = sorted([f for f in typed if f not in by_record and _id_overlap(f, behind) == "customer"
+                          and on_measure(f)], key=size)
+    picked_findings = by_record + by_customer
     if wide:
-        picked += [i for i in issues if i not in picked and (not measures or set(i["affects"] or []) & measures)]
-    # Many issues of one kind (tax on every euro invoice, a run of zero invoices) read as one list.
+        picked_findings += sorted([f for f in typed if f not in picked_findings and on_measure(f)], key=size)
+    picked = [i for i in issues + untyped if _id_overlap(i, behind) or touches(i)]
+    if wide:
+        picked += [i for i in issues + untyped if i not in picked and on_measure(i)]
+    # Many detector rows of one kind (tax on every euro invoice, a run of zero invoices) read as one list.
     by_type: dict = {}
     for i in picked:
         by_type.setdefault(i["issue_type"], []).append(i)
-    lines = []
+    lines = [_line(f) for f in picked_findings]
     for kind, items in by_type.items():
         if len(items) > 8:
             for i in [i for i in items if touches(i)][:3]:
@@ -174,8 +310,9 @@ def gather(conn, issues_table: str, question: str, sql: str, rows: list[dict]) -
             lines.append(f"- [{kind}] {len(items)} records, amounts totalling {total:,.2f} (record, customer, "
                          f"date, amount, detail): {each}")
         else:
-            lines += [f"- [{kind}] {i['detail']}" for i in items]
+            lines += [_line(i) for i in items]
     return {"issues": "\n".join(lines[:MAX_ISSUES]), "names": sorted(names), "wide": bool(wide),
+            "verified": len(picked_findings),
             "records": _records(conn, names) if names and not wide else ""}
 
 
@@ -222,17 +359,30 @@ def _records(conn, names: set[str]) -> str:
     return "\n\n".join(out)
 
 
+def budget(verified: int) -> tuple[int, int]:
+    """How many caveats, and how many characters in all, an answer may carry: more verified findings
+    inside the figure earn more room, up to MAX_CAVEATS and MAX_ROOM."""
+    n = max(0, int(verified or 0))
+    return min(MAX_CAVEATS, BASE_CAVEATS + n), min(MAX_ROOM, CAVEAT_ROOM + PER_FINDING_ROOM * n)
+
+
 def prompt(question: str, sql: str, rows: list[dict], answer, explanation: str, found: dict) -> str:
+    """The reviewer's prompt: the answer, the issues and records behind it, and the rules with its budget."""
+    count, room = budget(found.get("verified", 0))
     shown = json.dumps(rows[:30], default=str)
     return (f"QUESTION\n{question}\n\nQUERY\n{sql}\n\nRESULT ({len(rows)} rows)\n{shown}\n\n"
             f"ANSWER GIVEN\n{json.dumps(answer, default=str)}\n{explanation}\n\n"
             f"ISSUES FOUND IN THE BOOKS ({'company-wide figure: all issues inside the measure' if found['wide'] else 'touching what the answer names'})\n"
             f"{found['issues'] or '(none)'}\n\n"
             + (f"RECORDS BEHIND THE ANSWER\n{found['records']}\n\n" if found.get("records") else "")
-            + REVIEW_RULES)
+            + REVIEW_RULES.format(count=count, room=room))
 
 
-CAVEAT_ROOM = 470  # with the first sentence, the explanation stays under about 700 characters: what a reader takes in
+CAVEAT_ROOM = 470  # the room with no verified finding inside the figure: about 700 characters with the first sentence
+PER_FINDING_ROOM = 110  # more room for each verified finding inside the figure
+MAX_ROOM = 900
+BASE_CAVEATS = 5
+MAX_CAVEATS = 8
 CAVEAT_MAX = 300  # one caveat longer than this is a runaway, not a caveat
 
 
@@ -252,7 +402,7 @@ def revised(answer, proposed: str):
     return proposed
 
 
-def merge(explanation: str, caveats: list[str]) -> str:
+def merge(explanation: str, caveats: list[str], room: int = CAVEAT_ROOM) -> str:
     """The explanation's first sentence with the caveats after it, kept short enough to be read whole:
     caveats come most material first, and one that would push past the room is left out."""
     caveats = [c.strip() for c in caveats or [] if c and c.strip() and len(c.strip()) <= CAVEAT_MAX]
@@ -260,7 +410,7 @@ def merge(explanation: str, caveats: list[str]) -> str:
         return explanation
     kept, used = [], 0
     for c in caveats:
-        if kept and used + len(c) > CAVEAT_ROOM:
+        if kept and used + len(c) > room:
             break
         kept.append(c)
         used += len(c) + 1

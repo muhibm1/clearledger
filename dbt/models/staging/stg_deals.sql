@@ -5,6 +5,7 @@ select
     l.payload->>'name' as deal_name,
     (case when jsonb_typeof(l.payload->'partner_id') = 'array' then (l.payload->'partner_id'->>0)::int end) as partner_id,
     s.payload->>'name' as stage,
+    (nullif(s.payload->>'sequence', 'false'))::int as stage_sequence,
     coalesce((s.payload->>'is_won')::boolean, false) as is_won,
     not (l.payload->>'active')::boolean as is_lost,
     (l.payload->>'expected_revenue')::numeric as expected_revenue,

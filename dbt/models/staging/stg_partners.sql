@@ -7,5 +7,6 @@ select
     coalesce((payload->>'active')::boolean, true) as is_active,
     {{ m2o_id('commercial_partner_id') }} as commercial_partner_id,
     {{ m2o_name('country_id') }} as country,
+    ({{ txt('create_date') }})::timestamp as created_at,
     write_date as source_version
 from p

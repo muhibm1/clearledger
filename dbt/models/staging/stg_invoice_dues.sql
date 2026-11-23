@@ -5,6 +5,7 @@ with l as ({{ latest('account_move_line', 'account.move.line') }})
 select
     odoo_id as line_id,
     {{ m2o_id('move_id') }} as invoice_id,
+    {{ m2o_id('partner_id') }} as partner_id,
     ({{ txt('date_maturity') }})::date as due_date,
     (payload->>'balance')::numeric as amount,
     (payload->>'amount_residual')::numeric as amount_open,

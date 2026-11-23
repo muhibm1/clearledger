@@ -39,6 +39,7 @@ class Domain:
     rules: list = field(default_factory=list)  # how to answer, always shown to the model (not retrieved)
     review_model: str | None = None  # a stronger model for the review step, when the domain names one
     investigate: bool = False  # the reviewer may run its own read-only checks of the books
+    entities: list = field(default_factory=list)  # "schema.table.column" holding the names a question can name
 
     def connect(self):
         return psycopg.connect(self.dsn, autocommit=True)
@@ -57,7 +58,7 @@ def load(name_or_path: str) -> Domain:
         privacy=d.get("privacy"), reader_role=d.get("reader_role"), citations=d.get("citations"),
         not_loaded=d.get("not_loaded") or [], identifiers=d.get("identifiers") or {},
         issues=d.get("issues"), rules=d.get("rules") or [], review_model=d.get("review_model"),
-        investigate=bool(d.get("investigate")),
+        investigate=bool(d.get("investigate")), entities=d.get("entities") or [],
     )
     return dom
 

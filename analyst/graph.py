@@ -30,6 +30,7 @@ last month?" works as a follow-up.
 
 import json
 import operator
+import re
 from typing import Annotated, Any, TypedDict
 
 from langgraph.checkpoint.memory import InMemorySaver
@@ -103,6 +104,46 @@ class State(TypedDict, total=False):
     caveats: list                            # what the review step found that bears on the answer
     review_error: str
     review_checks: list                      # the reviewer's own read-only checks of the books
+    hinted: bool                             # the draft was told once that a name it declined on exists
+
+
+def existing_entity(dom: Domain, sql: str) -> str:
+    """The first name the query filters on that the domain's entity columns hold, or ''. Code looks it up,
+    so a name the model never looked up still counts when the books hold it."""
+    if not dom.entities or not sql:
+        return ""
+    names = {m.group(2).strip() for m in reviewing.NAME_FILTER.finditer(sql)}
+    names = sorted((n for n in names if len(n) >= 3), key=len, reverse=True)  # the most specific name first
+    if not names:
+        return ""
+    try:
+        with dom.connect() as conn, conn.cursor() as cur:
+            for name in names:
+                for col in dom.entities:
+                    schema, table, column = col.split(".")
+                    cur.execute(f"select {column} from {schema}.{table} where {column} ilike %s limit 1",
+                                (f"%{name}%",))
+                    got = cur.fetchone()
+                    if got and got[0]:
+                        return str(got[0])
+    except Exception:  # a lookup that fails proves nothing either way
+        return ""
+    return ""
+
+
+GENERIC_WORDS = {"answerable", "between", "happened", "nearest", "written", "falling", "period", "reason",
+                 "covers", "months", "record", "figure", "question", "warehouse", "loaded"}
+
+
+def _names_missing_data(dom: Domain, reason: str) -> bool:
+    """Whether a decline's reason points at something the warehouse does not hold (then it stands): it
+    uses a word that only the not-loaded list uses, never the tables' own notes."""
+    def stems(text):
+        return {w.rstrip("s") for w in re.findall(r"[a-z]{6,}", text.lower())} - GENERIC_WORDS
+
+    held = stems(json.dumps([dom.tables, dom.terms], default=str))
+    words = {w for item in dom.not_loaded for w in stems(item)} - held
+    return bool(words & stems(reason or ""))
 
 
 def _system(dom: Domain) -> str:
@@ -142,7 +183,7 @@ def build(dom: Domain, model, *, context: bool = True, retriever: Retriever | No
         retriever = Retriever(documents(dom))
     system = _system(dom) + (" " + LOOKUP_RULE if max_lookups else "")
     fresh = {"attempts": [], "lookups": [], "redrafts": 0, "sources": [], "citations": {}, "caveats": [],
-             "review_error": ""}
+             "review_error": "", "hinted": False}
 
     def retrieve(state: State) -> dict:
         if not context:
@@ -175,6 +216,18 @@ def build(dom: Domain, model, *, context: bool = True, retriever: Retriever | No
         out = model(system, "\n\n".join(parts), LOOKUP_DRAFT_SCHEMA if left > 0 else DRAFT_SCHEMA)
         if out.get("decision") == "lookup" and left > 0:
             return {"sql": out.get("sql", ""), "status": "lookup"}
+        if (out.get("decision") == "not_answerable" and not state.get("hinted")
+                and not _names_missing_data(dom, out.get("reason", ""))):
+            # A decline after looking a name up: if the books do hold that name, say so once and let the
+            # draft write the query, since a party with nothing of this kind is a true zero.
+            tried = " ".join([x["sql"] for x in state.get("lookups", [])] + [a["sql"] for a in state.get("attempts", [])])
+            found = existing_entity(dom, tried)
+            if found:
+                note = (f"NOT RUN. Before declining: the books do hold '{found}', a name your queries looked for. "
+                        "Query it by that exact name; if it has nothing of the kind asked, the answer is 0 (or "
+                        "None, or No). Decline only if the question needs something the warehouse does not hold.")
+                return {"status": "hint", "hinted": True,
+                        "attempts": state.get("attempts", []) + [{"sql": out.get("sql") or "(declined)", "error": note}]}
         if out.get("decision") not in ("query", "lookup"):
             status = "clarify" if out.get("decision") == "clarify" else "not_answerable"
             return {"status": status, "sql": "", "answer": None, "explanation": out.get("reason", "")}
@@ -222,7 +275,13 @@ def build(dom: Domain, model, *, context: bool = True, retriever: Retriever | No
                   "are tied and name them all. Decline only when the question asks for something this data "
                   "does not hold, or the query was the wrong one; when you decline, say in one sentence what "
                   "is missing and give the nearest figure the warehouse does hold with its limit.")
-        if nothing:
+        found = existing_entity(dom, state["sql"]) if nothing else ""
+        if nothing and found:
+            prompt += (f" The query found nothing, and the books do hold '{found}', the name it filters on. "
+                       "So the empty result is a true zero: answer 0 (or [] for a list, No for a yes or no "
+                       "question) and say that it exists but has nothing of this kind. Decline only if the "
+                       "question needs something the warehouse does not hold.")
+        elif nothing:
             prompt += (" The query found nothing (no rows, or only NULL). That is a true 0 (or []) only when "
                        "what the question names exists and simply has nothing of this kind. If it names a "
                        "customer, deal or invoice that the notes or a lookup have not shown to exist, you "
@@ -231,6 +290,10 @@ def build(dom: Domain, model, *, context: bool = True, retriever: Retriever | No
                        "that finds nothing answers No.")
         out = model(system, prompt, ANSWER_SCHEMA)
         status = out.get("status") if out.get("status") in ("answer", "not_answerable") else "answer"
+        if status == "not_answerable" and found and not _names_missing_data(dom, out.get("explanation", "")):
+            # The entity exists and the measure is empty: a true zero, not a decline.
+            return {"status": "answer", "answer": 0,
+                    "explanation": f"The books hold {found}, but it has nothing of this kind, so the figure is 0."}
         if status == "not_answerable" and state.get("redrafts", 0) < max_redrafts:
             # The query ran, yet the reader declined: usually the query was the wrong one, or a name
             # it filtered on was spelled differently. Send the reason back to draft instead of stopping.
@@ -270,15 +333,17 @@ def build(dom: Domain, model, *, context: bool = True, retriever: Retriever | No
                     state.get("explanation", ""), found), reviewing.REVIEW_SCHEMA)
         except Exception as exc:  # a failed review never loses the answer; it says so
             return {"caveats": [], "review_error": f"{type(exc).__name__}: {str(exc)[:200]}"}
-        caveats = [c for c in out.get("caveats") or [] if isinstance(c, str)][:6]
-        update = {"caveats": caveats, "explanation": reviewing.merge(state.get("explanation", ""), caveats),
-                  "review_checks": out.get("checks", [])}
+        count, room = reviewing.budget(found.get("verified", 0))
+        caveats = [c for c in out.get("caveats") or [] if isinstance(c, str)][:count]
+        update = {"caveats": caveats, "review_checks": out.get("checks", []),
+                  "explanation": reviewing.merge(state.get("explanation", ""), caveats, room)}
         verdict = out.get("status") or "keep"
         if verdict == "not_answerable" and state["status"] == "answer":
             update.update(status="not_answerable", answer=None)
         elif verdict == "answer" and state["status"] == "not_answerable" and (out.get("answer") or "").strip():
             update.update(status="answer", answer=out["answer"].strip())
         elif state["status"] == "answer":
+            # A restated answer keeps every figure the books answer gave, the books figure first.
             restated = reviewing.revised(state.get("answer"), out.get("answer"))
             if restated:
                 update["answer"] = restated
@@ -304,6 +369,7 @@ def build(dom: Domain, model, *, context: bool = True, retriever: Retriever | No
     g.add_edge(START, "retrieve")
     g.add_edge("retrieve", "draft")
     g.add_conditional_edges("draft", lambda s: "execute" if s["status"] in ("running", "lookup")
+                            else "draft" if s["status"] == "hint"
                             else ("review" if with_review and s["status"] == "not_answerable" else "remember"))
     g.add_conditional_edges("execute", lambda s: {"repair": "draft", "looked": "draft",
                                                   "failed": "remember"}.get(s["status"], "answer"))
