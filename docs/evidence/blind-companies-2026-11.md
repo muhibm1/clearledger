@@ -53,6 +53,60 @@ company-wide figure down by customer. It can also decline a question that needs 
 do not record, rather than derive a figure. On I, as development data, this took 73 to 85. On J, a
 company nobody had seen, the frozen code scored 93.
 
+## Confirming the result: two more fresh companies (K and L), 2026-11-22 and 23
+
+J's 93 was one company. Two questions remained: would a second unseen company confirm it, and how
+much of the score comes from the design rather than the model? So two more companies were built
+blind, by separate authors, with 12 new kinds of mess each: K, an environmental testing laboratory,
+and L, a commercial beekeeping and pollination business.
+
+**Comparison run.** Each company was also answered by Opus, the strongest model the analyst uses,
+with read-only SQL on the same warehouse and none of the analyst's design: no onboarding pass, no
+review step, no domain notes (`analyst/eval/plain.py`). It was written and pushed before K's
+questions existed. On K a third run gave Opus read-only access to Odoo itself, limited to the
+fields the platform loads.
+
+**Grader fixed before L.** Reading K's results showed the first grader cut answers at 800
+characters, which mostly hurt the longer plain-Opus answers, and gave one overall verdict from
+one vote. The new grader (`eval/blind/grade_v2.py`) reads the whole answer, judges the figure and
+each must-mention point separately, takes a majority of three votes, and never sees which run
+wrote the answer. It was frozen, with its hash in L's `FREEZE.txt`, before L was scored. J and K
+were regraded with it from their stored answers. A code check (`eval/blind/check_refs.py`) is
+reported beside it: for each caveat point, the author listed record strings (an invoice number, a
+customer, an amount) that any answer naming the problem would contain.
+
+**Rework between K and L.** K's misses were studied (K then became development data). All 12 of
+K's planted problems had been found by the onboarding pass; the losses came from findings that
+misread a record, caveats too short to name the records, and two bugs (a customer with nothing
+owed was declined instead of answered as zero, and payments lost their original currency in
+staging). The changes, all general: every onboarding finding is checked against the records with
+a read-only query before it is kept; findings reach an answer through the records behind its
+figure, not by name; the caveat budget grows with the verified findings involved; every extracted
+field reaches staging. A separate "corrected figure" sentence was tried and dropped: it cost up to
+12 caveat points on development companies. Frozen at d001b3e.
+
+| Company | Code | Grader | Plain | Caveat | Cannot tell | Total | Caveat, code check |
+|---|---|---|---|---|---|---|---|
+| J, analyst | 361515b | v2 (regraded) | 35/36 | 36/43 | 21/21 | 92 | not built for J |
+| K, analyst | c684848 | v2 (regraded) | 34/36 | 34/43 | 21/21 | 89 | 34/43 |
+| K, Opus with the warehouse | c684848 | v2 (regraded) | 34/36 | 23/43 | 21/21 | 78 | 30/43 |
+| K, Opus with Odoo | c684848 | v1 | 35/36 | 25/43 | 21/21 | 81 | 26/43 |
+| L, analyst | d001b3e | v2 | 35/36 | 30/43 | 21/21 | 86 | 36/43 |
+| L, Opus with the warehouse | d001b3e | v2 | 36/36 | 28/43 | 18/21 | 82 | 33/43 |
+
+K under the first grader: analyst 90, Opus with the warehouse 81.
+
+**What it adds up to.** Over three companies nobody had seen, each scored once on frozen code, the
+analyst got **267 of 300 (89%)**: 104/108 plain, 100/129 caveat, 63/63 cannot tell. One company's
+score moves about 3 to 4 points between runs of the same code, so J's 93, K's 89 and L's 86 are one
+result, not a trend. Opus given the same warehouse scored 78 and 82; the design adds 4 to 11 points,
+almost all of it on caveats and on knowing when the books cannot answer. Scoring more fresh
+companies until one lands above 93 would only pick a lucky draw, so the pooled figure is the result.
+
+Where the gap is: naming what is wrong behind a figure on a new kind of mess. The two graders also
+disagree most there (on L, 30 of 43 by the model grader, 36 of 43 by the code check), so part of
+the remaining gap is in how a caveat is judged, not only in the answers.
+
 ## What the onboarding pass is
 
 `analyst/onboard.py` does what a person starting on a new client's books does: it reads them end to
