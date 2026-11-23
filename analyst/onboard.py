@@ -105,6 +105,7 @@ SECTIONS = {
                (select round(sum(amount), 2) from staging.stg_payments y where y.partner_id = p.partner_id and y.state = 'posted') as payments_usd,
                (select count(*) from staging.stg_deals d where d.partner_id = p.partner_id and d.is_won) as won_deals,
                (select round(sum(expected_revenue), 2) from staging.stg_deals d where d.partner_id = p.partner_id and d.is_won) as won_deal_value,
+               (select round(avg(expected_revenue), 2) from staging.stg_deals d where d.partner_id = p.partner_id and d.is_won) as avg_won_deal,
                (select count(*) from staging.stg_orders o where o.partner_id = p.partner_id and o.state in ('sale', 'done')) as orders,
                (select round(sum(amount_total), 2) from staging.stg_orders o where o.partner_id = p.partner_id and o.state in ('sale', 'done')) as order_total
         from staging.stg_partners p left join intermediate.int_customers c using (partner_id)

@@ -1,5 +1,5 @@
-"""The caveat contract: room grows with verified findings inside the figure, the books figure stays the
-headline, and a corrected figure is a labelled second sentence only when it differs."""
+"""The caveat contract: room grows with verified findings inside the figure, references stay verbatim, and
+a restated answer keeps the books figure."""
 
 from analyst import review
 from analyst.model import FakeModel
@@ -12,36 +12,35 @@ def test_the_budget_grows_with_verified_findings_up_to_eight_caveats_and_900_cha
     assert review.budget(10) == (8, 900)
 
 
-def test_a_corrected_figure_is_kept_only_when_it_differs_from_the_books_figure():
-    """The same number restated is dropped; a different one is labelled."""
-    assert review.corrected_sentence(60735, "Excluding the receipt for another company: 53,350.") == \
-        "Corrected: Excluding the receipt for another company: 53,350."
-    assert review.corrected_sentence(60735, "Books figure 60,735.") == ""
-    assert review.corrected_sentence(34, "") == ""
-    assert review.corrected_sentence(34, "Corrected: 33 excluding the test account") == \
-        "Corrected: 33 excluding the test account."
-
-
-def test_merge_puts_the_corrected_sentence_second_and_caveats_after_within_the_room():
-    """First sentence, then the corrected figure, then the caveats that fit."""
-    out = review.merge("Owed is 343,728.91. From the open column.", ["A" * 200, "B" * 200, "C" * 200],
-                       room=450, corrected="Corrected: 320,000 without the card payments.")
-    assert out.startswith("Owed is 343,728.91. Corrected: 320,000 without the card payments. Caveat: AAA")
+def test_merge_keeps_the_caveats_that_fit_the_room():
+    """First sentence, then the caveats that fit the room it is given."""
+    caveats = ["A" * 200, "B" * 200, "C" * 200]
+    out = review.merge("Owed is 343,728.91. From the open column.", caveats, room=450)
+    assert out.startswith("Owed is 343,728.91. Caveat: AAA")
     assert "BBB" in out and "CCC" not in out
-    assert review.merge("Plain.", [], corrected="Corrected: 3.") == "Plain. Corrected: 3."
+    assert "CCC" in review.merge("Owed is 343,728.91.", caveats, room=900)
+    assert review.merge("Plain.", []) == "Plain."
 
 
-def test_the_rules_state_the_budget_and_rank_verified_findings_first():
-    """The reviewer is told its room and that verified findings outrank its own hunches."""
+def test_the_rules_state_the_budget_and_how_verified_findings_count():
+    """The reviewer is told its room, that verified findings count as proved, and to copy references."""
     found = {"issues": "- [verified finding, records: S1; amount 1.00] x", "wide": False, "records": "",
              "verified": 3}
     text = review.prompt("q", "select 1", [], 1, "e", found)
     assert "at most 8 caveats, together under 800 characters" in text
-    assert "verified finding" in text and "NEVER CONTRADICT A MART" in text
+    assert "[verified finding] was checked against the books' own rows" in text
+    assert "exactly as the books write it" in text
 
 
-def test_the_review_node_keeps_the_books_answer_and_adds_the_corrected_sentence(monkeypatch):
-    """A reviewer's restated answer never replaces the figure; its corrected figure goes second."""
+def test_a_restated_answer_must_keep_the_books_figure():
+    """A restatement that drops the books figure is refused; one that keeps it is used."""
+    assert review.revised(60735, "53,350 without PBNK1/2026/00061") is None
+    assert review.revised(60735, "60,735 on the books; 53,350 without PBNK1/2026/00061") == \
+        "60,735 on the books; 53,350 without PBNK1/2026/00061"
+
+
+def test_the_review_node_uses_the_budget_and_keeps_the_books_figure_in_a_restated_answer(monkeypatch):
+    """With verified findings the node keeps more caveats, and a restated answer still holds the books figure."""
     from analyst import graph
     from analyst.domain import Domain
 
@@ -57,14 +56,15 @@ def test_the_review_node_keeps_the_books_answer_and_adds_the_corrected_sentence(
 
     monkeypatch.setattr(Domain, "connect", lambda self: _C())
     monkeypatch.setattr(graph.reviewing, "gather", lambda *a, **k: {"issues": "- x", "records": "", "wide": True,
-                                                                    "verified": 1, "names": []})
+                                                                    "verified": 3, "names": []})
+    caveats = [f"PBNK1/2026/0006{i} (1,000) pays another company's invoice." for i in range(7)]
     model = FakeModel([{"decision": "query", "sql": "select 1", "reason": "r"},
                        {"status": "answer", "answer": 60735, "explanation": "Cash in was 60,735."},
-                       {"caveats": ["PBNK1/2026/00061 (7,385) pays another company's invoice."],
-                        "corrected": "Without PBNK1/2026/00061: 53,350.", "answer": "53,350 corrected"}])
+                       {"caveats": caveats, "answer": "60,735 on the books; 53,350 without PBNK1/2026/00061"}])
     monkeypatch.setattr(graph.sqltool, "prepare", lambda d, c: None)
     monkeypatch.setattr(graph.sqltool, "run", lambda d, c, q: {"ok": True, "rows": [{"cash": 60735}]})
     app = graph.build(dom, model, context=False, with_review=True, max_lookups=0)
     out = graph.ask(app, "How much cash came in?", "t-contract")
-    assert out["answer"] == 60735
-    assert out["explanation"].startswith("Cash in was 60,735. Corrected: Without PBNK1/2026/00061: 53,350. Caveat:")
+    assert out["answer"] == "60,735 on the books; 53,350 without PBNK1/2026/00061"
+    assert out["explanation"].startswith("Cash in was 60,735. Caveat: PBNK1/2026/00060")
+    assert len(out["caveats"]) == 7

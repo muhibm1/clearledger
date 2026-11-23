@@ -335,17 +335,18 @@ def build(dom: Domain, model, *, context: bool = True, retriever: Retriever | No
             return {"caveats": [], "review_error": f"{type(exc).__name__}: {str(exc)[:200]}"}
         count, room = reviewing.budget(found.get("verified", 0))
         caveats = [c for c in out.get("caveats") or [] if isinstance(c, str)][:count]
-        verdict = out.get("status") or "keep"
-        # The books figure stays the headline; a corrected figure is a labelled second sentence, kept only
-        # when it differs from the books figure.
-        corrected = (reviewing.corrected_sentence(state.get("answer"), out.get("corrected"))
-                     if state["status"] == "answer" and verdict != "not_answerable" else "")
         update = {"caveats": caveats, "review_checks": out.get("checks", []),
-                  "explanation": reviewing.merge(state.get("explanation", ""), caveats, room, corrected)}
+                  "explanation": reviewing.merge(state.get("explanation", ""), caveats, room)}
+        verdict = out.get("status") or "keep"
         if verdict == "not_answerable" and state["status"] == "answer":
             update.update(status="not_answerable", answer=None)
         elif verdict == "answer" and state["status"] == "not_answerable" and (out.get("answer") or "").strip():
             update.update(status="answer", answer=out["answer"].strip())
+        elif state["status"] == "answer":
+            # A restated answer keeps every figure the books answer gave, the books figure first.
+            restated = reviewing.revised(state.get("answer"), out.get("answer"))
+            if restated:
+                update["answer"] = restated
         return update
 
     def cite(state: State) -> dict:
