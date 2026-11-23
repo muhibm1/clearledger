@@ -93,3 +93,24 @@ def test_a_name_the_books_do_not_hold_still_cannot_be_told(monkeypatch):
                        {"decision": "not_answerable", "sql": "", "reason": "Not found."}])
     out = graph.ask(graph.build(dom, model, context=False, with_review=False, max_lookups=0), "Owed?", "z4")
     assert "could not be found" in model.prompts[1] and out["status"] == "not_answerable"
+
+
+def test_a_decline_after_looking_up_a_name_the_books_hold_goes_back_to_draft_once(monkeypatch):
+    """The draft declines after a lookup; code finds the name in the books and sends it back once."""
+    dom = _dom(monkeypatch, ["Olympic Timber Co.", "Timberline Lodge Holdings"])
+    look = "select customer_name from marts.revenue_by_customer where customer_name ilike '%timberline%'"
+    model = FakeModel([{"decision": "lookup", "sql": look, "reason": "r"},
+                       {"decision": "not_answerable", "sql": "", "reason": "No such customer."},
+                       {"decision": "query", "sql": SQL, "reason": "r"},
+                       {"status": "answer", "answer": 0, "explanation": "Nothing owed."}])
+    out = graph.ask(graph.build(dom, model, context=False, with_review=False, max_lookups=1), "Owed?", "z5")
+    assert "the books do hold 'Timberline Lodge Holdings'" in model.prompts[2]
+    assert out["status"] == "answer" and out["answer"] == 0
+
+
+def test_the_most_specific_name_is_looked_up_first():
+    """Of the names a query filters on, the longest is tried first, so a near namesake does not win."""
+    import re
+    sql = "select 1 from t where name ilike '%timber%' or name ilike '%timberline%'"
+    names = sorted({m.group(2) for m in graph.reviewing.NAME_FILTER.finditer(sql)}, key=len, reverse=True)
+    assert names[0] == "timberline" and re.search("timber", names[1])

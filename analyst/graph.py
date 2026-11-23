@@ -104,6 +104,7 @@ class State(TypedDict, total=False):
     caveats: list                            # what the review step found that bears on the answer
     review_error: str
     review_checks: list                      # the reviewer's own read-only checks of the books
+    hinted: bool                             # the draft was told once that a name it declined on exists
 
 
 def existing_entity(dom: Domain, sql: str) -> str:
@@ -111,8 +112,8 @@ def existing_entity(dom: Domain, sql: str) -> str:
     so a name the model never looked up still counts when the books hold it."""
     if not dom.entities or not sql:
         return ""
-    names = [m.group(2).strip() for m in reviewing.NAME_FILTER.finditer(sql)]
-    names = [n for n in names if len(n) >= 3]
+    names = {m.group(2).strip() for m in reviewing.NAME_FILTER.finditer(sql)}
+    names = sorted((n for n in names if len(n) >= 3), key=len, reverse=True)  # the most specific name first
     if not names:
         return ""
     try:
@@ -182,7 +183,7 @@ def build(dom: Domain, model, *, context: bool = True, retriever: Retriever | No
         retriever = Retriever(documents(dom))
     system = _system(dom) + (" " + LOOKUP_RULE if max_lookups else "")
     fresh = {"attempts": [], "lookups": [], "redrafts": 0, "sources": [], "citations": {}, "caveats": [],
-             "review_error": ""}
+             "review_error": "", "hinted": False}
 
     def retrieve(state: State) -> dict:
         if not context:
@@ -215,6 +216,18 @@ def build(dom: Domain, model, *, context: bool = True, retriever: Retriever | No
         out = model(system, "\n\n".join(parts), LOOKUP_DRAFT_SCHEMA if left > 0 else DRAFT_SCHEMA)
         if out.get("decision") == "lookup" and left > 0:
             return {"sql": out.get("sql", ""), "status": "lookup"}
+        if (out.get("decision") == "not_answerable" and not state.get("hinted")
+                and not _names_missing_data(dom, out.get("reason", ""))):
+            # A decline after looking a name up: if the books do hold that name, say so once and let the
+            # draft write the query, since a party with nothing of this kind is a true zero.
+            tried = " ".join([x["sql"] for x in state.get("lookups", [])] + [a["sql"] for a in state.get("attempts", [])])
+            found = existing_entity(dom, tried)
+            if found:
+                note = (f"NOT RUN. Before declining: the books do hold '{found}', a name your queries looked for. "
+                        "Query it by that exact name; if it has nothing of the kind asked, the answer is 0 (or "
+                        "None, or No). Decline only if the question needs something the warehouse does not hold.")
+                return {"status": "hint", "hinted": True,
+                        "attempts": state.get("attempts", []) + [{"sql": out.get("sql") or "(declined)", "error": note}]}
         if out.get("decision") not in ("query", "lookup"):
             status = "clarify" if out.get("decision") == "clarify" else "not_answerable"
             return {"status": status, "sql": "", "answer": None, "explanation": out.get("reason", "")}
@@ -355,6 +368,7 @@ def build(dom: Domain, model, *, context: bool = True, retriever: Retriever | No
     g.add_edge(START, "retrieve")
     g.add_edge("retrieve", "draft")
     g.add_conditional_edges("draft", lambda s: "execute" if s["status"] in ("running", "lookup")
+                            else "draft" if s["status"] == "hint"
                             else ("review" if with_review and s["status"] == "not_answerable" else "remember"))
     g.add_conditional_edges("execute", lambda s: {"repair": "draft", "looked": "draft",
                                                   "failed": "remember"}.get(s["status"], "answer"))
