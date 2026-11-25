@@ -1,8 +1,7 @@
 """The collections playbook as code: stages, holds and the actions they lead to.
 
-Everything here is a pure function of the overdue list and the evidence read
-from Odoo, so the same inputs always give the same plan. docs/collections/playbook.md
-is the same rules in words; a change to one is a change to the other.
+Everything here is a pure function of the overdue list and the evidence read from Odoo.
+docs/collections/playbook.md is the same rules in words; a change to one is a change to the other.
 """
 
 from __future__ import annotations

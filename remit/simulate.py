@@ -1,33 +1,24 @@
 """What following the playbook every day is worth, if customers respond the way this model says.
 
-The company in Odoo is simulated, so its customers cannot be sent a reminder and
-watched. This file plays 90 days forward from the warehouse's real open invoices,
-twice per seed, with the same person on the team both times:
+The Odoo company is simulated, so its customers cannot be sent a reminder and watched. This plays 90 days
+forward from the warehouse's real open invoices, twice per seed, with the same person on the team both times:
 
-- manual: the process Remit replaces. Each Monday the person works the late
-  list oldest first and reaches five customers.
-- remit: Remit applies the playbook every morning (stages 0 to 3 by itself),
-  and the same person spends the same five Monday calls only on the customers
-  Remit escalated, oldest first.
+- manual: each Monday the person works the late list oldest first and reaches five customers.
+- remit: Remit applies the playbook every morning (stages 0 to 3 by itself) through the same
+  `plan_customer` it runs in production, and the same five Monday calls go only to customers it escalated.
 
-The playbook side calls the same `plan_customer` Remit runs in production, so
-the simulator measures Remit's own decisions. Both sides see the same customers,
-the same new invoices and the same payment draws; the comparison is paired by seed.
+Both sides see the same customers, new invoices and payment draws, so the comparison is paired by seed.
+Everything about customer behaviour is an assumption, printed next to the result:
 
-Everything about customers here is an assumption, and the report prints it next
-to the result:
-
-- each customer gets a payment habit, drawn the way `clearledger/simulate.py` drew the
-  company's year: prompt 55%, slow 20%, irregular 15% (the share that paid in
-  part), never 10%;
-- a habit is a daily chance of paying an open invoice once it is due;
+- each customer gets a payment habit drawn as `clearledger/simulate.py` drew the company's year: prompt
+  55%, slow 20%, irregular 15% (the share that paid in part), never 10%; a habit is a daily chance of
+  paying an open invoice once it is due;
 - a reminder multiplies that chance for the next 10 days by its stage's lift;
-- new invoices arrive at the company's own rate from the last 90 days, with
-  amounts drawn from those invoices, due 30 days after issue.
+- new invoices arrive at the company's own rate from the last 90 days, with amounts drawn from those
+  invoices, due 30 days after issue.
 
-The lift is the number that decides the size of the effect, and nobody has
-measured it for this company. So the report also runs every seed with half the
-lift, to show how much the result leans on it.
+Nobody has measured the lift for this company and it decides the size of the effect, so every seed is also
+run with half the lift.
 """
 
 from __future__ import annotations

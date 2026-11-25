@@ -1,9 +1,7 @@
 """A model as an episode agent: one structured reply per tool call.
 
-It uses the analyst's `CommandLineModel` (the model's own command line, signed in
-through the subscription, tools off, reply shaped by a JSON schema), so a
-baseline run spends no API credit. Each step the model sees the brief and every
-call and result so far, and answers with the next tool call.
+It uses the analyst's `CommandLineModel`, so a baseline run spends no API credit. Each step the model
+sees the brief and every call and result so far, and answers with the next tool call.
 """
 
 from __future__ import annotations

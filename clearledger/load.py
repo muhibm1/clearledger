@@ -1,17 +1,10 @@
 """Extract from Odoo into Postgres raw tables.
 
-Every raw table is append-only and keyed by (odoo_id, write_date): a record
-edited in Odoo lands as a new version, and the old version stays. That is
-what lets a later check say "this invoice changed after it was posted", and
-what lets any number be traced to the exact version it was computed from.
-
-Loads are incremental on write_date and safe to repeat: the watermark is
-inclusive and the key ignores versions already stored. Each model's records
-commit together, so a run that fails part-way leaves every model either fully
-loaded for that run or untouched.
-
-Each run also saves the source's field list per model (raw.source_schemas),
-so the schema monitor can say exactly what changed in Odoo between two runs.
+Raw tables are append-only, keyed by (odoo_id, write_date): an edited record lands as a new
+version and the old one stays, so a later check can say "changed after posting" and any number
+traces to the exact version it used. Loads are incremental on write_date and safe to repeat
+(inclusive watermark, existing versions ignored); each model commits together. Each run also
+saves the source's field list per model (raw.source_schemas) for the schema monitor.
 """
 
 import datetime as dt

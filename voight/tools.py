@@ -1,10 +1,8 @@
 """The only things an agent can do in an episode: five tools, each a fixed Odoo call.
 
-Like Remit's writer, there is no generic `execute`. Reads are scoped to the
-task's customer. The one write, `apply`, is Odoo's own "add outstanding credit
-to this invoice" action, the same thing a bookkeeper clicks in the invoice
-screen, so Odoo's accounting rules still hold. A tool never raises: a refusal
-comes back as an `error` the agent can read and recover from.
+Like Remit's writer, there is no generic `execute`. Reads are scoped to the task's customer. The one
+write, `apply`, is Odoo's own "add outstanding credit to this invoice" action, so Odoo's accounting rules
+still hold. A tool never raises: a refusal comes back as an `error` the agent can read.
 """
 
 from __future__ import annotations

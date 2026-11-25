@@ -1,14 +1,11 @@
-"""The finance CRM: one page over the warehouse, with the voice agent on it.
+"""The finance CRM: one read-only page over the warehouse, with the voice agent on it.
 
     .venv/bin/python -m crm.server            # http://127.0.0.1:4320
 
-It shows every customer from both sides of the business: the CRM side (deals in the
-pipeline, deals won) and the ERP side (orders, invoices, payments, what is late). Nothing
-here writes; changes still happen in Odoo.
-
-The same server answers the voice agent's tool calls from the page (`POST /api/tools/<name>`,
-through `voice/bridge.py`), and, when `ELEVENLABS_API_KEY` is set, hands the page a short-lived
-signed address for one conversation. The key itself never reaches the browser.
+Each customer is shown from the CRM side (pipeline, won deals) and the ERP side (orders, invoices,
+payments, what is late). The server also answers the voice agent's tool calls from the page
+(`POST /api/tools/<name>`, through `voice/bridge.py`) and, when `ELEVENLABS_API_KEY` is set, hands
+the page a short-lived signed address; the key never reaches the browser.
 """
 
 import argparse

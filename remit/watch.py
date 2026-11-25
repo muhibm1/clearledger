@@ -1,9 +1,7 @@
 """Checks that Remit is doing its job, for the daily run and for whoever is on call.
 
 - last_run       Remit ran in the last 26 hours
-- stalled_queue  nothing has waited for a decision longer than REMIT_STALE_HOURS (48 by default):
-                 a queue nobody works means late customers hear nothing, which is the failure
-                 a collections tool is there to prevent
+- stalled_queue  nothing has waited for a decision longer than REMIT_STALE_HOURS (48 by default)
 - stuck_apply    nothing has sat half-written for more than an hour: a crash `apply` did not recover
 - failed_apply   no write to Odoo failed in the last 24 hours
 

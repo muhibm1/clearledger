@@ -1,12 +1,8 @@
 """The voice finance desk's definition: what it says, how it sounds, and which tools it can call.
 
-Everything here is plain data, built without the ElevenLabs SDK, so it can be read, tested
-and reviewed with no account. `deploy.py` sends it to ElevenAgents.
-
-The tools are the six ask-the-warehouse tools in `clearledger/ask.py`, unchanged. Each becomes an
-ElevenAgents *client tool*: ElevenLabs decides when to call it, and the call runs in
-`talk.py` on the machine that holds the warehouse. The data never has to be reachable from
-the internet, and the read-only rules in `clearledger/ask.py` still apply to every call.
+Plain data, built without the ElevenLabs SDK; `deploy.py` sends it to ElevenAgents. The tools are
+the six ask-the-warehouse tools in `clearledger/ask.py`, each an ElevenAgents *client tool* whose
+call runs in `talk.py` on the machine that holds the warehouse, so the data is never exposed.
 """
 
 import inspect

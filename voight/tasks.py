@@ -1,9 +1,8 @@
 """Builds the task set from the frozen company, and plants one task in a fresh copy.
 
-Each task is one customer and the money to apply: a bank payment or a credit
-note with a memo, or (two_credits) one of each. Some kinds plant extra posted
-invoices for the customer first, so that ties, short payments and spreads exist
-on customers who have only one open invoice. Kinds, each tied to a policy rule:
+Each task is one customer and the money to apply: a bank payment or a credit note with a memo, or
+(two_credits) one of each. Some kinds plant extra posted invoices first, so ties, short payments and
+spreads exist for customers with one open invoice. Kinds, each tied to a policy rule:
 
     memo_one        memo names one open invoice, amount equals its balance      rule 1
     memo_two        memo names two open invoices, amount equals both together   rule 1
@@ -31,10 +30,8 @@ on customers who have only one open invoice. Kinds, each tied to a policy rule:
     two_credits_esc the same credit note, then a payment more than is left:
                     escalate both                                               several items
 
-Splits are by customer, as in eval/: no customer is in more than one split, so a
-model trained on train has never seen a test customer's invoices. The test file
-is pinned by its SHA-256 in tasks/test.sha256; `voight build` fails if a rebuild
-would change it.
+Splits are by customer, so a model trained on train has never seen a test customer's invoices. The
+test file is pinned by its SHA-256 in tasks/test.sha256; `voight build` fails if a rebuild would change it.
 """
 
 from __future__ import annotations

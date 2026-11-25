@@ -1,16 +1,12 @@
 """Monitors: is the data fresh, complete and shaped the way the models expect?
 
-Run after every load. Each check returns ok, warn or fail with the evidence.
-Results are stored in raw.monitor_results so a person can see the history,
-appended to an alerts file, and posted to a webhook when one is configured.
-A fail makes `clearledger monitor` exit non-zero, so a scheduler can page on it.
+Run after every load. Each check returns ok, warn or fail with evidence, stored in
+raw.monitor_results, appended to an alerts file and posted to a webhook if configured.
+A fail makes `clearledger monitor` exit non-zero.
 
-Checks:
-- last_run      the newest load finished, and did not fail
-- freshness     the newest successful load is younger than the limit
-- volume        no model lost more than a set share of its records since the last load
-- schema        no field the load reads disappeared from Odoo; other changes are noted
-- source_totals the warehouse bills the same total as Odoo itself, per currency
+Checks: last_run (newest load finished, did not fail), freshness (newest good load is young
+enough), volume (no model lost more than a set share of records), schema (no field the load
+reads disappeared from Odoo), source_totals (warehouse bills what Odoo does, per currency).
 """
 
 import datetime as dt

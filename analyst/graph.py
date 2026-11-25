@@ -8,24 +8,12 @@
                   │
                   └─▶ remember when the model decides the data cannot answer it
 
-- retrieve: picks the tables, business terms and examples the question needs
-  (`retrieve.py`). With `context=False` the model sees only bare table and
-  column names, which is the ablation in the evaluation.
-- draft: the model writes one query, or says the question cannot be answered
-  from this data, or asks a clarifying question. It may first run a lookup: a
-  small query to find how the data spells something the question names ("the
-  Mint keyword" is `mint budget`). Lookup results come back to draft. It sees earlier turns of the
-  conversation, and any failed attempt with its error.
-- execute: code, not the model (`sql.py`). A query that fails either
-  goes back to draft with the reason, up to MAX_TRIES times.
-- answer: the model reads the rows and gives the answer as a value plus one
-  sentence. If it judges the query was the wrong one, its reason goes back to
-  draft for another try (at most MAX_REDRAFTS); otherwise it may decline.
-- cite: code collects source references from the rows and checks they are real
-  and current (finance domain, through `clearledger.ask.check_citations`).
-
-The conversation is saved per thread by the checkpointer, so "and what about
-last month?" works as a follow-up.
+retrieve picks the tables, terms and examples the question needs (with `context=False` the model sees
+bare table and column names only). draft writes one query, declines, asks to clarify, or first runs a small
+lookup to find how the data spells a name. execute checks and runs the query (`sql.py`); a failure goes
+back to draft with the reason. answer reads the rows; if it judges the query wrong, its reason goes back
+to draft. review adds caveats; cite checks source references. The checkpointer keeps the conversation per
+thread, so follow-up questions work.
 """
 
 import json
@@ -172,8 +160,7 @@ def build(dom: Domain, model, *, context: bool = True, retriever: Retriever | No
     `max_lookups=0, max_redrafts=0` is the agent as first scored: one query, repaired on error."""
     from .domain import documents
 
-    # The review reads the domain's issues table, which is domain knowledge: the no-context ablation
-    # goes without it unless asked.
+    # The review uses domain knowledge, so the no-context ablation skips it unless asked.
     with_review = context if with_review is None else with_review
     if review_model is None and dom.review_model:
         from .model import CommandLineModel

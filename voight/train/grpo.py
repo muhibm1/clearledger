@@ -1,24 +1,17 @@
 """GRPO in Voight: try each task several times, reward what the checker rewards, repeat.
 
-GRPO (group relative policy optimization) needs no second "critic" model. For
-each task the model makes G attempts. Each attempt's advantage is its reward
-minus the group's mean, divided by the group's spread: better-than-its-siblings
-attempts are pushed up, worse ones down. A group where every attempt scored the
-same teaches nothing and is skipped.
-
-One episode is several model turns (look up invoices, look up credits, apply,
-finish). The episode's single advantage is applied to every turn's tokens.
-Each batch is used for one update, so the policy ratio is 1 and the clipped
-objective reduces to a policy gradient with the group baseline. An optional KL
-term keeps the model near where it started; the reference is the same weights
-with the LoRA adapter switched off, so it costs no extra memory.
+For each task the model makes G attempts; an attempt's advantage is its reward minus the group's mean,
+divided by the group's spread, so better-than-siblings attempts are pushed up. A group where every
+attempt scored the same is skipped. An episode's single advantage applies to every turn's tokens. Each
+batch is used for one update, so the policy ratio is 1 and the objective is a policy gradient with the
+group baseline. An optional KL term keeps the model near its start, using the same weights with the
+LoRA adapter switched off as the reference.
 
     python -m voight.train.grpo --model Qwen/Qwen2.5-0.5B-Instruct --adapter runs/sft-0.5b \
         --out runs/grpo-0.5b --iterations 20 --tasks-per-iter 4 --group 4
 
-Every iteration's rewards, skipped groups and loss go to <out>/log.jsonl, and
-the adapter is saved every few iterations, so a long CPU run can be stopped and
-resumed from its last save.
+Each iteration's rewards, skipped groups and loss go to <out>/log.jsonl, and the adapter is saved every
+few iterations so a long run can be resumed.
 """
 
 from __future__ import annotations

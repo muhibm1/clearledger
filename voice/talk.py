@@ -2,11 +2,9 @@
 
     ELEVENLABS_API_KEY=... python -m voice.talk
 
-ElevenAgents handles listening, turn-taking, interruptions and the voice. This program only
-streams audio both ways and answers the agent's tool calls from the local warehouse. Every
-turn, tool call and timing goes to `voice/runs/session-<time>.jsonl`.
-
-Live conversations use ElevenLabs credits. Nothing here runs in CI.
+ElevenAgents handles listening, turn-taking and the voice; this streams audio both ways and answers
+tool calls from the local warehouse, logging to `voice/runs/session-<time>.jsonl`. Uses ElevenLabs
+credits; never runs in CI.
 """
 
 import argparse

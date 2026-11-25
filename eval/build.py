@@ -1,23 +1,10 @@
 """Build the finance question set from the warehouse.
 
-Each question is about one customer, comes with that customer's records as
-the model would get them from retrieval, and has an answer computed by SQL
-over the warehouse, never by a model.
-
-The records are given as they sit in Odoo, mess included: an edited invoice
-appears in every version the loader saw, a duplicated customer appears under
-both names, and euro invoices carry both currencies. A model that adds up the
-wrong rows gets the wrong number.
-
-Splits are by customer: train, dev and test never share a customer, so a score
-cannot come from having seen the same company's records before. The split is
-a hash of the customer key, so it never changes when questions are added.
-
-Every question exists in two prompt variants: "hints" tells the model how the
-ERP records are messy, "plain" does not. The gap between the two is what the
-rules are worth. Only train is exported as chat examples for fine-tuning;
-dev and test never leave this folder. DATASET.md, the dataset card, is written
-on every build with the leakage checks.
+Each question is about one customer, carries that customer's Odoo records as retrieval would
+return them (mess included), and has an answer computed by SQL, never by a model. Splits are a
+hash of the customer key, so no company is in two splits and adding questions never moves one.
+Each question has a "hints" and a "plain" prompt; the gap is what the rules are worth. Only
+train is exported for fine-tuning. DATASET.md is rewritten on every build.
 """
 
 import argparse
@@ -53,13 +40,13 @@ SPLITS = ("train", "dev", "test")
 
 
 def split_of(customer_key: int) -> str:
-    """About 30% of customers in test, 20% in dev, 50% in train; stable forever."""
+    """About 30% of customers in test, 20% in dev, 50% in train."""
     bucket = int(hashlib.sha256(f"cust-{customer_key}".encode()).hexdigest(), 16) % 10
     return "test" if bucket < 3 else "dev" if bucket < 5 else "train"
 
 
 def messy_tags(ctx: dict) -> list[str]:
-    """Which source problems this customer's records contain, for per-slice scores."""
+    """Source problems in this customer's records, for per-slice scores."""
     tags = []
     ids = [i["invoice_id"] for i in ctx["invoices"]]
     if len(ids) != len(set(ids)):
@@ -77,7 +64,7 @@ def messy_tags(ctx: dict) -> list[str]:
 
 
 def context_for(cur, customer_key: int) -> dict:
-    """The customer's Odoo records, as retrieval would return them."""
+    """The customer's Odoo records."""
     partners = [r["partner_id"] for r in _rows(
         cur, "select partner_id from intermediate.int_customers where customer_key = %s", (customer_key,))]
     invoices = _rows(cur, """
@@ -173,8 +160,7 @@ def build(dsn: str) -> dict:
         with open(OUT / f"{split}.jsonl", "w") as f:
             for r in items:
                 f.write(json.dumps(r, sort_keys=True) + "\n")
-    # Train only, as chat examples for fine-tuning, with the plain prompt: the
-    # rules are what the examples teach. Dev and test are never exported.
+    # Train only, with the plain prompt: the rules are what the examples teach.
     with open(OUT / "train.chat.jsonl", "w") as f:
         for r in rows["train"]:
             f.write(json.dumps({"messages": [
@@ -208,8 +194,7 @@ def _empty(answer) -> bool:
 
 
 def zero_share(rows: dict) -> dict:
-    """Share of questions whose answer is 0 or an empty list, per template: a model answering
-    0 to everything scores this much, so the share must stay well under the real scores."""
+    """Per template, how many answers are 0 or empty: what a model answering 0 to everything scores."""
     out = {}
     for tid, *_ in QUESTIONS:
         items = [r for v in rows.values() for r in v if r["id"].startswith(tid + "-")]
@@ -218,7 +203,7 @@ def zero_share(rows: dict) -> dict:
 
 
 def leakage_checks(rows: dict) -> list[dict]:
-    """What would let a score come from memory instead of reading the records."""
+    """Overlaps between splits that would let a score come from memory."""
     keys = {s: {r["customer_key"] for r in v} for s, v in rows.items()}
     qs = {s: {r["question"] for r in v} for s, v in rows.items()}
     ctx = {s: {hashlib.sha256(json.dumps(r["context"], sort_keys=True).encode()).hexdigest() for r in v}
