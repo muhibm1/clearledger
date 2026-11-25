@@ -1,10 +1,8 @@
 """A domain: one warehouse the agent can answer questions about, described by a YAML file.
 
-Adding a dataset means writing a domain file, not changing the agent. The file
-names the database, the schemas the agent may read, how queries run, and the
-knowledge the schema cannot carry: what tables mean, business terms, examples,
-and any privacy rule. Column names and types are always read live from the
-database, so the file cannot drift from the real schema without it showing.
+The file names the database, the readable schemas, how queries run and the knowledge the schema cannot
+carry (what tables mean, business terms, examples, any privacy rule). Column names and types are read
+live from the database.
 """
 
 import os
@@ -50,7 +48,7 @@ def load(name_or_path: str) -> Domain:
     if not path.suffix:
         path = DOMAINS / f"{name_or_path}.yaml"
     d = yaml.safe_load(path.read_text())
-    dom = Domain(
+    return Domain(
         name=d["name"], title=d["title"],
         dsn=os.environ.get(d["dsn_env"], d["dsn_default"]),
         executor=d["executor"], schemas=list(d["schemas"]), as_of=d.get("as_of"),
@@ -60,7 +58,6 @@ def load(name_or_path: str) -> Domain:
         issues=d.get("issues"), rules=d.get("rules") or [], review_model=d.get("review_model"),
         investigate=bool(d.get("investigate")), entities=d.get("entities") or [],
     )
-    return dom
 
 
 def read_columns(dom: Domain, conn) -> dict:

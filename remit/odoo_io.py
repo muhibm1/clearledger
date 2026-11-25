@@ -1,10 +1,9 @@
 """Remit's only doors into Odoo: a reader with three read calls, a writer with three writes.
 
-The writer is the allowlist. It has no generic `execute`: each allowed write is
-its own method with fixed arguments, so no proposal, model reply or note can
-turn into a `write`, `unlink`, payment or reconciliation call. Every note and
-activity Remit writes carries a marker with the proposal id, which is how
-`find_marker` tells, after a crash, whether a write already landed.
+The writer is the allowlist: no generic `execute`, each allowed write is its own method with fixed
+arguments, so no proposal, model reply or note can turn into a `write`, `unlink`, payment or
+reconciliation call. Every note and activity carries a marker with the proposal id, which is how
+`find_marker` tells after a crash whether a write already landed.
 """
 
 from __future__ import annotations

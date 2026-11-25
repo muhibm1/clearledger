@@ -1,18 +1,6 @@
-"""Checking and running the agent's SQL.
-
-Two layers, so a mistake in one is caught by the other:
-
-1. `check` parses the query with sqlglot before anything runs. It must be one
-   SELECT (or WITH ... SELECT), every table it names must sit in one of the
-   domain's schemas, and it may not contain a write, a DDL statement or a
-   server-side function that reads files. The agent gets the reason back and
-   can fix its query.
-2. The database decides what actually runs. For the finance warehouse, queries
-   go through `clearledger.ask.query` unchanged: a read-only role over the modeled
-   schemas, a read-only transaction and a 5 second limit. For other domains the
-   same rules run here, with the domain's own read-only role, plus its privacy
-   rule.
-"""
+"""Checking and running the agent's SQL: `check` statically refuses anything but one read-only SELECT over
+the domain's schemas, then the database decides what runs (a read-only role, transaction and timeout; for
+non-finance domains also the privacy rule)."""
 
 import datetime as dt
 import sys
@@ -168,14 +156,10 @@ def _plain_people(e, counted: set) -> bool:
 
 
 def privacy_check(sql: str, rule: dict) -> tuple[bool, str]:
-    """(ok, reason). Refuses query shapes whose people figures could not be checked by value.
-
-    Every people figure in a result is checked against the threshold after the query runs,
-    including the ones behind a rate (see `with_helpers`). That holds only if each one is a
-    count of people: so inside an aggregate over a counted column (say `sum(installs)`), the
-    column must appear as it is or picked by a CASE, never scaled (`sum(installs * 100)` would
-    turn 12 people into 1,200). A subquery over people counts inside the selected columns is
-    refused for the same reason."""
+    """(ok, reason). Refuses query shapes whose people figures could not be checked by value: inside an
+    aggregate over a counted column the column must appear as it is or picked by a CASE, never scaled
+    (`sum(installs * 100)` would turn 12 people into 1,200), and a subquery over people counts in the
+    selected columns is refused for the same reason."""
     counted = {c.lower() for c in rule["count_columns"]}
     tree = sqlglot.parse_one(sql, read="postgres")
     for agg in tree.find_all(exp.AggFunc):
@@ -322,12 +306,9 @@ def _scope_of(node):
 
 
 def with_helpers(sql: str, rule: dict, columns: dict | None) -> str:
-    """The query with every people figure behind a derived column added as a column of its
-    own, so it can be checked by value: for `sum(installs) / sum(taps) as cvr`, the two sums
-    become `__people_a0` and `__people_a1`. An aggregate over a people count is always checked
-    (`privacy_check` makes sure it counts people); a bare column only when it traces to one. The query is returned unchanged when nothing needs
-    adding or it is not one plain SELECT (a UNION, or SELECT DISTINCT, whose rows extra
-    columns would change)."""
+    """The query with every people figure behind a derived column added as a column of its own so it can
+    be checked by value: `sum(installs) / sum(taps) as cvr` gains `__people_a0` and `__people_a1`.
+    Unchanged when nothing needs adding or it is not one plain SELECT (a UNION or SELECT DISTINCT)."""
     counted = {c.lower() for c in rule["count_columns"]}
     try:
         tree = sqlglot.parse_one(sql, read="postgres")
@@ -385,15 +366,12 @@ def reads_people(sql: str, counted: set, columns: dict | None) -> bool:
 def apply_privacy(result: dict, rule: dict, sql: str | None = None, columns: dict | None = None) -> dict:
     """Suppress any result row built from too few people.
 
-    A count column is any result column that passes a counted column (say, installs) through
-    unchanged, summed or counted, whatever it is named: with `sql`, each column is traced back
-    to its source with sqlglot's lineage; without it, only columns with the counted names are
-    known. Helper columns added by `with_helpers` (the people figures behind a rate or share)
-    are checked the same way and then removed. A row with any people figure under the
-    threshold has all its numbers blanked and is marked suppressed. A row that carries a
-    figure derived from a people count but no checkable count is refused as a whole, with
-    `needs_count` naming the fix, because a rate with its count hidden can still describe a
-    handful of people. With `require_count`, any row with numbers needs a count column."""
+    A count column is any result column that passes a counted column through unchanged, summed or
+    counted, whatever it is named (traced with sqlglot's lineage when `sql` is given). Helper columns
+    from `with_helpers` are checked the same way, then removed. A row with a people figure under the
+    threshold has its numbers blanked and is marked suppressed. A row with a figure derived from a
+    people count but no checkable count is refused with `needs_count`, because a rate with its count
+    hidden can still describe a handful of people. With `require_count`, any row with numbers needs one."""
     k = rule["min_count"]
     counted = {c.lower() for c in rule["count_columns"]}
     if sql and not reads_people(sql, counted, columns):

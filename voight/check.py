@@ -1,18 +1,10 @@
 """Scores an episode by reading the copy's database directly, never the agent's words.
 
-Two parts:
-
-- **The goal.** Every open invoice of the task's customer must end at the
-  balance the policy's answer key says, to the cent, and the agent must have
-  escalated exactly when the policy says to.
-- **The guard.** Nothing else in the books may change: no new journal entries
-  or payments, no invoice anywhere with a different total or state, no other
-  customer's balance moved. Applying a credit only creates reconciliation
-  records, so those are the only new rows allowed.
-
-The guard is what stops reward hacking (scoring well without doing the job):
-an agent that found a way to cancel an invoice, or to apply one customer's
-money to another, would fail it even if the target balances came out right.
+The goal: every open invoice of the task's customer ends at the balance the answer key says, to the
+cent, and the agent escalated exactly when the policy says to. The guard: nothing else in the books
+changes (no new journal entries or payments, no invoice with a different total or state, no other
+customer's balance moved), which stops reward hacking such as cancelling an invoice or applying one
+customer's money to another.
 """
 
 from __future__ import annotations

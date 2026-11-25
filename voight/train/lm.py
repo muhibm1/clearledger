@@ -1,12 +1,9 @@
 """A local open model as a Voight agent, with every step's tokens kept for training.
 
-Episodes run in threads, one per database slot. Each thread asks the shared
-`Batcher` for its next tool call; the batcher waits until every live episode
-has asked (or a short timeout passes), then generates all their replies in one
-batched call. On a CPU that is several times faster than one episode at a time.
-
-Every reply is recorded as (prompt token ids, completion token ids) under its
-episode, which is what the trainer needs to compute log-probabilities later.
+Episodes run in threads, one per database slot. Each asks the shared `Batcher` for its next tool call;
+the batcher waits until every live episode has asked (or a short timeout passes), then generates all
+replies in one batched call, several times faster on a CPU. Every reply is recorded as (prompt token ids,
+completion token ids) per episode, which the trainer needs for log-probabilities.
 """
 
 from __future__ import annotations

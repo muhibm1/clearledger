@@ -1,18 +1,11 @@
-"""Two comparison runs for a blind company: the same model the review step uses, with none of the analyst.
+"""Two comparison runs for a blind company: the model the review step uses, with none of the analyst.
 
-Both arms get the question, an honest instruction to name what is wrong behind a figure and to decline
-what the records cannot answer, and a loop of read-only lookups. Neither gets the onboarding pass, the
-review step, the retrieval notes or the domain file.
-
-- `warehouse`: the model writes SQL against the warehouse this platform built (marts, intermediate,
-  staging), through the same read-only executor the analyst uses. It sees table and column names only.
-  This arm measures what the analyst adds on top of the warehouse.
-- `odoo`: the model reads Odoo itself through `search_read` and `read_group`, limited to the models and
-  fields the platform loads (`clearledger/sources.py`), so it sees no more than the platform does.
-  This arm measures what the whole platform adds on top of the model.
-
-The output has the analyst run's shape (`status`, `answer`, `explanation` per record), so the same
-grader scores all three.
+Both arms get the question, an instruction to name what is wrong behind a figure and to decline what the
+records cannot answer, and a loop of read-only lookups; neither gets the onboarding pass, review step,
+retrieval notes or domain file. `warehouse` has the model write SQL against the built warehouse (table and
+column names only), measuring what the analyst adds to the warehouse. `odoo` has it read Odoo through
+`search_read` and `read_group`, limited to what the platform loads (`clearledger/sources.py`), measuring
+what the whole platform adds. Output has the analyst run's shape, so the same grader scores all three.
 
   python -m analyst.eval.plain warehouse|odoo <questions.jsonl> <out.json> [--model opus] [--limit N]
 """

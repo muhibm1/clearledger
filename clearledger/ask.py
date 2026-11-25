@@ -1,21 +1,9 @@
-"""Ask the warehouse: tools an AI agent uses to answer finance questions with sources.
+"""Ask the warehouse: read-only tools an AI agent uses to answer finance questions with sources.
 
-An assistant that answers "how much does Northwind owe?" from a warehouse
-needs two things a chat box does not give it: a safe way to read the data, and
-a way to prove where each number came from. These tools give both.
-
-- Every tool is read-only. `query` runs inside a read-only transaction with a
-  time limit, over the modeled schemas only (never raw, never Odoo).
-- Every row that comes from an Odoo record carries a source reference, such as
-  `account.move/181@2026-10-27T09:21:59`: the model, the record id, and the
-  exact saved version the number used.
-- `check_citations` takes an answer's references and checks each one against
-  the raw tables: that the record exists, that the version exists, and that it
-  is the newest version. An agent can cite only what it was shown, and a
-  person can check any answer without trusting the agent.
-
-The same functions are served over MCP (`clearledger mcp`) and on the command line
-(`clearledger tool <name> '<json arguments>'`), so any agent framework can use them.
+`query` runs in a read-only transaction with a time limit over the modeled schemas only. Rows from
+an Odoo record carry a source reference like `account.move/181@2026-10-27T09:21:59` (model, id,
+exact saved version), and `check_citations` verifies each against the raw tables.
+Served over MCP (`clearledger mcp`) and the command line (`clearledger tool <name> '<json>'`).
 """
 
 import datetime as dt
@@ -27,15 +15,13 @@ from pathlib import Path
 
 import psycopg
 
-# Receivables are aged as of the dbt project's as_of date; the tools report it.
+# Receivables are aged as of the dbt project's as_of date.
 AS_OF = re.search(r'as_of:\s*"([\d-]+)"', (Path(__file__).resolve().parent.parent / "dbt" / "dbt_project.yml")
                   .read_text()).group(1)
 QUERY_SCHEMAS = ("marts", "intermediate", "staging")
 MAX_ROWS = 200
-# Server functions an agent's query may never call. Some read files or change settings; the
-# setting ones matter most, because `set_config('role', ...)` would undo the read-only role a
-# query runs under. Others run SQL given as text (`query_to_xml('select ...')`, `ts_stat`), which
-# no check on the query itself can see into, so they would read past the schema and privacy rules.
+# Server functions a query may never call: they read files, change settings (`set_config('role', ...)`
+# would undo the read-only role) or run SQL given as text, which no check on the query can see into.
 UNSAFE_FUNCTIONS = re.compile(
     r"(?i)\b(set_config|current_setting|pg_read_\w+|pg_ls_\w+|pg_stat_file|pg_file_\w+|lo_\w+|dblink\w*|"
     r"pg_sleep\w*|pg_terminate_backend|pg_cancel_backend|pg_\w*advisory\w*|pg_notify|pg_reload_conf|"
@@ -134,10 +120,7 @@ READER = "clearledger_reader"
 
 
 def grant_set_role_sql(role: str, server_version_num: int) -> str | None:
-    """The grant that lets the current user `set role` to `role`. Postgres 16 stops a role that
-    created another from switching to it unless `set true` is granted (a plain membership no
-    longer implies it), so a database user with only CREATEDB and CREATEROLE needs this. Older
-    servers already allow it through the membership the creator gets, so nothing is needed."""
+    """The grant that lets the current user `set role` to `role`; Postgres 16 needs `set true` explicitly."""
     if server_version_num < 160000:
         return None
     return f"grant {role} to current_user with set true"
@@ -147,11 +130,8 @@ READER_LOCK_ID = 7342019  # advisory lock key: one writer of the reader role at 
 
 
 def ensure_reader(conn) -> None:
-    """A role that can only SELECT from the modeled schemas. `query` runs as this role, so a
-    query cannot read raw tables, files on the server, or anything outside those schemas,
-    whatever the agent writes. Default privileges keep it working after dbt rebuilds a table."""
-    # Several queries can start at once (the analyst runs questions in parallel): without a lock they
-    # race to create the role and to alter its privileges, and one fails with a unique violation.
+    """A role that can only SELECT from the modeled schemas; `query` runs as it, whatever the agent writes."""
+    # Parallel queries would race to create the role and fail with a unique violation, so take a lock.
     with conn.cursor() as cur:
         cur.execute("select pg_advisory_lock(%s)", (READER_LOCK_ID,))
         try:
@@ -170,9 +150,8 @@ def ensure_reader(conn) -> None:
 
 
 def unsafe_function(sql: str) -> str | None:
-    """The first banned server function the query calls, or None. Comments and identifier quotes
-    are removed first, so `"set_config"(...)` and `set_config/**/(...)` are caught too. A
-    Unicode-escaped name (`U&"..."`) cannot be read this way, so it is refused outright."""
+    """The first banned server function the query calls, or None. Comments and identifier quotes are
+    stripped first; a Unicode-escaped name (`U&"..."`) cannot be read, so it is refused outright."""
     if re.search(r"(?i)\bU&[\"']", sql):
         return "U&"
     text = re.sub(r"/\*.*?\*/|--[^\n]*", " ", sql, flags=re.S).replace('"', "")

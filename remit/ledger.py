@@ -1,12 +1,10 @@
 """Remit's own records, in the warehouse database under the `remit` schema.
 
-- `proposals`: every action Remit proposed, with its evidence, its draft and its
-  status: shadow (never to be applied), pending, approved, agreed (approved in
-  suggest mode, so never written), rejected, applying, applied, skipped or failed.
-- `done`: one row per thing done to an invoice (a stage's reminder, a flag on a
-  version). Its primary key is what makes "never twice" hold across runs, crashes
-  and two people approving at once.
-- `audit`: append-only. Every status change, with who and why.
+- `proposals`: every action proposed, with evidence, draft and status (shadow is never applied; agreed
+  is approved in suggest mode, so never written).
+- `done`: one row per thing done to an invoice; its primary key makes "never twice" hold across runs,
+  crashes and two people approving at once.
+- `audit`: append-only; every status change, with who and why.
 """
 
 from __future__ import annotations

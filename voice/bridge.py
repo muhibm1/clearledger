@@ -1,10 +1,6 @@
 """Runs the voice agent's tool calls against the local warehouse and logs each one.
 
-ElevenAgents sends a client tool call as a name and a dict of parameters (plus its own
-`tool_call_id`). The bridge checks the parameters against the tool's declared arguments,
-runs the tool from `clearledger/ask.py` on a fresh connection, and returns the result as JSON text.
-A bad call comes back as an error message the agent can say, never as a crash that would
-end the conversation.
+A bad call comes back as an error message the agent can say, never a crash that ends the conversation.
 """
 
 import inspect

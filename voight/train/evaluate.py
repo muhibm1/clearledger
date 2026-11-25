@@ -20,6 +20,11 @@ from ..__main__ import RESULTS, summarise
 from . import lm, rollout
 
 
+def _label(a) -> str:
+    """The results-file name for the model and adapter being scored."""
+    return a.name or (a.model.split("/")[-1] + ("+" + Path(a.adapter).name if a.adapter else ""))
+
+
 def main(argv=None) -> int:
     """Parses arguments, runs the split, writes the results file."""
     ap = argparse.ArgumentParser()
@@ -56,7 +61,7 @@ def main(argv=None) -> int:
     scored = [r for r in runs if r.get("score") is not None]
     for r in scored:
         r.pop("tokens", None)
-    name = a.name or (a.model.split("/")[-1] + ("+" + Path(a.adapter).name if a.adapter else ""))
+    name = _label(a)
     out = {"model": a.model, "adapter": a.adapter, "split": a.split, "summary": summarise(scored),
            "errors": errors, "batcher": batcher.stats, "wall_seconds": round(time.time() - started, 1),
            "runs": scored}
@@ -84,7 +89,7 @@ def _range(a, batcher) -> int:
         r.pop("tokens", None)
     scored = [r for r in runs if r.get("score") is not None]
     by_id = {t["id"]: t for t in items}
-    name = a.name or (a.model.split("/")[-1] + ("+" + Path(a.adapter).name if a.adapter else ""))
+    name = _label(a)
     out = {"model": a.model, "adapter": a.adapter, "split": a.split, "warning": not a.no_warning,
            "summary": summarise_range(scored, by_id), "errors": [r for r in runs if r.get("score") is None],
            "wall_seconds": round(time.time() - started, 1), "runs": scored}

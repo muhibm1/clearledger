@@ -1,16 +1,10 @@
 """Fresh, isolated copies of the company's Odoo database, one per episode.
 
-The demo company in the `acme` database is frozen once as a Postgres template
-(`vtgolden`). Each episode is `CREATE DATABASE vte_<n> TEMPLATE vtgolden`, which
-copies the files rather than replaying a year of business, so a reset takes about
-a second. A second Odoo server, on its own port, serves only `vte_*` databases,
-so episodes never touch `acme` or each other, and many can run at once.
-
-Episodes reuse a fixed set of database names ("slots"). Odoo loads its model
-registry once per database name, which takes about 6 seconds; dropping and
-re-creating a slot under the same name keeps that registry warm, so a reset
-costs about 1 second. Odoo's cache-signalling sequences come back with the
-template, so the server notices the reset and clears its caches.
+The demo company in `acme` is frozen once as a Postgres template (`vtgolden`); each episode is
+`CREATE DATABASE vte_<n> TEMPLATE vtgolden`, about a second. A second Odoo server on its own port serves
+only `vte_*` databases, so episodes never touch `acme` or each other. Slots reuse fixed database names
+because Odoo takes about 6 seconds to load a registry for a new name; the template's cache-signalling
+sequences make the server clear its caches on reset.
 """
 
 from __future__ import annotations
@@ -19,7 +13,6 @@ import os
 import shutil
 import subprocess
 import time
-from contextlib import contextmanager
 from pathlib import Path
 
 import psycopg
@@ -121,12 +114,3 @@ class Copy:
         if link.is_symlink():
             link.unlink()
 
-
-@contextmanager
-def fresh_copy(slot: int = 0):
-    """A fresh copy for the length of a `with` block."""
-    copy = Copy(slot)
-    try:
-        yield copy
-    finally:
-        copy.drop()

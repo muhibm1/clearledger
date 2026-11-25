@@ -4,10 +4,8 @@
   python -m analyst.eval.run --set hard-test --condition one-shot
   python -m analyst.eval.run compare analyst/eval/runs/a.json analyst/eval/runs/b.json
 
-Each run file keeps, per question: the answer, its grade, every query tried with
-its error, the context retrieved, the citations and the time taken. That file is
-the trace: a reviewer can see why any question passed or failed without
-rerunning anything. Model tokens per call go to a `.usage.jsonl` beside it.
+Each run file is the trace: per question the answer, grade, every query tried, the context retrieved,
+the citations and the time taken. Model tokens per call go to a `.usage.jsonl` beside it.
 """
 
 import argparse
@@ -16,6 +14,7 @@ import concurrent.futures as cf
 import datetime as dt
 import json
 import math
+import os
 import time
 from pathlib import Path
 
@@ -36,8 +35,7 @@ SETS = {
     "explore-dev": ("ads", HERE / "data" / "explore-dev.jsonl"),
     "explore-test": ("ads", HERE / "data" / "explore-test.jsonl"),
 }
-# full is the agent as first scored (no lookups, no redraft); full-v2 adds lookups and the
-# redraft after a declined reading. Saved runs keep the condition they were scored under.
+# full is the agent as first scored (no lookups, no redraft); full-v2 adds both.
 CONDITIONS = ("one-shot", "one-shot-read", "no-context", "full", "full-v2")
 FULL = ("full", "full-v2")
 
@@ -103,7 +101,6 @@ def run_one(dom, model, condition, retriever, row) -> dict:
                                 "error": out.get("explanation") if out["status"] == "failed" else None}]
         else:
             v2 = condition == "full-v2"
-            import os
             reviewer = os.environ.get("ANALYST_REVIEW_MODEL") or getattr(dom, "review_model", None)
             app = build(dom, model, context=condition in FULL, retriever=retriever,
                         review_model=CommandLineModel(reviewer, usage_log=getattr(model, "usage_log", None))
@@ -161,7 +158,6 @@ def run(set_name: str, condition: str, model_name: str, out_dir: Path, limit: in
         records = list(pool.map(lambda r: run_one(dom, model, condition, retriever, r), rows))
     report = {"set": set_name, "condition": condition, "model": model_name, "route": route, "domain": dom_name,
               "started": stamp, "summary": summarise(rows, records), "records": records}
-    out_dir.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(report, indent=1, default=str) + "\n")
     return path
 
@@ -179,22 +175,6 @@ def compare(a_path: str, b_path: str) -> dict:
     return {"questions": len(both), "a_correct": sum(a[i]["correct"] for i in both),
             "b_correct": sum(b[i]["correct"] for i in both), "b_gained": gained, "b_lost": lost,
             "sign_test_p": round(p, 4)}
-
-
-def resummarise(path: Path) -> dict:
-    """Recompute a saved run's summary with the current grading code (no model calls)."""
-    report = json.loads(path.read_text())
-    _, rows = load(report["set"])
-    by_id = {r["id"]: r for r in rows}
-    rows = [by_id[r["id"]] for r in report["records"]]
-    for row, rec in zip(rows, report["records"]):
-        if report["condition"] == "one-shot" and rec["status"] != "failed":
-            for a in rec["attempts"]:
-                a["error"] = None
-        rec["correct"] = correct(row, rec)
-    report["summary"] = summarise(rows, report["records"])
-    path.write_text(json.dumps(report, indent=1, default=str) + "\n")
-    return report["summary"]
 
 
 def main():

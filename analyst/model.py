@@ -1,15 +1,8 @@
-"""The language model behind the agent. The graph needs only `model(system, prompt, schema) -> dict`.
+"""The language model behind the agent: the graph needs only `model(system, prompt, schema) -> dict`.
 
-Two routes satisfy that:
-
-- `ChatModel` wraps any LangChain chat model (`ChatAnthropic` by default) and asks for the
-  reply through `with_structured_output`, so each step is an ordinary LangChain call that
-  LangSmith traces under the graph's run.
-- `CommandLineModel` makes one headless call to the model's command-line tool per step, with
-  tools off and a JSON schema for the reply. API key variables are removed from the child process, so every call uses
-  the command line's own sign-in. The scored runs in `eval/RESULTS.md` used this route.
-
-`FakeModel` replays scripted replies, so the graph is tested without a model.
+`ChatModel` wraps a LangChain chat model (traced by LangSmith). `CommandLineModel` makes one headless call
+to the model's command-line tool per step, with API key variables removed so it uses the tool's own
+sign-in; the scored runs in `eval/RESULTS.md` used this route. `FakeModel` replays scripted replies.
 """
 
 import json

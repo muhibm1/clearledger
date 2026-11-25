@@ -1,10 +1,8 @@
 """How often a model's reminder passes Remit's checks first time, and what it gets wrong.
 
-Builds a fixed set of reminder actions (every stage, one and several invoices,
-euros, a customer name with punctuation, large and odd amounts), asks the model
-to draft each one, and runs `check_draft` on the reply. Nothing is sent and
-nothing reaches Odoo. A draft that fails is what Remit would have replaced with
-its template, so the pass rate is how often the model's wording is used at all.
+Drafts a fixed set of reminder actions (every stage, several invoices, euros, odd names and amounts)
+and runs `check_draft` on each reply; nothing is sent or written to Odoo. A failed draft is one Remit
+would have replaced with its template, so the pass rate is how often the model's wording is used.
 
     python -m remit.drafts_eval --model haiku
 """

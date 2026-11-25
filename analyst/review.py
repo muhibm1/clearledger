@@ -1,18 +1,9 @@
 """The review step: before an answer goes out, check the books behind it for anything that makes the
-figure misleading, and say so in the answer.
+figure misleading, and say so in the answer. The figure itself is never changed here.
 
-A figure can be exactly what the books say and still mislead: an invoice due before it was issued,
-a pound rate keyed ten times too high, a test account counted as a customer, a payment left in draft.
-The warehouse lists such records in an issues table (`marts.data_issues` in the finance domain, built
-by general detectors, not known cases). Code picks the issues that touch what the answer is about,
-plus the raw records of a named customer, invoice or deal; the model then writes the caveats a
-careful analyst would state, or none. The figure itself is never changed here.
-
-Picking is by code so nothing is left to the model's memory:
-- every customer, invoice, deal, order and payment named in the result rows or in the query's filters;
-- issues whose text names one of those;
-- for a company-wide figure (no single entity), every issue whose `affects` matches the measure the
-  query reads, summarized by kind when there are many.
+Code picks what the model sees, so nothing depends on its memory: the issues (from the warehouse's issues
+table) that name a record the answer is built on, and for a company-wide figure every issue on the measure
+the query reads. The model then writes the caveats a careful analyst would state, or none.
 """
 
 import json
@@ -186,9 +177,8 @@ def _q(conn, sql: str, params: dict) -> list[tuple]:
 
 
 def answer_records(conn, question: str, sql: str, rows: list[dict], wide: bool) -> dict:
-    """The records behind an answer's figure, as ids by kind: the records its rows name (all rows), the
-    records its filters and question name, and one hop out (a deal's orders and invoices, an invoice's
-    order and payments, a payment's invoices). `refs` holds their references, lower-cased."""
+    """The records behind an answer's figure, as ids by kind: those its rows, filters and question name,
+    plus one hop out. `refs` holds their references, lower-cased."""
     ids = {k: set() for k in KINDS}
     refs: set[str] = set()
     if not wide:
@@ -223,8 +213,7 @@ def answer_records(conn, question: str, sql: str, rows: list[dict], wide: bool) 
 
 
 def _id_overlap(issue: dict, behind: dict) -> str:
-    """How an issue joins the answer's records: 'record' by a shared invoice, payment, order or deal,
-    'customer' by a customer the answer is about, or '' when it does not."""
+    """How an issue joins the answer's records: 'record', 'customer', or '' when it does not."""
     ids = behind["ids"]
     for kind in ("invoice", "payment", "order", "deal"):
         if set(issue.get(FINDING_ID_COLUMNS[kind]) or []) & ids[kind]:
@@ -250,10 +239,9 @@ def _line(i: dict) -> str:
 def gather(conn, issues_table: str, question: str, sql: str, rows: list[dict]) -> dict:
     """The issues and records that bear on one answer, as text for the model.
 
-    Onboarding findings join the answer by the record ids behind its figure (`answer_records`); detector
-    rows join by those records' references, by customer, or by a name the question or query filters on.
-    For a company-wide figure, verified findings on the measure come first, largest amount first, ahead
-    of detector rows."""
+    Onboarding findings join by the record ids behind the figure; detector rows by those records'
+    references, by customer, or by a name the question or query filters on. For a company-wide figure,
+    verified findings on the measure come first, largest first."""
     # A question declined before any query ran has no figure to qualify: only what it names is checked.
     wide = bool(sql) and _company_wide(sql, rows)
     names = _entities(conn, question, sql, rows, wide)
@@ -418,9 +406,7 @@ def merge(explanation: str, caveats: list[str], room: int = CAVEAT_ROOM) -> str:
     return first + " Caveat: " + " ".join(kept)
 
 
-# The investigating review: the reviewer may check the books itself before it writes the caveats. A
-# new client's books always hold kinds of mess no detector was written for, so the reviewer looks at
-# the records behind the answer the way a careful analyst would, with a few read-only queries.
+# The investigating review: the reviewer may run a few read-only queries before it writes the caveats.
 MAX_CHECKS = 4
 CHECK_ROWS_SHOWN = 40
 

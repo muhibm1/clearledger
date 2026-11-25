@@ -1,22 +1,10 @@
 """Run a small company's year through a real Odoo, so the data has real shape.
 
-Everything goes through Odoo's own API and business logic: deals are won or
-lost in the CRM, won deals become confirmed sales orders, orders are invoiced
-through Odoo's invoicing wizard, and payments are registered against invoices,
-some in part. Business dates (order, invoice, due and payment dates) are spread
-over January to October 2026.
-
-Phase "year" builds the clean history. Phase "mess" then does what real
-operations do after the data team has already loaded it once:
-
-1. a sales rep creates a customer that already exists, under a new spelling;
-2. accounting reopens a posted invoice, changes it, and posts it again;
-3. some customers are billed directly in euros, outside the sales flow;
-4. a deal is marked won in the CRM but no order is ever created;
-5. a draft invoice is deleted outright.
-
-Each one is caught by a named dbt test (see docs/checks.md). The simulation
-is seeded, so the same command builds the same company.
+Phase "year" builds the clean history through Odoo's own API (CRM deals, confirmed orders,
+invoicing wizard, part and late payments), seeded so the same command builds the same company.
+Phase "mess" then does what operations do after a first load: a duplicate customer spelling,
+a posted invoice reopened and edited, euro invoices, a won deal with no order, and a draft
+invoice deleted. Each is caught by a named dbt test (docs/checks.md).
 """
 
 import argparse
@@ -55,7 +43,7 @@ def _d(day: dt.date) -> str:
 
 
 class Company:
-    """Wraps the Odoo calls the simulation needs, with readable names."""
+    """The Odoo calls the simulation needs."""
 
     def __init__(self, odoo: Odoo, rng: random.Random):
         self.o, self.rng = odoo, rng
@@ -86,14 +74,13 @@ class Company:
             "name": name, "is_company": True, "email": email, "customer_rank": 1})
 
     def lines(self, target: float):
-        """Order lines that add up to roughly the deal's expected revenue."""
+        """Order lines adding up to roughly the deal's expected revenue."""
         picks = self.rng.sample(range(len(PRODUCTS)), self.rng.randint(1, 3))
         share = target * self.rng.uniform(0.85, 1.2) / len(picks)
         lines = []
         for i in picks:
             qty = max(1, round(share / PRODUCTS[i][1]))
-            # A negotiated price near list, so the order lands near the deal value.
-            # US services, so no sales tax line.
+            # Price negotiated so the order lands near the deal value; US services, no tax line.
             lines.append((0, 0, {"product_id": self.products[i], "product_uom_qty": qty,
                                  "price_unit": round(share / qty, -1), "tax_id": [(6, 0, [])]}))
         return lines
@@ -114,7 +101,7 @@ class Company:
         return so
 
     def close(self, deal, won: bool, day: dt.date):
-        """Wins or loses a deal, dated on the business day it closed."""
+        """Wins or loses a deal, dated on its close day."""
         self.o.execute("crm.lead", "action_set_won" if won else "action_set_lost", [deal])
         self.o.execute("crm.lead", "write", [deal], {"date_closed": f"{_d(day)} 16:00:00"})
 
@@ -194,7 +181,7 @@ def year(c: Company) -> dict:
 
 
 def mess(c: Company) -> dict:
-    """The five things operations do to data after it has been loaded once."""
+    """The five things operations do to data after its first load."""
     o = c.o
     done = {}
     # 1. The same customer, created again by a different rep.
@@ -237,7 +224,7 @@ def mess(c: Company) -> dict:
 
 
 def tick(c: Company, day: dt.date = AS_OF) -> dict:
-    """A day of new business after the demo: used by the schedule and failure drills."""
+    """A day of new business, for the schedule and failure drills."""
     rng, o = c.rng, c.o
     customers = [c.customer(n) for n in CUSTOMERS]
     log = {"deals": 0, "invoices": 0, "payments": 0}

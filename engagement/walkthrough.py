@@ -38,8 +38,8 @@ def step(n, name, mode, reason, ok=True, **result):
     return {"step": n, "name": name, "mode": mode, "reason": reason, "ok": ok, "result": result}
 
 
-# Connects to the warehouse within 3 s; returns (connection, None) or (None, why not).
 def connect():
+    """(connection, None), or (None, why not) if the warehouse does not answer within 3 s."""
     try:
         import psycopg
     except ImportError:
@@ -50,7 +50,6 @@ def connect():
         return None, f"the warehouse at CLEARLEDGER_DSN did not connect within 3 s ({type(exc).__name__})"
 
 
-# Step 1: trace a receivable with a balance more than 90 days late.
 def trace_step(conn, why_not):
     if conn is None:
         text = TRACE_RECORDING.read_text()
@@ -76,7 +75,6 @@ def trace_step(conn, why_not):
                 ok=ok, customer=row[0], late_over_90=float(row[1]), text=text), row[0]
 
 
-# Step 2: the analyst, in its own environment, as a subprocess.
 def analyst_step(has_warehouse, why_not, via):
     name = "Analyst answers with citations"
     python = Path(os.environ.get("CLEARLEDGER_ANALYST_PYTHON", ROOT / ".venv-analyst/bin/python"))
@@ -109,7 +107,6 @@ def analyst_step(has_warehouse, why_not, via):
                                                         if k not in ("mode", "ok", "model")})
 
 
-# Step 3: the change guard, no database.
 def guard_step():
     name = "Change guard on dropping late_over_90"
     ok, what = changelens_guard()
@@ -118,7 +115,6 @@ def guard_step():
     return step(3, name, "LIVE", "ChangeLens preflight on the dbt project, no database", ok=ok, summary=what)
 
 
-# Step 4: Agent Harbor, the daily cost cap.
 def harbor_step(question):
     name = "Agent Harbor stops further runs once the daily cap is spent"
     url = os.environ.get("AGENT_HARBOR_URL", "").rstrip("/")
@@ -182,7 +178,6 @@ def show(s, say):
         say("  FAILED")
 
 
-# Runs the four steps, prints them, returns the result.
 def run(via="stub", say=print) -> dict:
     say(BANNER)
     say("\nOne question, end to end: who owes us money that is more than 90 days late, and can we show why.")

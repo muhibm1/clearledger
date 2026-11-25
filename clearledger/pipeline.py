@@ -1,16 +1,8 @@
 """One scheduled run: load, build, check, record. Safe to start twice.
 
-`clearledger run` takes a Postgres advisory lock first, so a second run started while
-one is going (a cron overlap, a person running it by hand) exits at once and
-says so, instead of loading the same records twice in parallel. Then:
-
-1. extract from Odoo (the client retries a dropped connection with backoff);
-2. dbt build: models and every check;
-3. monitors: last run, freshness, volume, schema, and totals against Odoo itself.
-
-Each run is recorded in raw.pipeline_runs with what each step returned. The
-exit code is 0 when everything passed, 1 when a step failed or a monitor
-failed, and 3 when another run held the lock.
+`clearledger run` takes a Postgres advisory lock first, so an overlapping run exits at once.
+Then it extracts from Odoo, runs `dbt build`, and runs the monitors, recording each step in
+raw.pipeline_runs. Exit code: 0 all passed, 1 a step or monitor failed, 3 another run held the lock.
 """
 
 import datetime as dt

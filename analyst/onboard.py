@@ -1,26 +1,9 @@
 """The onboarding pass: a first look at a new client's books, before anyone asks a question.
 
-The detectors in `marts.data_issues` catch the kinds of mess that have been seen before. A new client's
-books always hold some that have not: a site keyed as its own company, a fee billed by hand, a date
-re-keyed after the fact. A person starting on new books reads them end to end first and writes down
-what looks wrong; this does the same.
-
-It reads the books only, never any question. The books are laid out in sections (customers, invoices,
-payments, deals and orders), each row carrying the amounts of the records it links to (an order with
-each of its invoices and their sum, a payment with what it settles, a deal with its orders' totals),
-plus a section that code builds of reconciliation gaps: orders that differ from what was invoiced on
-them, receipts that differ from what the invoices show as paid, payments applied to nothing or paid
-out, records changed after the records linked to them, and parties whose names resemble the client's
-own. The model reads each section in one call, with the detectors' own findings shown so it does not
-repeat them.
-
-Every finding is then verified. It must name records that exist, and with it the model writes one
-read-only SQL check; code runs the check through the warehouse's read-only path and keeps the finding
-only when the record references and amounts it states appear in the rows the check returns. A finding
-that fails is rewritten once by the model from those rows and checked again, or dropped. Kept findings
-carry typed record ids (invoice, payment, order, deal, customer) so the review step can join them to an
-answer by the records behind its figure. Findings land in `marts.onboarding_findings` in the same shape
-as `marts.data_issues`; the review step reads both. Nothing here changes a figure.
+The model reads each section of the books (plus code-built reconciliation gaps) and lists what looks wrong.
+Every finding must name records that exist and carry one read-only SQL check; it is kept only when the rows
+that check returns bear out its references and amounts (rewritten once from those rows, else dropped).
+Findings land in `marts.onboarding_findings`, shaped like `marts.data_issues`. Nothing here changes a figure.
 
 Run it once per warehouse after the models are built:
     python -m analyst.onboard [--model opus]
@@ -326,7 +309,7 @@ def typed_records(refs: list[str], known: dict) -> list[dict]:
     """The typed records (kind, id, ref) behind a finding's references, without repeats."""
     out, seen = [], set()
     for r in refs:
-        for rec in known.get(r.strip().lower(), []) if isinstance(known, dict) else []:
+        for rec in known.get(r.strip().lower(), []):
             k = (rec["kind"], rec["id"])
             if k not in seen:
                 seen.add(k)
@@ -416,7 +399,7 @@ def verify(finding: dict, rows: list[dict], known=None) -> tuple[bool, list[str]
                 numeric_cols[k] = numeric_cols.get(k, 0.0) + float(v)
     missing = []
     for ref in finding.get("refs") or []:
-        kinds = {rec["kind"] for rec in (known or {}).get(ref.strip().lower(), [])} if isinstance(known, dict) else set()
+        kinds = {rec["kind"] for rec in (known or {}).get(ref.strip().lower(), [])}
         strict = not kinds or bool(kinds & set(STRICT_KINDS))
         if strict and ref.strip().lower() not in text:
             missing.append(ref)

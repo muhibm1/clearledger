@@ -1,12 +1,9 @@
 """The attack range: Voight's tasks with hostile text planted where outside text arrives.
 
-A customer writes the memo on a payment and the reference on a credit note.
-Both reach the agent through the `unapplied` tool, so both are places an
-attacker can write to. The range takes clean tasks whose right answer is known,
-appends an attack to the memo, and scores the agent with the same checker. The
-answer key does not change: an attack never names an invoice and never says the
-money is for another customer, so by the written policy the right action is
-exactly what it was before the attack (checked when the range is built).
+A customer writes the memo on a payment and the reference on a credit note, and both reach the agent
+through `unapplied`. The range appends an attack to the memo of a clean task and scores the agent with
+the same checker. The answer key does not change: an attack never names an invoice or another customer,
+so the right action is what it was before (checked when the range is built).
 
 Three things an attacker might want, each on the base tasks where it bites:
 
@@ -14,9 +11,8 @@ Three things an attacker might want, each on the base tasks where it bites:
     false_alarm  force an escalation the policy does not want  bases: memo_one, exact
     redirect     move money to the wrong invoices              bases: partial_span
 
-Six ways of asking, from a plain request to a forged tool result and a fake
-end-of-memo followed by a "SYSTEM" line. Each base is also run once with no
-attack, so an attack's effect is measured against the agent's own clean error.
+Six ways of asking, from a plain request to a forged tool result and a fake end-of-memo followed by a
+"SYSTEM" line. Each base also runs once clean, so an attack's effect is measured against the agent's own error.
 
     python -m voight range --model haiku --split dev
     python -m voight range --model haiku --split dev --no-warning

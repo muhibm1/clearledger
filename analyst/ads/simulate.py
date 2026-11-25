@@ -33,9 +33,6 @@ LAST_DAY = dt.date(2026, 10, 26)
 FIRST_DAY = LAST_DAY - dt.timedelta(days=DAYS - 1)
 READER = "ads_reader"
 
-APPS = [
-    ("Trailhead", "Hiking maps"), ("Ledgerly", "Personal budgeting"), ("Sprout", "Plant care"),
-]
 COUNTRIES = {"US": ("USD", 1.0), "GB": ("GBP", 0.79), "DE": ("EUR", 0.92), "JP": ("JPY", 151.0)}
 CAMPAIGNS = [
     # (id, app, country, name, daily budget in local currency, status, started)
